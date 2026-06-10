@@ -38,6 +38,16 @@ def valid_paper_id(value: str) -> bool:
     return bool(match and int(match.group(1)) > 0)
 
 
+def valid_impact_score(value: str) -> bool:
+    if value == "TBD":
+        return True
+    try:
+        score = float(value)
+    except ValueError:
+        return False
+    return 0 <= score <= 10
+
+
 def paper_id_from_filename(path: Path) -> str | None:
     value = paper_id_from_path(path)
     return value if valid_paper_id(value) else None
@@ -198,6 +208,9 @@ def check_file(path: Path) -> dict:
         warnings.append(f"Invalid status: {status}")
     if not metadata.get("title"):
         warnings.append("Missing title frontmatter")
+    impact_score = metadata.get("impact_score")
+    if impact_score and not valid_impact_score(impact_score):
+        warnings.append(f"Invalid impact_score: {impact_score}; expected TBD or a number from 0 to 10")
     schema = metadata.get("closed_loop_schema")
     if not schema:
         warnings.append(f"Missing closed_loop_schema frontmatter")

@@ -2524,6 +2524,39 @@ def main() -> int:
             [sys.executable, script("combine_papers.py"), str(status_root), "--last", "1"],
             "Cannot combine invalid papers",
         )
+        invalid_impact_metadata_root = project / "invalid-impact-metadata-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(invalid_impact_metadata_root),
+                "--project-name",
+                "Loop Paper Invalid Impact Metadata Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        invalid_impact_metadata = create_edge_paper(
+            invalid_impact_metadata_root,
+            "Invalid Impact Metadata Edge",
+        )
+        invalid_impact_metadata.write_text(
+            invalid_impact_metadata.read_text(encoding="utf-8").replace(
+                "impact_score: TBD",
+                "impact_score: A | B",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        for command in [
+            [sys.executable, script("check_paper.py"), str(invalid_impact_metadata)],
+            [sys.executable, script("check_paper.py"), str(invalid_impact_metadata_root)],
+            [sys.executable, script("pipeline.py"), str(invalid_impact_metadata_root), "--strict"],
+            [sys.executable, script("render_dashboard.py"), str(invalid_impact_metadata_root)],
+            [sys.executable, script("export_report.py"), str(invalid_impact_metadata_root)],
+        ]:
+            run_fail(command, "Invalid impact_score: A | B; expected TBD or a number from 0 to 10")
         lowercase_not_run_root = project / "lowercase-not-run-stack"
         run_ok(
             [
