@@ -3451,6 +3451,10 @@ def main() -> int:
             "--last must be greater than zero",
         )
         run_fail(
+            [sys.executable, script("combine_papers.py"), str(root), "--last", "999"],
+            "--last requested 999 papers",
+        )
+        run_fail(
             [
                 sys.executable,
                 script("combine_papers.py"),

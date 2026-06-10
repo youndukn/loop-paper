@@ -188,6 +188,10 @@ def select_papers(args: argparse.Namespace, papers: list[dict]) -> list[dict]:
     elif args.last is not None:
         if args.last < 1:
             raise SystemExit("--last must be greater than zero.")
+        if args.last > len(papers):
+            raise SystemExit(
+                f"--last requested {args.last} papers, but stack only has {len(papers)}."
+            )
         selected = papers[-args.last :]
     else:
         if not args.from_id or not args.to_id:
