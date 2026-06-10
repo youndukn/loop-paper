@@ -162,6 +162,14 @@ def impact_score_errors(section_text: str) -> list[str]:
     score_match = IMPACT_SCORE_RE.search(section_text)
     if not score_match or not score_match.group(1).strip():
         errors.append("impact score missing Impact score value")
+    elif score_match.group(1).strip() != "TBD":
+        try:
+            score = float(score_match.group(1).strip())
+        except ValueError:
+            errors.append("impact score value must be TBD or a number from 0 to 10")
+        else:
+            if not 0 <= score <= 10:
+                errors.append("impact score value must be TBD or a number from 0 to 10")
 
     basis_values = {
         match.group(1): match.group(2).strip()

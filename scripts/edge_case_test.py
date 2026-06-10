@@ -426,6 +426,37 @@ def make_after_ready_with_empty_impact_basis(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def make_after_ready_with_invalid_impact_score(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = normalize_agent_review_fields(text)
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+            "AI validation evidence recorded",
+            "Agent reviewed paper structure",
+            "Agent confirmed evidence backs the recorded verdict",
+            "Impact score is based on evidence, not agent guesswork",
+        ],
+    )
+    text = text.replace(
+        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
+        "- Supported: edge-case verdict recorded.",
+    )
+    text = text.replace("Impact score: TBD", "Impact score: significant", 1)
+    path.write_text(text, encoding="utf-8")
+
+
 def make_after_ready_with_empty_run_records(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
@@ -1985,6 +2016,24 @@ def main() -> int:
         run_fail(
             [sys.executable, script("transition_paper.py"), str(empty_impact_basis_gate), "AI Validated"],
             "impact score basis missing Measured outcome",
+        )
+        invalid_impact_score_gate = create_edge_paper(root, "Invalid Impact Score Edge")
+        make_after_ready_with_invalid_impact_score(invalid_impact_score_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(invalid_impact_score_gate),
+                "--phase",
+                "after",
+            ],
+            "impact score value must be TBD or a number from 0 to 10",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(invalid_impact_score_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(invalid_impact_score_gate), "AI Validated"],
+            "impact score value must be TBD or a number from 0 to 10",
         )
         empty_run_records_gate = create_edge_paper(root, "Empty Run Records Edge")
         make_after_ready_with_empty_run_records(empty_run_records_gate)
