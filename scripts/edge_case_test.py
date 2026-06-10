@@ -2323,38 +2323,38 @@ def main() -> int:
             [sys.executable, script("render_dashboard.py"), str(malformed_relationship_root)],
         ]:
             run_fail(command, "Invalid relationship target: References -> PAPER-0002bad")
-        dashboard_relation_root = project / "dashboard-relation-stack"
+        duplicate_relationship_line_root = project / "duplicate-relationship-line-stack"
         run_ok(
             [
                 sys.executable,
                 script("init_loop_paper.py"),
                 "--root",
-                str(dashboard_relation_root),
+                str(duplicate_relationship_line_root),
                 "--project-name",
-                "Loop Paper Dashboard Relation Edge",
+                "Loop Paper Duplicate Relationship Line Edge",
                 "--date",
                 "2026-06-10",
             ]
         )
-        dashboard_source = create_edge_paper(dashboard_relation_root, "Dashboard Relation Source")
-        create_edge_paper(dashboard_relation_root, "Dashboard Relation Target")
-        dashboard_source.write_text(
-            dashboard_source.read_text(encoding="utf-8").replace(
+        duplicate_relationship_line = create_edge_paper(
+            duplicate_relationship_line_root,
+            "Duplicate Relationship Line Source",
+        )
+        create_edge_paper(duplicate_relationship_line_root, "Duplicate Relationship Line Target")
+        duplicate_relationship_line.write_text(
+            duplicate_relationship_line.read_text(encoding="utf-8").replace(
                 "References: None",
                 "References: None\nReferences: PAPER-0002",
                 1,
             ),
             encoding="utf-8",
         )
-        run_ok([sys.executable, script("render_dashboard.py"), str(dashboard_relation_root)])
-        dashboard_data = json.loads(
-            (dashboard_relation_root / "dashboard" / "data.json").read_text(encoding="utf-8")
-        )
-        source_summary = next(
-            item for item in dashboard_data["papers"] if item["paper_id"] == "PAPER-0001"
-        )
-        if "PAPER-0002" not in source_summary["relations"]["references"]:
-            raise SystemExit("Dashboard relation summary missed repeated References lines")
+        for command in [
+            [sys.executable, script("check_paper.py"), str(duplicate_relationship_line_root)],
+            [sys.executable, script("render_dashboard.py"), str(duplicate_relationship_line_root)],
+            [sys.executable, script("index_references.py"), str(duplicate_relationship_line_root)],
+        ]:
+            run_fail(command, "Duplicate relationship line: References")
         self_relation_root = project / "self-relation-stack"
         run_ok(
             [

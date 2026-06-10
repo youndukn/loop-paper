@@ -134,6 +134,8 @@ def relationship_line_warnings(text: str) -> list[str]:
         if not matches:
             warnings.append(f"Missing relationship line: {label}")
             continue
+        if len(matches) > 1:
+            warnings.append(f"Duplicate relationship line: {label}")
         for match in matches:
             value = match.group(1).strip()
             if not value:
