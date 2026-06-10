@@ -727,15 +727,30 @@ def main() -> int:
             ],
             "duplicate impact score paper_id: PAPER-0001",
         )
+        impact_scores.write_text(json.dumps({"papers": [{"paper_id": "PAPER-0001"}]}), encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            "impact scores missing current paper_id",
+        )
+        current_score_items = []
+        for path in sorted((root / "papers").glob("PAPER-*.md")):
+            paper_id = "-".join(path.name.split("-", 2)[:2])
+            current_score_items.append(
+                {
+                    "paper_id": paper_id,
+                    "deterministic_partial_score": "A | B" if paper_id == "PAPER-0001" else "TBD",
+                }
+            )
         impact_scores.write_text(
             json.dumps(
                 {
-                    "papers": [
-                        {
-                            "paper_id": "PAPER-0001",
-                            "deterministic_partial_score": "A | B",
-                        }
-                    ]
+                    "papers": current_score_items
                 }
             ),
             encoding="utf-8",

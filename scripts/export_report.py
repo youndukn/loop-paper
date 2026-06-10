@@ -48,6 +48,9 @@ def load_impact_scores(path: Path, known_ids: set[str]) -> dict[str, dict]:
         if paper_id in impact_by_id:
             raise SystemExit(f"duplicate impact score paper_id: {paper_id}")
         impact_by_id[paper_id] = item
+    missing = sorted(known_ids - set(impact_by_id))
+    if missing:
+        raise SystemExit("impact scores missing current paper_id: " + ", ".join(missing))
     return impact_by_id
 
 
