@@ -365,15 +365,32 @@ def main() -> int:
             [sys.executable, script("watch_pipeline.py"), str(root), "--once"],
             "validation evidence checkbox is not checked",
         )
-        invalid_status_gate = create_edge_paper(root, "Invalid Status Edge")
+        status_root = project / "status-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(status_root),
+                "--project-name",
+                "Loop Paper Status Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        invalid_status_gate = create_edge_paper(status_root, "Invalid Status Edge")
         set_status(invalid_status_gate, "Totally Done")
         run_fail(
             [sys.executable, script("check_paper.py"), str(invalid_status_gate)],
             "Invalid status: Totally Done",
         )
         run_fail(
-            [sys.executable, script("pipeline.py"), str(root), "--strict"],
+            [sys.executable, script("pipeline.py"), str(status_root), "--strict"],
             "Invalid status: Totally Done",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(status_root), "--last", "1"],
+            "Cannot combine invalid papers",
         )
         identity_root = project / "identity-stack"
         run_ok(
@@ -397,6 +414,10 @@ def main() -> int:
         run_fail(
             [sys.executable, script("pipeline.py"), str(identity_root), "--strict"],
             "paper_id PAPER-9999 does not match filename PAPER-0001",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(identity_root), "--last", "1"],
+            "Cannot combine invalid papers",
         )
         run_fail(
             [

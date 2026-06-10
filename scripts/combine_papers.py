@@ -9,6 +9,7 @@ import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from check_paper import check_file
 from paperstack_common import RELATION_LABELS, extract_relations, load_paper, paper_paths, relation_key
 
 
@@ -137,6 +138,19 @@ def relation_summary(paper: dict) -> str:
 
 def load_all(root: Path) -> list[dict]:
     return sorted((load_paper(path) for path in paper_paths(root)), key=paper_sort_key)
+
+
+def validate_stack(root: Path) -> None:
+    failures = []
+    for path in paper_paths(root):
+        result = check_file(path)
+        if not result["ok"]:
+            details = []
+            for key in ("missing_sections", "empty_sections", "warnings"):
+                details.extend(result[key])
+            failures.append(f"{result['paper_id']} {path}: {'; '.join(details)}")
+    if failures:
+        raise SystemExit("Cannot combine invalid papers:\n" + "\n".join(failures))
 
 
 def selection_mode_count(args: argparse.Namespace) -> int:
@@ -405,6 +419,7 @@ def main() -> int:
         raise SystemExit("--max-references must be greater than zero.")
 
     root = Path(args.root)
+    validate_stack(root)
     all_papers = load_all(root)
     if not all_papers:
         raise SystemExit(f"No papers found under {root / 'papers'}")
