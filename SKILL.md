@@ -140,6 +140,9 @@ closed-loop paper.
      --reference "docs/current_findings.md"
    ```
 
+   When `--reference` includes existing `PAPER-NNNN` IDs, the creator writes
+   those IDs into the deterministic `References:` relationship line. Unknown
+   paper IDs are rejected before the paper is written.
 
 2. Fill all `BEFORE_REQUIRED` slots, then check the before phase:
 

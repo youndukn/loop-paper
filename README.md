@@ -64,6 +64,9 @@ python3 ~/.codex/skills/loop-paper/scripts/new_closed_loop_paper.py \
   --reference "docs/current_findings.md"
 ```
 
+If `--reference` contains existing `PAPER-NNNN` IDs, the creator mirrors them
+into the deterministic `References:` relationship line and rejects unknown IDs.
+
 Check the before phase:
 
 ```bash

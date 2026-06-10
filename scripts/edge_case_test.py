@@ -1369,6 +1369,51 @@ def main() -> int:
         )
         if "paper_kind: closed_loop" not in created.read_text(encoding="utf-8"):
             raise SystemExit("Closed-loop paper did not declare paper_kind: closed_loop")
+        linked = Path(
+            run_ok(
+                [
+                    sys.executable,
+                    script("new_closed_loop_paper.py"),
+                    "--root",
+                    str(root),
+                    "--title",
+                    "Referenced Edge Target",
+                    "--hypothesis",
+                    "Paper ID references should become graph edges",
+                    "--finding",
+                    "Reference relationship lines drive graph and impact scoring",
+                    "--reference",
+                    "PAPER-0001",
+                    "--date",
+                    "2026-06-10",
+                ]
+            ).stdout.strip()
+        )
+        if "References: PAPER-0001" not in linked.read_text(encoding="utf-8"):
+            raise SystemExit("Closed-loop paper did not mirror PAPER reference into relationship lines")
+        run_ok([sys.executable, script("check_paper.py"), str(root)])
+        before_unknown_reference_count = len(list((root / "papers").glob("PAPER-*.md")))
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Unknown Reference Target",
+                "--hypothesis",
+                "Unknown paper references should be rejected before writes",
+                "--finding",
+                "Dangling relationship lines break deterministic graph outputs",
+                "--reference",
+                "PAPER-9999",
+                "--date",
+                "2026-06-10",
+            ],
+            "Reference list contains unknown paper IDs: PAPER-9999",
+        )
+        if len(list((root / "papers").glob("PAPER-*.md"))) != before_unknown_reference_count:
+            raise SystemExit("Unknown paper reference created a partial paper")
         standalone = project / "PAPER-0001-standalone.md"
         standalone.write_text(created.read_text(encoding="utf-8"), encoding="utf-8")
         run_ok([sys.executable, script("check_paper.py"), str(standalone)])
@@ -1446,10 +1491,13 @@ def main() -> int:
         impact_scores = root / "dashboard" / "impact-scores.json"
         run_ok([sys.executable, script("score_impact.py"), str(root)])
         impact_payload = json.loads(impact_scores.read_text(encoding="utf-8"))
-        first_score = impact_payload["papers"][0]
-        if first_score.get("deterministic_score") != "TBD":
+        script_title_id = re.match(r"(PAPER-\d{4})", script_title.name).group(1)
+        script_title_score = next(
+            item for item in impact_payload["papers"] if item["paper_id"] == script_title_id
+        )
+        if script_title_score.get("deterministic_score") != "TBD":
             raise SystemExit("Impact scorer fabricated a full score with missing measured outcome")
-        if first_score.get("deterministic_partial_score") != 0.99:
+        if script_title_score.get("deterministic_partial_score") != 0.99:
             raise SystemExit("Impact scorer did not use weighted partial formula")
         measured_score_root = project / "measured-score-stack"
         run_ok(

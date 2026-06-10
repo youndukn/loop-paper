@@ -10,10 +10,12 @@ from datetime import date
 from pathlib import Path
 
 from paperstack_common import (
+    find_ids,
     markdown_inline,
     markdown_table_cell,
     next_paper_id,
     paper_paths,
+    paper_id_from_path,
     validate_iso_date,
     write_text_output,
 )
@@ -55,6 +57,16 @@ def table_rows(values: list[str], minimum: int, row_builder) -> str:
     return "\n".join(rows)
 
 
+def reference_paper_ids(references: list[str], *, paper_id: str, known_ids: set[str]) -> list[str]:
+    ids = sorted({found for reference in references for found in find_ids(reference)})
+    if paper_id in ids:
+        raise SystemExit(f"Reference list cannot target the paper being created: {paper_id}")
+    missing = [item for item in ids if item not in known_ids]
+    if missing:
+        raise SystemExit("Reference list contains unknown paper IDs: " + ", ".join(missing))
+    return ids
+
+
 def render_paper(
     *,
     paper_id: str,
@@ -63,6 +75,7 @@ def render_paper(
     hypotheses: list[str],
     findings: list[str],
     references: list[str],
+    reference_ids: list[str],
     min_hypotheses: int,
 ) -> str:
     hypothesis_rows = table_rows(
@@ -86,6 +99,7 @@ def render_paper(
     reference_lines = "\n".join(
         f"- {markdown_inline(reference)}" for reference in references
     ) or "- BEFORE_REQUIRED: reference file, paper, artifact, or command output"
+    relationship_references = ", ".join(reference_ids) if reference_ids else "None"
     return f"""---
 paper_id: {paper_id}
 title: {title}
@@ -140,7 +154,7 @@ Risk: BEFORE_REQUIRED: Low/Medium/High
 Relationship lines:
 
 ```text
-References: None
+References: {relationship_references}
 Depends on: None
 Supersedes: None
 Contradicts: None
@@ -257,10 +271,12 @@ def main() -> None:
         raise SystemExit("--min-hypotheses must be greater than zero")
 
     papers_dir = args.root / "papers"
-    paper_paths(args.root)
+    existing_paths = paper_paths(args.root)
     paper_id = next_paper_id(papers_dir)
     title = validate_title(args.title)
     slug = validate_slug(args.slug) if args.slug else slugify(title)
+    known_ids = {paper_id_from_path(path) for path in existing_paths}
+    reference_ids = reference_paper_ids(args.reference, paper_id=paper_id, known_ids=known_ids)
     path = papers_dir / f"{paper_id}-{slug}.md"
     if path.exists():
         raise SystemExit(f"Refusing to overwrite existing paper: {path}")
@@ -273,6 +289,7 @@ def main() -> None:
             hypotheses=args.hypothesis,
             findings=args.finding,
             references=args.reference,
+            reference_ids=reference_ids,
             min_hypotheses=args.min_hypotheses,
         ),
         label="paper",
