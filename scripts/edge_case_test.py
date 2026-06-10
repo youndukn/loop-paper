@@ -430,6 +430,40 @@ def main() -> int:
                 "Initialized generated_outputs mismatch: "
                 + ", ".join(sorted(actual_generated_outputs))
             )
+        empty_strict_root = project / "empty-strict-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(empty_strict_root),
+                "--project-name",
+                "Loop Paper Empty Strict Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(empty_strict_root), "--strict"],
+            "FAIL no papers found",
+        )
+        empty_summary = empty_strict_root / "dashboard" / "pipeline-summary.json"
+        if not empty_summary.exists():
+            raise SystemExit("Strict empty pipeline did not write failure summary")
+        empty_summary_payload = json.loads(empty_summary.read_text(encoding="utf-8"))
+        if empty_summary_payload.get("paper_count") != 0:
+            raise SystemExit("Strict empty pipeline summary did not record paper_count=0")
+        if empty_summary_payload.get("check_passed") is not False:
+            raise SystemExit("Strict empty pipeline summary did not record check_passed=false")
+        empty_blocked_outputs = [
+            empty_strict_root / "dashboard" / "references.json",
+            empty_strict_root / "dashboard" / "impact-scores.json",
+            empty_strict_root / "dashboard" / "index.html",
+            empty_strict_root / "dashboard" / "report.md",
+        ]
+        empty_written = [str(path) for path in empty_blocked_outputs if path.exists()]
+        if empty_written:
+            raise SystemExit("Strict empty pipeline wrote generated outputs: " + ", ".join(empty_written))
         papers_file_root = project / "creator-papers-file-stack"
         run_ok(
             [

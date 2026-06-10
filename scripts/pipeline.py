@@ -66,6 +66,25 @@ def main() -> int:
     paper_count = len(paper_paths(root))
     if args.strict and paper_count == 0:
         print(f"FAIL no papers found in {papers_dir}", file=sys.stderr)
+        summary = {
+            "root": str(root),
+            "paper_count": paper_count,
+            "metadata_synced": False,
+            "check_passed": False,
+            "closed_loop_checked": False,
+            "references_indexed": False,
+            "impact_scored": False,
+            "dashboard_rendered": False,
+            "report_exported": False,
+            "dashboard": str(root / "dashboard" / "index.html"),
+            "report": str(root / "dashboard" / "report.md"),
+            "references": str(root / "dashboard" / "references.json"),
+            "impact_scores": str(root / "dashboard" / "impact-scores.json"),
+        }
+        summary_path = root / "dashboard" / "pipeline-summary.json"
+        ensure_directory(summary_path.parent, label="dashboard directory")
+        write_text_output(summary_path, json.dumps(summary, indent=2), label="pipeline summary")
+        print(json.dumps(summary, indent=2))
         return 1
 
     gate_steps = [
