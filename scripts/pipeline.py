@@ -22,6 +22,13 @@ IMPACT = SCRIPT_DIR / "score_impact.py"
 REPORT = SCRIPT_DIR / "export_report.py"
 BEFORE_PHASE_STATUSES = {"Plan Ready", "Implementing", "Implemented"}
 AFTER_PHASE_STATUSES = {"AI Validated", "Accepted"}
+GENERATED_OUTPUTS = [
+    "dashboard/data.json",
+    "dashboard/index.html",
+    "dashboard/references.json",
+    "dashboard/impact-scores.json",
+    "dashboard/report.md",
+]
 
 
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:
@@ -34,6 +41,16 @@ def phase_for_status(status: str) -> str | None:
     if status in AFTER_PHASE_STATUSES:
         return "after"
     return None
+
+
+def generated_output_paths(root: Path) -> list[Path]:
+    return [root / output for output in GENERATED_OUTPUTS]
+
+
+def remove_generated_outputs(root: Path) -> None:
+    for path in generated_output_paths(root):
+        if path.exists() and path.is_file():
+            path.unlink()
 
 
 def check_closed_loop_phases(root: Path) -> tuple[bool, str, str]:
@@ -66,6 +83,7 @@ def main() -> int:
     paper_count = len(paper_paths(root))
     if args.strict and paper_count == 0:
         print(f"FAIL no papers found in {papers_dir}", file=sys.stderr)
+        remove_generated_outputs(root)
         summary = {
             "root": str(root),
             "paper_count": paper_count,
@@ -119,6 +137,7 @@ def main() -> int:
         print("SKIP closed_loop_checked: structural gate failed", file=sys.stderr)
 
     if results["closed_loop_checked"]:
+        remove_generated_outputs(root)
         for name, command in output_steps:
             completed = run(command)
             results[name] = completed.returncode == 0
@@ -127,6 +146,7 @@ def main() -> int:
             if completed.stderr:
                 print(completed.stderr.strip(), file=sys.stderr)
     else:
+        remove_generated_outputs(root)
         skipped = ", ".join(name for name, _command in output_steps)
         print(f"SKIP generated outputs: {skipped}", file=sys.stderr)
 

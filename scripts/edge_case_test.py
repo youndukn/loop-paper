@@ -2109,6 +2109,42 @@ def main() -> int:
             raise SystemExit("Failed phase gate summary did not record closed_loop_checked=false")
         if failed_summary_payload.get("dashboard_rendered") is not False:
             raise SystemExit("Failed phase gate summary did not record skipped dashboard render")
+        stale_output_root = project / "stale-output-gate-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(stale_output_root),
+                "--project-name",
+                "Loop Paper Stale Output Gate",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        stale_output_gate = create_edge_paper(stale_output_root, "Stale Output Gate Edge")
+        run_ok([sys.executable, script("pipeline.py"), str(stale_output_root), "--strict"])
+        stale_outputs = [
+            stale_output_root / "dashboard" / "data.json",
+            stale_output_root / "dashboard" / "references.json",
+            stale_output_root / "dashboard" / "impact-scores.json",
+            stale_output_root / "dashboard" / "index.html",
+            stale_output_root / "dashboard" / "report.md",
+        ]
+        missing_outputs = [str(path) for path in stale_outputs if not path.exists()]
+        if missing_outputs:
+            raise SystemExit("Successful pipeline did not write outputs: " + ", ".join(missing_outputs))
+        set_status(stale_output_gate, "Plan Ready")
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(stale_output_root), "--strict"],
+            "SKIP generated outputs",
+        )
+        stale_remaining = [str(path) for path in stale_outputs if path.exists()]
+        if stale_remaining:
+            raise SystemExit("Failed phase gate left stale generated outputs: " + ", ".join(stale_remaining))
+        stale_summary = stale_output_root / "dashboard" / "pipeline-summary.json"
+        if not stale_summary.exists():
+            raise SystemExit("Failed stale-output gate did not write pipeline summary")
         run_fail(
             [sys.executable, script("watch_pipeline.py"), str(root), "--once"],
             "validation evidence checkbox is not checked",
