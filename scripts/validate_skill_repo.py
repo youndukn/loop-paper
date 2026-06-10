@@ -206,6 +206,19 @@ def validate_docs_reference_smoke_test() -> None:
         fail("docs/install.md must document scripts/edge_case_test.py validation")
 
 
+def validate_docs_describe_pipeline_gates() -> None:
+    required = [
+        (ROOT / "SKILL.md", ["phase gates", "`Plan Ready`, `Implementing`, or", "`AI Validated` or"]),
+        (ROOT / "README.md", ["pipeline gate", "`Plan Ready` through `Implemented`", "`AI Validated`/`Accepted`"]),
+        (ROOT / "references" / "paper-states.md", ["--phase before", "--phase after", "`pipeline.py` passes"]),
+    ]
+    for path, phrases in required:
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            if phrase not in text:
+                fail(f"{path.relative_to(ROOT)} must document pipeline gates with {phrase!r}")
+
+
 def validate_python_scripts() -> None:
     for path in sorted((ROOT / "scripts").glob("*.py")):
         try:
@@ -222,6 +235,7 @@ def main() -> int:
     validate_retired_review_gate_absent()
     validate_ci_runs_core_checks()
     validate_docs_reference_smoke_test()
+    validate_docs_describe_pipeline_gates()
     validate_python_scripts()
     print(f"OK {EXPECTED_SKILL_NAME} skill repository")
     return 0

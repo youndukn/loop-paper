@@ -171,6 +171,10 @@ closed-loop paper.
    python3 scripts/pipeline.py .paper-stack
    ```
 
+   The pipeline is also a gate: papers in `Plan Ready`, `Implementing`, or
+   `Implemented` must pass `--phase before`; papers in `AI Validated` or
+   `Accepted` must pass `--phase after`.
+
 ## Deterministic Combine
 
 Use `scripts/combine_papers.py` when closing multiple papers, creating a
@@ -254,7 +258,7 @@ Each paper must contain these top-level sections:
 - `scripts/check_closed_loop_paper.py`: Validate before/after closed-loop slots.
 - `scripts/check_paper.py`: Validate required sections.
 - `scripts/combine_papers.py`: Deterministically summarize intervals and rank references.
-- `scripts/pipeline.py`: Run metadata sync, graph index, impact scoring, dashboard render, and report export.
+- `scripts/pipeline.py`: Run metadata sync, graph index, impact scoring, phase gates, dashboard render, and report export.
 - `scripts/index_references.py`: Build `dashboard/references.json`.
 - `scripts/score_impact.py`: Calculate deterministic impact components.
 - `scripts/transition_paper.py`: Enforce allowed status transitions.

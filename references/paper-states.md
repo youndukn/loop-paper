@@ -28,6 +28,8 @@ Exit criteria:
 
 - Implementation Plan names likely changes.
 - Validation Plan names the AI-actionable evidence the paper will collect.
+- `check_closed_loop_paper.py --phase before` passes before advancing to this
+  state or later implementation states.
 
 ## Implementing
 
@@ -52,6 +54,8 @@ Agent-actionable checks passed and evidence is recorded.
 Exit criteria:
 
 - Validation section contains command output summaries, file links, screenshots, metrics, or inspection notes.
+- `check_closed_loop_paper.py --phase after` passes before advancing to this
+  state or `Accepted`.
 
 ## Accepted
 
@@ -61,6 +65,8 @@ Exit criteria:
 
 - AI validation evidence is recorded.
 - Impact score has an evidence basis where measurable.
+- `pipeline.py` passes, including the closed-loop phase gate for the paper's
+  current status.
 
 If a human needs to review the paper, write a separate review paper with
 `scripts/new_review_paper.py` that cites it via `References:`. The target

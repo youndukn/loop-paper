@@ -5,9 +5,9 @@ prior work, implementation plan, validation plan, evidence, verdict, review,
 and impact.
 
 The skill is intentionally deterministic where drift would hurt: it includes
-scripts for initializing a `.paper-stack`, checking paper gates, generating
-dashboards, indexing references, scoring deterministic impact components, and
-combining paper intervals.
+scripts for initializing a `.paper-stack`, checking paper gates, enforcing
+phase gates in the pipeline, generating dashboards, indexing references,
+scoring deterministic impact components, and combining paper intervals.
 
 ## Install
 
@@ -68,8 +68,8 @@ python3 ~/.codex/skills/loop-paper/scripts/check_closed_loop_paper.py \
   --phase before
 ```
 
-After implementation and validation, check the after phase and regenerate the
-dashboard:
+After implementation and validation, check the after phase and run the
+pipeline gate:
 
 ```bash
 python3 ~/.codex/skills/loop-paper/scripts/check_closed_loop_paper.py \
@@ -78,6 +78,10 @@ python3 ~/.codex/skills/loop-paper/scripts/check_closed_loop_paper.py \
 
 python3 ~/.codex/skills/loop-paper/scripts/pipeline.py .paper-stack
 ```
+
+The pipeline rejects advanced-status papers that do not satisfy their phase
+gates: `Plan Ready` through `Implemented` require the before gate, and
+`AI Validated`/`Accepted` require the after gate.
 
 ## Review Papers
 
@@ -182,10 +186,11 @@ python3 scripts/edge_case_test.py
 It checks the required skill files, resource references, CI coverage, retired
 workflow references, `agents/openai.yaml`, nested `SKILL.md` files, and Python
 syntax. The smoke test exercises initialization, closed-loop paper transitions,
-review-paper generation, prompt formats, combining, and the dashboard/report
-pipeline. The edge-case test exercises rejection paths for invalid review
-inputs, ambiguous combine selections, ignored local paper-stack artifacts, and
-installed-payload validation.
+review-paper generation, prompt formats, combining, and the gated
+dashboard/report pipeline. The edge-case test exercises rejection paths for
+invalid review inputs, ambiguous combine selections, ignored local paper-stack
+artifacts, installed-payload validation, transition gates, pipeline gates, and
+watcher failure propagation.
 
 ## Public Repo Notes
 
