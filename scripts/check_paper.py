@@ -96,7 +96,7 @@ def section_warnings(text: str) -> list[str]:
     ]
 
 
-def heading_warnings(text: str, expected_id: str | None) -> list[str]:
+def heading_warnings(text: str, expected_id: str | None, expected_title: str | None) -> list[str]:
     headings = [
         match.group(1).strip()
         for match in re.finditer(r"^#\s+(.+?)\s*$", text, flags=re.MULTILINE)
@@ -112,8 +112,13 @@ def heading_warnings(text: str, expected_id: str | None) -> list[str]:
     match = re.match(r"^(PAPER-\d{4})(?:\s+|$)", first)
     if not match:
         warnings.append("Top-level paper heading must start with PAPER-NNNN")
-    elif expected_id and match.group(1) != expected_id:
+        return warnings
+
+    if expected_id and match.group(1) != expected_id:
         warnings.append(f"heading paper_id {match.group(1)} does not match {expected_id}")
+    heading_title = first[match.end() :].strip()
+    if expected_title and heading_title != expected_title:
+        warnings.append(f"heading title {heading_title!r} does not match title frontmatter")
     return warnings
 
 
@@ -170,7 +175,7 @@ def check_file(path: Path) -> dict:
     elif filename_id and declared_id != filename_id:
         warnings.append(f"paper_id {declared_id} does not match filename {filename_id}")
     expected_heading_id = declared_id if declared_id and valid_paper_id(declared_id) else filename_id
-    warnings.extend(heading_warnings(text, expected_heading_id))
+    warnings.extend(heading_warnings(text, expected_heading_id, metadata.get("title")))
 
     return {
         "path": str(path),

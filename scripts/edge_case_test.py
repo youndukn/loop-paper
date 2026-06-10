@@ -1161,6 +1161,44 @@ def main() -> int:
             [sys.executable, script("transition_paper.py"), str(heading_mismatch), "Research Ready"],
             "heading paper_id PAPER-9999 does not match PAPER-0001",
         )
+        title_heading_root = project / "title-heading-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(title_heading_root),
+                "--project-name",
+                "Loop Paper Title Heading Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        title_heading = create_edge_paper(title_heading_root, "Title Heading Edge")
+        title_heading.write_text(
+            title_heading.read_text(encoding="utf-8").replace(
+                "# PAPER-0001 Title Heading Edge",
+                "# PAPER-0001 Different Visible Title",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(title_heading)],
+            "heading title 'Different Visible Title' does not match title frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(title_heading_root), "--strict"],
+            "heading title 'Different Visible Title' does not match title frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(title_heading_root), "--last", "1"],
+            "Cannot combine invalid papers",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(title_heading), "Research Ready"],
+            "heading title 'Different Visible Title' does not match title frontmatter",
+        )
         duplicate_heading_root = project / "duplicate-heading-stack"
         run_ok(
             [
