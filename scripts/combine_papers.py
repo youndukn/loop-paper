@@ -9,7 +9,7 @@ import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from check_paper import check_file
+from check_paper import check_paths
 from paperstack_common import RELATION_LABELS, extract_relations, load_paper, paper_paths, relation_key
 
 
@@ -142,13 +142,12 @@ def load_all(root: Path) -> list[dict]:
 
 def validate_stack(root: Path) -> None:
     failures = []
-    for path in paper_paths(root):
-        result = check_file(path)
+    for result in check_paths(paper_paths(root), validate_relationships=True):
         if not result["ok"]:
             details = []
             for key in ("missing_sections", "empty_sections", "warnings"):
                 details.extend(result[key])
-            failures.append(f"{result['paper_id']} {path}: {'; '.join(details)}")
+            failures.append(f"{result['paper_id']} {result['path']}: {'; '.join(details)}")
     if failures:
         raise SystemExit("Cannot combine invalid papers:\n" + "\n".join(failures))
 

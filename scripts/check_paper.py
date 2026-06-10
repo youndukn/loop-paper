@@ -9,9 +9,13 @@ import re
 from pathlib import Path
 
 from paperstack_common import (
+    RELATION_LABELS,
     REQUIRED_SECTIONS,
     STATUSES,
+    extract_relations,
     parse_frontmatter,
+    paper_paths,
+    relation_key,
     split_sections,
 )
 
@@ -65,6 +69,34 @@ def check_file(path: Path) -> dict:
     }
 
 
+def check_paths(paths: list[Path], *, validate_relationships: bool = False) -> list[dict]:
+    results = [check_file(path) for path in paths]
+    if not validate_relationships:
+        return results
+
+    known_ids = {
+        result["paper_id"]
+        for result in results
+        if PAPER_ID_RE.fullmatch(result["paper_id"])
+    }
+    by_path = {result["path"]: result for result in results}
+    for path in paths:
+        result = by_path[str(path)]
+        text = path.read_text(encoding="utf-8")
+        relations = extract_relations(text, result["paper_id"])
+        for label in RELATION_LABELS:
+            key = relation_key(label)
+            for target in relations[key]:
+                if target not in known_ids:
+                    result["warnings"].append(f"Dangling relationship target: {label} -> {target}")
+        result["ok"] = (
+            not result["missing_sections"]
+            and not result["empty_sections"]
+            and not result["warnings"]
+        )
+    return results
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check Paper Stack papers.")
     parser.add_argument("target", nargs="?", default=".paper-stack", help="Paper file or Paper Stack root")
@@ -73,11 +105,13 @@ def main() -> int:
 
     target = Path(args.target)
     if target.is_dir():
-        paper_paths = sorted((target / "papers").glob("PAPER-*.md"))
+        paths = paper_paths(target)
+        validate_relationships = True
     else:
-        paper_paths = [target]
+        paths = [target]
+        validate_relationships = False
 
-    results = [check_file(path) for path in paper_paths]
+    results = check_paths(paths, validate_relationships=validate_relationships)
     if args.json:
         print(json.dumps(results, indent=2))
     else:

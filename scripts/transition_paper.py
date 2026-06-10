@@ -8,12 +8,14 @@ import sys
 from pathlib import Path
 
 from check_closed_loop_paper import validate_paper
-from check_paper import check_file
+from check_paper import check_paths
 from paperstack_common import (
     ALLOWED_TRANSITIONS,
     REQUIRED_SECTIONS,
     STATUSES,
     load_paper,
+    paper_paths,
+    paper_root_from_path,
     replace_frontmatter,
     section_has_checked,
     today,
@@ -28,7 +30,16 @@ AFTER_PHASE_TARGETS = {"AI Validated", "Accepted"}
 def gate_errors(paper: dict, target: str) -> list[str]:
     sections = paper["sections"]
     errors = []
-    structural = check_file(Path(paper["path"]))
+    current_path = Path(paper["path"])
+    root = paper_root_from_path(current_path)
+    stack_results = check_paths(paper_paths(root), validate_relationships=True)
+    structural = next(
+        (result for result in stack_results if Path(result["path"]) == current_path),
+        None,
+    )
+    if structural is None:
+        errors.append(f"Paper is not under a recognized papers directory: {current_path}")
+        structural = {"ok": True, "missing_sections": [], "empty_sections": [], "warnings": []}
     if not structural["ok"]:
         details = []
         for key in ("missing_sections", "empty_sections", "warnings"):

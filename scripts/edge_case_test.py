@@ -481,6 +481,44 @@ def main() -> int:
             [sys.executable, script("transition_paper.py"), str(renamed_bad_filename), "Research Ready"],
             "Filename must contain canonical PAPER-NNNN ID",
         )
+        dangling_root = project / "dangling-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(dangling_root),
+                "--project-name",
+                "Loop Paper Dangling Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        dangling = create_edge_paper(dangling_root, "Dangling Reference Edge")
+        dangling.write_text(
+            dangling.read_text(encoding="utf-8").replace(
+                "References: None",
+                "References: PAPER-9999",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(dangling_root)],
+            "Dangling relationship target: References -> PAPER-9999",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(dangling_root), "--strict"],
+            "Dangling relationship target: References -> PAPER-9999",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(dangling_root), "--last", "1"],
+            "Dangling relationship target: References -> PAPER-9999",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(dangling), "Research Ready"],
+            "Dangling relationship target: References -> PAPER-9999",
+        )
         run_fail(
             [
                 sys.executable,
