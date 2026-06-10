@@ -7,8 +7,17 @@ import argparse
 import re
 from pathlib import Path
 
-from check_paper import require_valid_file
+from check_paper import check_file, result_details
 from paperstack_common import load_paper, paper_paths, replace_frontmatter, today
+
+
+REPAIRABLE_WARNINGS = {
+    "Missing paper_id frontmatter",
+    "Missing title frontmatter",
+    "Missing status frontmatter",
+    "Missing created frontmatter",
+    "Missing updated frontmatter",
+}
 
 
 def title_from_heading(text: str, fallback: str) -> str:
@@ -16,8 +25,25 @@ def title_from_heading(text: str, fallback: str) -> str:
     return match.group(2).strip() if match else fallback
 
 
+def is_repairable_warning(message: str) -> bool:
+    return message in REPAIRABLE_WARNINGS or (
+        message.startswith("heading title ") and message.endswith(" does not match title frontmatter")
+    )
+
+
+def require_syncable_file(path: Path) -> None:
+    result = check_file(path)
+    blocking = [
+        detail
+        for detail in result_details(result)
+        if not is_repairable_warning(detail)
+    ]
+    if blocking:
+        raise SystemExit("Paper structure check failed: " + "; ".join(blocking))
+
+
 def sync_file(path: Path, write: bool) -> dict:
-    require_valid_file(path)
+    require_syncable_file(path)
     paper = load_paper(path)
     original = dict(paper["metadata"])
     metadata = dict(original)

@@ -1075,17 +1075,17 @@ def main() -> int:
             "Missing status frontmatter",
         )
         run_fail(
-            [sys.executable, script("pipeline.py"), str(missing_status_root), "--strict"],
-            "Missing status frontmatter",
-        )
-        run_fail(
-            [sys.executable, script("combine_papers.py"), str(missing_status_root), "--last", "1"],
-            "Cannot combine invalid papers",
-        )
-        run_fail(
             [sys.executable, script("transition_paper.py"), str(missing_status), "Research Ready"],
             "Missing status frontmatter",
         )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(missing_status), "--check"],
+            "CHANGED PAPER-0001",
+        )
+        run_ok([sys.executable, script("update_paper_metadata.py"), str(missing_status)])
+        run_ok([sys.executable, script("check_paper.py"), str(missing_status)])
+        run_ok([sys.executable, script("pipeline.py"), str(missing_status_root), "--strict"])
+        run_ok([sys.executable, script("combine_papers.py"), str(missing_status_root), "--last", "1"])
         missing_title_root = project / "missing-title-stack"
         run_ok(
             [
@@ -1109,17 +1109,17 @@ def main() -> int:
             "Missing title frontmatter",
         )
         run_fail(
-            [sys.executable, script("pipeline.py"), str(missing_title_root), "--strict"],
-            "Missing title frontmatter",
-        )
-        run_fail(
-            [sys.executable, script("combine_papers.py"), str(missing_title_root), "--last", "1"],
-            "Cannot combine invalid papers",
-        )
-        run_fail(
             [sys.executable, script("transition_paper.py"), str(missing_title), "Research Ready"],
             "Missing title frontmatter",
         )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(missing_title), "--check"],
+            "CHANGED PAPER-0001",
+        )
+        run_ok([sys.executable, script("update_paper_metadata.py"), str(missing_title)])
+        run_ok([sys.executable, script("check_paper.py"), str(missing_title)])
+        run_ok([sys.executable, script("pipeline.py"), str(missing_title_root), "--strict"])
+        run_ok([sys.executable, script("combine_papers.py"), str(missing_title_root), "--last", "1"])
         date_root = project / "date-stack"
         run_ok(
             [
@@ -1283,17 +1283,17 @@ def main() -> int:
             "heading title 'Different Visible Title' does not match title frontmatter",
         )
         run_fail(
-            [sys.executable, script("pipeline.py"), str(title_heading_root), "--strict"],
-            "heading title 'Different Visible Title' does not match title frontmatter",
-        )
-        run_fail(
-            [sys.executable, script("combine_papers.py"), str(title_heading_root), "--last", "1"],
-            "Cannot combine invalid papers",
-        )
-        run_fail(
             [sys.executable, script("transition_paper.py"), str(title_heading), "Research Ready"],
             "heading title 'Different Visible Title' does not match title frontmatter",
         )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(title_heading), "--check"],
+            "CHANGED PAPER-0001",
+        )
+        run_ok([sys.executable, script("update_paper_metadata.py"), str(title_heading)])
+        run_ok([sys.executable, script("check_paper.py"), str(title_heading)])
+        run_ok([sys.executable, script("pipeline.py"), str(title_heading_root), "--strict"])
+        run_ok([sys.executable, script("combine_papers.py"), str(title_heading_root), "--last", "1"])
         duplicate_heading_root = project / "duplicate-heading-stack"
         run_ok(
             [
