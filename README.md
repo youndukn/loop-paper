@@ -49,6 +49,10 @@ python3 ~/.codex/skills/loop-paper/scripts/init_loop_paper.py \
   --seed-paper
 ```
 
+`--seed-paper` creates `PAPER-0001` only when the stack has no papers yet. It
+is safe to rerun the initializer; existing stacks report
+`"seed_paper_skipped": true` instead of creating duplicate seed papers.
+
 Create a new closed-loop paper before substantial work:
 
 ```bash
@@ -64,7 +68,7 @@ Check the before phase:
 
 ```bash
 python3 ~/.codex/skills/loop-paper/scripts/check_closed_loop_paper.py \
-  .paper-stack/papers/PAPER-0001-short-work-unit-title.md \
+  .paper-stack/papers/PAPER-0002-short-work-unit-title.md \
   --phase before
 ```
 
@@ -73,7 +77,7 @@ pipeline gate:
 
 ```bash
 python3 ~/.codex/skills/loop-paper/scripts/check_closed_loop_paper.py \
-  .paper-stack/papers/PAPER-0001-short-work-unit-title.md \
+  .paper-stack/papers/PAPER-0002-short-work-unit-title.md \
   --phase after
 
 python3 ~/.codex/skills/loop-paper/scripts/pipeline.py .paper-stack

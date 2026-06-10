@@ -255,6 +255,18 @@ def validate_docs_describe_combine_boundaries() -> None:
                 fail(f"{path.relative_to(ROOT)} must document combine interval boundaries with {phrase!r}")
 
 
+def validate_readme_seed_numbering() -> None:
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    required = [
+        "`--seed-paper` creates `PAPER-0001`",
+        "`\"seed_paper_skipped\": true`",
+        "PAPER-0002-short-work-unit-title.md",
+    ]
+    for phrase in required:
+        if phrase not in text:
+            fail(f"README.md must document seed initialization numbering with {phrase!r}")
+
+
 def validate_python_scripts() -> None:
     for path in sorted((ROOT / "scripts").glob("*.py")):
         try:
@@ -273,6 +285,7 @@ def main() -> int:
     validate_docs_reference_smoke_test()
     validate_docs_describe_pipeline_gates()
     validate_docs_describe_combine_boundaries()
+    validate_readme_seed_numbering()
     validate_python_scripts()
     print(f"OK {EXPECTED_SKILL_NAME} skill repository")
     return 0
