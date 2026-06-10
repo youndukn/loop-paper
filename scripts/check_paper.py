@@ -9,6 +9,7 @@ from pathlib import Path
 
 from paperstack_common import (
     REQUIRED_SECTIONS,
+    STATUSES,
     parse_frontmatter,
     split_sections,
 )
@@ -29,12 +30,15 @@ def check_file(path: Path) -> dict:
     validation = sections.get("Validation", "")
     if "Not run" in validation and metadata.get("status") in {"AI Validated", "Accepted"}:
         warnings.append("Advanced status conflicts with validation evidence marked Not run.")
+    status = metadata.get("status", "Draft")
+    if status not in STATUSES:
+        warnings.append(f"Invalid status: {status}")
 
     return {
         "path": str(path),
         "paper_id": metadata.get("paper_id", path.stem.split("-")[0]),
         "title": metadata.get("title", path.stem),
-        "status": metadata.get("status", "Draft"),
+        "status": status,
         "missing_sections": missing,
         "empty_sections": empty,
         "warnings": warnings,

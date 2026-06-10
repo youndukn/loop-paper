@@ -354,6 +354,16 @@ def main() -> int:
             [sys.executable, script("watch_pipeline.py"), str(root), "--once"],
             "validation evidence checkbox is not checked",
         )
+        invalid_status_gate = create_edge_paper(root, "Invalid Status Edge")
+        set_status(invalid_status_gate, "Totally Done")
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(invalid_status_gate)],
+            "Invalid status: Totally Done",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(root), "--strict"],
+            "Invalid status: Totally Done",
+        )
         run_fail(
             [
                 sys.executable,
