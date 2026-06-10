@@ -125,6 +125,14 @@ def heading_warnings(text: str, expected_id: str | None, expected_title: str | N
     return warnings
 
 
+def relationship_line_warnings(text: str) -> list[str]:
+    warnings: list[str] = []
+    for label in RELATION_LABELS:
+        if not re.search(rf"^{re.escape(label)}:\s*", text, flags=re.MULTILINE):
+            warnings.append(f"Missing relationship line: {label}")
+    return warnings
+
+
 def check_file(path: Path) -> dict:
     require_paper_file(path)
     text = path.read_text(encoding="utf-8")
@@ -136,7 +144,7 @@ def check_file(path: Path) -> dict:
         for section in REQUIRED_SECTIONS
         if section in sections and not sections[section].strip()
     ]
-    warnings = frontmatter_warnings(text) + section_warnings(text)
+    warnings = frontmatter_warnings(text) + section_warnings(text) + relationship_line_warnings(text)
 
     validation = sections.get("Validation", "")
     if "Not run" in validation and metadata.get("status") in {"AI Validated", "Accepted"}:

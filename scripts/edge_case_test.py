@@ -2013,6 +2013,40 @@ def main() -> int:
             ],
             "Existing paper filename is not canonical: PAPER-0001-bad--slug.md",
         )
+        missing_relationship_root = project / "missing-relationship-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(missing_relationship_root),
+                "--project-name",
+                "Loop Paper Missing Relationship Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        missing_relationship = create_edge_paper(
+            missing_relationship_root,
+            "Missing Relationship Edge",
+        )
+        missing_relationship.write_text(
+            missing_relationship.read_text(encoding="utf-8").replace(
+                "Extends: None\n",
+                "",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        for command in [
+            [sys.executable, script("check_paper.py"), str(missing_relationship)],
+            [sys.executable, script("check_paper.py"), str(missing_relationship_root)],
+            [sys.executable, script("pipeline.py"), str(missing_relationship_root), "--strict"],
+            [sys.executable, script("combine_papers.py"), str(missing_relationship_root), "--last", "1"],
+            [sys.executable, script("index_references.py"), str(missing_relationship_root)],
+            [sys.executable, script("render_dashboard.py"), str(missing_relationship_root)],
+        ]:
+            run_fail(command, "Missing relationship line: Extends")
         dangling_root = project / "dangling-stack"
         run_ok(
             [
