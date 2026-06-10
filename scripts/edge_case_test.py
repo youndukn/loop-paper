@@ -453,6 +453,21 @@ def main() -> int:
             [sys.executable, script("transition_paper.py"), str(mismatch), "Research Ready"],
             "paper_id PAPER-9999 does not match filename PAPER-0001",
         )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(identity_root),
+                "--title",
+                "Invalid Identity Target Review",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+            ],
+            "paper_id PAPER-9999 does not match filename PAPER-0001",
+        )
         filename_root = project / "filename-stack"
         run_ok(
             [
@@ -519,6 +534,21 @@ def main() -> int:
             [sys.executable, script("transition_paper.py"), str(dangling), "Research Ready"],
             "Dangling relationship target: References -> PAPER-9999",
         )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(dangling_root),
+                "--title",
+                "Dangling Target Review",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+            ],
+            "Dangling relationship target: References -> PAPER-9999",
+        )
         duplicate_root = project / "duplicate-stack"
         run_ok(
             [
@@ -549,6 +579,21 @@ def main() -> int:
         )
         run_fail(
             [sys.executable, script("transition_paper.py"), str(duplicate), "Research Ready"],
+            "Duplicate paper_id in stack: PAPER-0001",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(duplicate_root),
+                "--title",
+                "Duplicate Target Review",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+            ],
             "Duplicate paper_id in stack: PAPER-0001",
         )
         run_fail(
@@ -646,7 +691,7 @@ def main() -> int:
         )
         overflow_papers = overflow_root / "papers"
         overflow_papers.mkdir(parents=True, exist_ok=True)
-        (overflow_papers / "PAPER-0001-target.md").write_text("", encoding="utf-8")
+        create_edge_paper(overflow_root, "Overflow Target Edge")
         (overflow_papers / "PAPER-9999-last.md").write_text("", encoding="utf-8")
         run_fail(
             [

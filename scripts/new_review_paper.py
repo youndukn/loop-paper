@@ -11,6 +11,9 @@ import unicodedata
 from datetime import date
 from pathlib import Path
 
+from check_paper import check_paths
+from paperstack_common import paper_paths
+
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{1,4})$")
 FILENAME_PAPER_ID_RE = re.compile(r"^PAPER-(\d+)")
@@ -61,6 +64,39 @@ def next_paper_id(papers_dir: Path) -> str:
     if max_id >= MAX_PAPER_NUMBER:
         raise SystemExit("Cannot allocate next paper ID beyond PAPER-9999")
     return f"PAPER-{max_id + 1:04d}"
+
+
+def check_details(result: dict) -> list[str]:
+    details: list[str] = []
+    for key in ("missing_sections", "empty_sections", "warnings"):
+        details.extend(result[key])
+    return details
+
+
+def validate_targets(root: Path, targets: list[str]) -> None:
+    papers_dir = root / "papers"
+    paths = paper_paths(root)
+    results = check_paths(paths, validate_relationships=True)
+    by_path = {Path(result["path"]).resolve(): result for result in results}
+
+    missing = []
+    invalid = []
+    for target in targets:
+        matches = list(papers_dir.glob(f"{target}-*.md"))
+        if not matches:
+            missing.append(target)
+            continue
+        for path in matches:
+            result = by_path.get(path.resolve())
+            if result is None:
+                invalid.append(f"{target} {path}: not found in stack index")
+                continue
+            if not result["ok"]:
+                invalid.append(f"{target} {path}: {'; '.join(check_details(result))}")
+    if missing:
+        raise SystemExit(f"Missing target paper files for: {', '.join(missing)}")
+    if invalid:
+        raise SystemExit("Invalid target paper files:\n" + "\n".join(invalid))
 
 
 def build_questions(targets: list[str]) -> list[dict]:
@@ -413,9 +449,7 @@ def main() -> int:
     targets = list(dict.fromkeys(args.target))
     papers_dir = args.root / "papers"
     papers_dir.mkdir(parents=True, exist_ok=True)
-    missing = [target for target in targets if not list(papers_dir.glob(f"{target}-*.md"))]
-    if missing:
-        raise SystemExit(f"Missing target paper files for: {', '.join(missing)}")
+    validate_targets(args.root, targets)
 
     title = validate_title(args.title)
     questions = build_questions(targets)
