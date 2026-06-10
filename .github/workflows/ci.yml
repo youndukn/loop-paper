@@ -18,6 +18,18 @@ jobs:
         run: |
           python3 scripts/install_skill.py --list
           python3 scripts/install_skill.py --agent all --home /tmp/loop-paper-home --dry-run
+          python3 scripts/install_skill.py --agent all --home /tmp/loop-paper-home-all
+          for skill in \
+            /tmp/loop-paper-home-all/.agents/skills/loop-paper \
+            /tmp/loop-paper-home-all/.claude/skills/loop-paper \
+            /tmp/loop-paper-home-all/.codex/skills/loop-paper \
+            /tmp/loop-paper-home-all/.hermes/skills/loop-paper \
+            /tmp/loop-paper-home-all/.openclaw/skills/loop-paper \
+            /tmp/loop-paper-home-all/.pimo/skills/loop-paper
+          do
+            test -f "$skill/SKILL.md"
+            python3 "$skill/scripts/validate_skill_repo.py"
+          done
           python3 scripts/install_skill.py --agent codex --dest /tmp/loop-paper-install/loop-paper
           test -f /tmp/loop-paper-install/loop-paper/SKILL.md
           python3 /tmp/loop-paper-install/loop-paper/scripts/validate_skill_repo.py
