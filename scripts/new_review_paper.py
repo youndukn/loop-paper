@@ -440,7 +440,8 @@ After:
 
 Verdict:
 
-- Supported: structured per-target verdicts recorded with documented options
+- {hypothesis_verdict}: structured per-target verdicts recorded with documented options;
+  cross-paper coherence was {coherence} and recommended direction was {direction}
 
 AI validation evidence:
 

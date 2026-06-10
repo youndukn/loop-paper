@@ -58,13 +58,13 @@ def run_fail(command: list[str], expected: str) -> None:
         raise SystemExit(1)
 
 
-def write_answers(path: Path, *, evidence: str = "Strong") -> None:
+def write_answers(path: Path, *, evidence: str = "Strong", coherence: str = "Coherent") -> None:
     answers = {
         "verdict.PAPER-0001": "Supported",
         "evidence.PAPER-0001": evidence,
         "production.PAPER-0001": "Ready",
         "action.PAPER-0001": "Accept",
-        "coherence": "Coherent",
+        "coherence": coherence,
         "direction": "Continue same line",
     }
     path.write_text(json.dumps(answers, indent=2), encoding="utf-8")
@@ -2173,6 +2173,47 @@ def main() -> int:
         )
         run_ok([sys.executable, script("check_paper.py"), str(review_meta_root)])
         review_text = review_paper.read_text(encoding="utf-8")
+        contradictory_answers = review_meta_root / "inbox" / "contradictory-answers.json"
+        write_answers(contradictory_answers, coherence="Contradictory")
+        contradictory_review = Path(
+            run_ok(
+                [
+                    sys.executable,
+                    script("new_review_paper.py"),
+                    "--root",
+                    str(review_meta_root),
+                    "--title",
+                    "Contradictory Review Metadata Paper",
+                    "--target",
+                    "PAPER-0001",
+                    "--answers",
+                    str(contradictory_answers),
+                    "--date",
+                    "2026-06-10",
+                ]
+            ).stdout.strip()
+        )
+        contradictory_text = contradictory_review.read_text(encoding="utf-8")
+        expected_failed_ledger = (
+            "| H1 | A structured review of PAPER-0001 produces a coherent next-step "
+            "recommendation | Per-target dimensions enumerated below | "
+            "Multiple-choice walk over each dimension | Failed |"
+        )
+        if expected_failed_ledger not in contradictory_text:
+            raise SystemExit("Contradictory review did not record Failed in the Hypothesis Ledger")
+        if "- Failed: structured per-target verdicts recorded with documented options;" not in contradictory_text:
+            raise SystemExit("Contradictory review did not record Failed in the Validation verdict")
+        if "- Supported: structured per-target verdicts recorded with documented options" in contradictory_text:
+            raise SystemExit("Contradictory review kept the old hard-coded Supported verdict")
+        run_ok(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(contradictory_review),
+                "--phase",
+                "after",
+            ]
+        )
         review_paper.write_text(
             review_text.replace("paper_kind: review", "paper_kind: mystery", 1),
             encoding="utf-8",
