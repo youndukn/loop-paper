@@ -1344,6 +1344,65 @@ def main() -> int:
             [sys.executable, script("transition_paper.py"), str(prior_gate), "Plan Ready"],
             "prior research checkboxes are not all checked",
         )
+        missing_prior_risk_gate = create_edge_paper(root, "Missing Prior Risk Gate Edge")
+        make_before_ready_with_uppercase_checks(missing_prior_risk_gate)
+        missing_prior_risk_gate.write_text(
+            missing_prior_risk_gate.read_text(encoding="utf-8").replace(
+                "Prior Research Status: Recorded: Present/Missing/Retrospective",
+                "Prior Research Status: Missing",
+                1,
+            ).replace(
+                "Risk: Recorded: Low/Medium/High",
+                "Risk: Low",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(missing_prior_risk_gate),
+                "--phase",
+                "before",
+            ],
+            "missing prior research must explicitly mark Risk: High",
+        )
+        missing_prior_risk_pipeline_root = project / "missing-prior-risk-pipeline-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(missing_prior_risk_pipeline_root),
+                "--project-name",
+                "Loop Paper Missing Prior Risk Pipeline",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        missing_prior_risk_pipeline = create_edge_paper(
+            missing_prior_risk_pipeline_root,
+            "Missing Prior Risk Pipeline Edge",
+        )
+        make_before_ready_with_uppercase_checks(missing_prior_risk_pipeline)
+        missing_prior_risk_pipeline.write_text(
+            missing_prior_risk_pipeline.read_text(encoding="utf-8").replace(
+                "Prior Research Status: Recorded: Present/Missing/Retrospective",
+                "Prior Research Status: Missing",
+                1,
+            ).replace(
+                "Risk: Recorded: Low/Medium/High",
+                "Risk: Low",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        set_status(missing_prior_risk_pipeline, "Plan Ready")
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(missing_prior_risk_pipeline_root), "--strict"],
+            "missing prior research must explicitly mark Risk: High",
+        )
         uppercase_gate = create_edge_paper(root, "Uppercase Checkbox Edge")
         make_before_ready_with_uppercase_checks(uppercase_gate)
         run_ok(

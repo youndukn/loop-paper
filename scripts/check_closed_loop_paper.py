@@ -43,6 +43,17 @@ def table_data_rows(section_text: str) -> list[str]:
     return rows
 
 
+def prior_research_errors(sections: dict[str, str]) -> list[str]:
+    prior = sections.get("Prior Research", "")
+    refs = sections.get("References", "")
+    errors: list[str] = []
+    if "Prior Research Status: Missing" in prior and "Risk: High" not in prior:
+        errors.append("missing prior research must explicitly mark Risk: High")
+    if "- TBD" in refs and "Prior Research Status: Missing" not in prior:
+        errors.append("references are TBD without explicit missing prior research acknowledgement")
+    return errors
+
+
 def structural_result(path: Path) -> dict:
     require_paper_file(path)
     if path.parent.name != "papers":
@@ -85,6 +96,7 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         if checked_count(hypothesis) < 3:
             errors.append("before phase incomplete: hypothesis checkboxes are not all checked")
         prior = section(text, "Prior Research")
+        errors.extend(prior_research_errors(split_sections(text)))
         if checked_count(prior) < 1:
             errors.append("before phase incomplete: prior research checkboxes are not all checked")
         plan = section(text, "Implementation Plan")
