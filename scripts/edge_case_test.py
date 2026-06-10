@@ -1011,6 +1011,55 @@ def main() -> int:
             ],
             "answers list items must be objects with id and answer",
         )
+        duplicate_answer_list = root / "inbox" / "duplicate-answer-list.json"
+        duplicate_answer_list.write_text(
+            json.dumps(
+                [
+                    {"id": "verdict.PAPER-0001", "answer": "Supported"},
+                    {"id": "verdict.PAPER-0001", "answer": "Failed"},
+                ]
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Duplicate Answer Id Review",
+                "--target",
+                "PAPER-0001",
+                "--answers",
+                str(duplicate_answer_list),
+                "--date",
+                "2026-06-10",
+            ],
+            "duplicate answer id: verdict.PAPER-0001",
+        )
+        unknown_answer = root / "inbox" / "unknown-answer.json"
+        write_answers(unknown_answer)
+        unknown_payload = json.loads(unknown_answer.read_text(encoding="utf-8"))
+        unknown_payload["unexpected.PAPER-0001"] = "Supported"
+        unknown_answer.write_text(json.dumps(unknown_payload), encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Unknown Answer Id Review",
+                "--target",
+                "PAPER-0001",
+                "--answers",
+                str(unknown_answer),
+                "--date",
+                "2026-06-10",
+            ],
+            "answers contain unknown ids: unexpected.PAPER-0001",
+        )
         write_answers(answers, evidence="Unsupported option")
         before_count = len(list((root / "papers").glob("PAPER-*.md")))
         run_fail(

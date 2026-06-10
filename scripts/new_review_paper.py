@@ -238,10 +238,16 @@ def load_answers(path: Path, questions: list[dict]) -> dict:
         for item in raw:
             if not isinstance(item, dict) or "id" not in item or "answer" not in item:
                 raise SystemExit("answers list items must be objects with id and answer")
+            if item["id"] in normalized:
+                raise SystemExit(f"duplicate answer id: {item['id']}")
             normalized[item["id"]] = item["answer"]
         raw = normalized
     if not isinstance(raw, dict):
         raise SystemExit("answers JSON must be an object or list of {id, answer}")
+    expected_ids = {question["id"] for question in questions}
+    unknown_ids = sorted(str(answer_id) for answer_id in raw if answer_id not in expected_ids)
+    if unknown_ids:
+        raise SystemExit(f"answers contain unknown ids: {', '.join(unknown_ids)}")
     answers: dict[str, str] = {}
     for question in questions:
         if question["id"] not in raw:
