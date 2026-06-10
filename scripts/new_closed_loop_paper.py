@@ -10,10 +10,10 @@ from datetime import date
 from pathlib import Path
 
 from paperstack_common import (
-    ensure_directory,
     markdown_inline,
     markdown_table_cell,
     next_paper_id,
+    paper_paths,
     validate_iso_date,
     write_text_output,
 )
@@ -255,7 +255,7 @@ def main() -> None:
         raise SystemExit("--min-hypotheses must be greater than zero")
 
     papers_dir = args.root / "papers"
-    ensure_directory(papers_dir, label="papers directory")
+    paper_paths(args.root)
     paper_id = next_paper_id(papers_dir)
     title = validate_title(args.title)
     slug = validate_slug(args.slug) if args.slug else slugify(title)

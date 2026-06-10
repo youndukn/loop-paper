@@ -463,6 +463,28 @@ def main() -> int:
         )
         if missing_review_root.exists():
             raise SystemExit("Review paper creation initialized a missing root unexpectedly")
+        missing_closed_loop_root = project / "missing-closed-loop-root"
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(missing_closed_loop_root),
+                "--title",
+                "Missing Root Paper",
+                "--hypothesis",
+                "Closed-loop creation should require initialization",
+                "--finding",
+                "Partial paper-stack roots omit generated structure",
+                "--reference",
+                "scripts/edge_case_test.py",
+                "--date",
+                "2026-06-10",
+            ],
+            f"Missing papers directory: {missing_closed_loop_root / 'papers'}",
+        )
+        if missing_closed_loop_root.exists():
+            raise SystemExit("Closed-loop paper creation initialized a missing root unexpectedly")
         created = Path(
             run_ok(
                 [
