@@ -2144,6 +2144,36 @@ def main() -> int:
             [sys.executable, script("index_references.py"), str(mixed_none_relationship_root)],
             "Relationship line mixes None with targets: References",
         )
+        prose_relationship_root = project / "prose-relationship-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(prose_relationship_root),
+                "--project-name",
+                "Loop Paper Prose Relationship Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        prose_relationship = create_edge_paper(prose_relationship_root, "Prose Relationship Source")
+        create_edge_paper(prose_relationship_root, "Prose Relationship Target")
+        prose_relationship.write_text(
+            prose_relationship.read_text(encoding="utf-8").replace(
+                "References: None",
+                "References: PAPER-0002 and background notes",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        for command in [
+            [sys.executable, script("check_paper.py"), str(prose_relationship_root)],
+            [sys.executable, script("pipeline.py"), str(prose_relationship_root), "--strict"],
+            [sys.executable, script("combine_papers.py"), str(prose_relationship_root), "--last", "1"],
+            [sys.executable, script("render_dashboard.py"), str(prose_relationship_root)],
+        ]:
+            run_fail(command, "Invalid relationship value: References -> PAPER-0002 and background notes")
         dangling_root = project / "dangling-stack"
         run_ok(
             [

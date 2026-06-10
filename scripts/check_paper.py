@@ -26,6 +26,7 @@ from paperstack_common import (
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{4})$")
 PAPERISH_RE = re.compile(r"(?<![A-Za-z0-9_-])PAPER-[A-Za-z0-9_-]+(?![A-Za-z0-9_-])")
+RELATION_TARGET_LIST_RE = re.compile(r"^PAPER-\d{4}(?:[ \t]*,[ \t]*PAPER-\d{4})*$")
 EXPECTED_SCHEMA = "paper_closed_loop.v1"
 ALLOWED_PAPER_KINDS = {"closed_loop", "review"}
 
@@ -150,8 +151,12 @@ def relationship_line_warnings(text: str) -> list[str]:
                 continue
             if has_none:
                 warnings.append(f"Relationship line mixes None with targets: {label}")
-            elif not ids and not invalid_targets:
+            elif not RELATION_TARGET_LIST_RE.fullmatch(value) and not invalid_targets:
                 warnings.append(f"Invalid relationship value: {label} -> {value}")
+            else:
+                for target in ids:
+                    if not valid_paper_id(target):
+                        warnings.append(f"Invalid relationship target: {label} -> {target}")
     return warnings
 
 
