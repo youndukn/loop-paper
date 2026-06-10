@@ -8,6 +8,7 @@ import json
 import re
 import sys
 import unicodedata
+from collections import Counter
 from datetime import date
 from pathlib import Path
 
@@ -220,6 +221,13 @@ def collect_cli(questions: list[dict]) -> dict:
             print(f"Pick 1..{len(question['options'])}.")
         print()
     return answers
+
+
+def unique_targets(targets: list[str]) -> list[str]:
+    duplicates = sorted(target for target, count in Counter(targets).items() if count > 1)
+    if duplicates:
+        raise SystemExit(f"Duplicate review targets: {', '.join(duplicates)}")
+    return targets
 
 
 def load_answers(path: Path, questions: list[dict]) -> dict:
@@ -474,7 +482,7 @@ def main() -> int:
     args = parser.parse_args()
     args.date = validate_iso_date(args.date)
 
-    targets = list(dict.fromkeys(args.target))
+    targets = unique_targets(args.target)
     papers_dir = args.root / "papers"
     ensure_directory(papers_dir, label="papers directory")
     validate_targets(args.root, targets)

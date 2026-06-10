@@ -174,10 +174,17 @@ def select_papers(args: argparse.Namespace, papers: list[dict]) -> list[dict]:
 
     by_id = {paper["paper_id"]: paper for paper in papers}
     if args.ids:
+        duplicates = sorted(
+            paper_id
+            for paper_id, count in Counter(args.ids).items()
+            if count > 1
+        )
+        if duplicates:
+            raise SystemExit(f"Duplicate paper IDs in --ids: {', '.join(duplicates)}")
         missing = [paper_id for paper_id in args.ids if paper_id not in by_id]
         if missing:
             raise SystemExit(f"Missing paper IDs: {', '.join(missing)}")
-        selected = [by_id[paper_id] for paper_id in sorted(set(args.ids), key=paper_number)]
+        selected = [by_id[paper_id] for paper_id in sorted(args.ids, key=paper_number)]
     elif args.last is not None:
         if args.last < 1:
             raise SystemExit("--last must be greater than zero.")

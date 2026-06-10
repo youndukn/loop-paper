@@ -802,6 +802,23 @@ def main() -> int:
             ],
             "--title must not contain",
         )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Duplicate Explicit Target Review",
+                "--target",
+                "PAPER-0001",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+            ],
+            "Duplicate review targets: PAPER-0001",
+        )
 
         no_slug_target_root = project / "no-slug-target-stack"
         run_ok(
@@ -1883,6 +1900,17 @@ def main() -> int:
                 "1",
             ],
             "Choose exactly one selection mode",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(root),
+                "--ids",
+                "PAPER-0001",
+                "PAPER-0001",
+            ],
+            "Duplicate paper IDs in --ids: PAPER-0001",
         )
         run_fail(
             [sys.executable, script("combine_papers.py"), str(root), "--from", "PAPER-0001"],
