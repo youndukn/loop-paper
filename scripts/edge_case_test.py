@@ -803,6 +803,32 @@ def ensure_installed_payload_validates() -> None:
             run_ok([sys.executable, str(install_root / "scripts" / "validate_skill_repo.py")])
         run_ok([sys.executable, str(expected_user_installs["codex"] / "scripts" / "smoke_test.py")])
 
+        project_root = tmp_path / "project"
+        project_install = run_ok(
+            [
+                sys.executable,
+                script("install_skill.py"),
+                "--agent",
+                "all",
+                "--scope",
+                "project",
+                "--project-root",
+                str(project_root),
+            ]
+        )
+        if "hermes+openclaw" not in project_install.stdout:
+            raise SystemExit("Project-scope all-agent install did not merge shared skills/ target")
+        expected_project_installs = {
+            "agents": project_root / ".agents" / "skills" / "loop-paper",
+            "claude": project_root / ".claude" / "skills" / "loop-paper",
+            "codex": project_root / ".codex" / "skills" / "loop-paper",
+            "shared": project_root / "skills" / "loop-paper",
+        }
+        for agent, install_root in expected_project_installs.items():
+            if not (install_root / "SKILL.md").exists():
+                raise SystemExit(f"Missing project installed SKILL.md for {agent}: {install_root}")
+            run_ok([sys.executable, str(install_root / "scripts" / "validate_skill_repo.py")])
+
 
 def ensure_installer_rejects_recursive_destinations() -> None:
     run_fail(

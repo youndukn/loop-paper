@@ -81,6 +81,7 @@ def install_targets(
 
     agents = sorted(USER_DIRS) if agent == "all" else [agent]
     targets = []
+    by_destination: dict[Path, int] = {}
     for item in agents:
         if scope == "user":
             parent = home / USER_DIRS[item]
@@ -88,7 +89,15 @@ def install_targets(
             if item not in PROJECT_DIRS:
                 continue
             parent = project_root / PROJECT_DIRS[item]
-        targets.append((item, parent / SKILL_NAME))
+        destination = parent / SKILL_NAME
+        key = destination.expanduser()
+        if key in by_destination:
+            index = by_destination[key]
+            label, existing_destination = targets[index]
+            targets[index] = (f"{label}+{item}", existing_destination)
+            continue
+        by_destination[key] = len(targets)
+        targets.append((item, destination))
     return targets
 
 
