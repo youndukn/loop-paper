@@ -65,7 +65,10 @@ def validate_iso_date(value: str, *, label: str = "--date") -> str:
 
 
 def paper_paths(root: Path) -> list[Path]:
-    return sorted((root / "papers").glob("PAPER-*.md"))
+    papers_dir = root / "papers"
+    if papers_dir.exists() and not papers_dir.is_dir():
+        raise SystemExit(f"Expected papers directory, got file: {papers_dir}")
+    return sorted(papers_dir.glob("PAPER-*.md"))
 
 
 def require_paper_file(path: Path) -> None:

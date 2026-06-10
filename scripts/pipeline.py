@@ -63,7 +63,7 @@ def main() -> int:
 
     root = Path(args.root)
     papers_dir = root / "papers"
-    paper_count = len(list(papers_dir.glob("PAPER-*.md"))) if papers_dir.exists() else 0
+    paper_count = len(paper_paths(root))
     if args.strict and paper_count == 0:
         print(f"FAIL no papers found in {papers_dir}", file=sys.stderr)
         return 1
