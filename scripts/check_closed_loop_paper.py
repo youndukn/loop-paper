@@ -58,6 +58,9 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         plan = section(text, "Implementation Plan")
         if checked_count(plan) < 3:
             errors.append("before phase incomplete: implementation plan checkboxes are not all checked")
+        validation_plan = section(text, "Validation Plan")
+        if checked_count(validation_plan) < 1:
+            errors.append("before phase incomplete: validation plan checkboxes are not all checked")
     if phase == "after":
         after_placeholders = re.findall(r"\bAFTER_REQUIRED\b", text)
         if after_placeholders:

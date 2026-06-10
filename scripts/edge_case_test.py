@@ -56,6 +56,22 @@ def write_answers(path: Path, *, evidence: str = "Strong") -> None:
     path.write_text(json.dumps(answers, indent=2), encoding="utf-8")
 
 
+def make_before_ready_except_validation_plan(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    for checkbox in [
+        "Hypothesis is specific",
+        "Hypothesis can be validated or rejected",
+        "Baseline evidence is recorded before implementation",
+        "Prior work is cited, or missing prior work is explicitly acknowledged",
+        "Implementation plan is concrete",
+        "Dependencies are named",
+        "Risks are named",
+    ]:
+        text = text.replace(f"- [ ] {checkbox}", f"- [x] {checkbox}")
+    path.write_text(text, encoding="utf-8")
+
+
 def ensure_validator_ignores_local_paper_stack() -> None:
     local_skill = ROOT / ".paper-stack" / "validator-ignore" / "SKILL.md"
     local_skill.parent.mkdir(parents=True, exist_ok=True)
@@ -189,6 +205,11 @@ def main() -> int:
         run_fail(
             [sys.executable, script("check_closed_loop_paper.py"), str(created), "--phase", "before"],
             "BEFORE_REQUIRED slots remain",
+        )
+        make_before_ready_except_validation_plan(created)
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(created), "--phase", "before"],
+            "validation plan checkboxes are not all checked",
         )
         run_fail(
             [
