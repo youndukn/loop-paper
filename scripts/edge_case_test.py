@@ -326,6 +326,10 @@ def main() -> int:
             "validation evidence checkbox is not checked",
         )
         run_fail(
+            [sys.executable, script("watch_pipeline.py"), str(root), "--once"],
+            "validation evidence checkbox is not checked",
+        )
+        run_fail(
             [
                 sys.executable,
                 script("combine_papers.py"),
