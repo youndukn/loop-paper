@@ -464,6 +464,34 @@ def main() -> int:
             raise SystemExit("Generated findings table did not escape pipe/newline input")
         if "- docs/reference | one second" not in escaped_text:
             raise SystemExit("Generated reference list did not collapse newline input")
+        script_title = Path(
+            run_ok(
+                [
+                    sys.executable,
+                    script("new_closed_loop_paper.py"),
+                    "--root",
+                    str(root),
+                    "--title",
+                    "Script </script> Edge",
+                    "--hypothesis",
+                    "Dashboard JSON should not close inline scripts",
+                    "--finding",
+                    "Generated dashboards embed paper metadata in JavaScript",
+                    "--reference",
+                    "scripts/edge_case_test.py",
+                    "--date",
+                    "2026-06-10",
+                ]
+            ).stdout.strip()
+        )
+        run_ok([sys.executable, script("render_dashboard.py"), str(root)])
+        dashboard_html = (root / "dashboard" / "index.html").read_text(encoding="utf-8")
+        if "Script </script> Edge" in dashboard_html:
+            raise SystemExit("Dashboard embedded an unescaped script-closing title")
+        if "Script <\\/script> Edge" not in dashboard_html:
+            raise SystemExit("Dashboard did not preserve escaped script-closing title")
+        if not script_title.exists():
+            raise SystemExit("Script-title paper was not created")
         report_output = root / "dashboard" / "pipe-report.md"
         run_ok(
             [

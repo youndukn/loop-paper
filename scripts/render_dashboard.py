@@ -63,7 +63,7 @@ def write_dashboard(root: Path, papers: list[dict]) -> None:
         label="dashboard data",
     )
 
-    data = json.dumps({"papers": papers, "statuses": STATUSES})
+    data = json.dumps({"papers": papers, "statuses": STATUSES}).replace("</", "<\\/")
     html_text = f"""<!doctype html>
 <html lang="en">
 <head>
