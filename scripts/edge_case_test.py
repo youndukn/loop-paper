@@ -1319,6 +1319,44 @@ def main() -> int:
             ],
             "Dangling relationship target: References -> PAPER-9999",
         )
+        self_relation_root = project / "self-relation-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(self_relation_root),
+                "--project-name",
+                "Loop Paper Self Relation Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        self_relation = create_edge_paper(self_relation_root, "Self Relation Edge")
+        self_relation.write_text(
+            self_relation.read_text(encoding="utf-8").replace(
+                "Depends on: None",
+                "Depends on: PAPER-0001",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(self_relation_root)],
+            "Self relationship target: Depends on -> PAPER-0001",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(self_relation_root), "--strict"],
+            "Self relationship target: Depends on -> PAPER-0001",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(self_relation_root), "--last", "1"],
+            "Self relationship target: Depends on -> PAPER-0001",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(self_relation), "Research Ready"],
+            "Self relationship target: Depends on -> PAPER-0001",
+        )
         duplicate_root = project / "duplicate-stack"
         run_ok(
             [

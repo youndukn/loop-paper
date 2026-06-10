@@ -13,11 +13,10 @@ from paperstack_common import (
     RELATION_LABELS,
     REQUIRED_SECTIONS,
     STATUSES,
-    extract_relations,
+    find_ids,
     parse_frontmatter,
     paper_paths,
     paper_id_from_path,
-    relation_key,
     require_paper_file,
     split_sections,
     validate_iso_date,
@@ -172,12 +171,13 @@ def check_paths(paths: list[Path], *, validate_relationships: bool = False) -> l
         if counts[result["paper_id"]] > 1:
             result["warnings"].append(f"Duplicate paper_id in stack: {result['paper_id']}")
         text = path.read_text(encoding="utf-8")
-        relations = extract_relations(text, result["paper_id"])
         for label in RELATION_LABELS:
-            key = relation_key(label)
-            for target in relations[key]:
-                if target not in known_ids:
-                    result["warnings"].append(f"Dangling relationship target: {label} -> {target}")
+            for match in re.finditer(rf"^{re.escape(label)}:\s*(.*)$", text, flags=re.MULTILINE):
+                for target in find_ids(match.group(1)):
+                    if target == result["paper_id"]:
+                        result["warnings"].append(f"Self relationship target: {label} -> {target}")
+                    elif target not in known_ids:
+                        result["warnings"].append(f"Dangling relationship target: {label} -> {target}")
         if result.get("paper_kind") == "review":
             for target in result.get("review_targets", []):
                 if target == result["paper_id"]:
