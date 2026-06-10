@@ -426,6 +426,42 @@ def make_after_ready_with_empty_impact_basis(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def make_after_ready_with_empty_run_records(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = normalize_agent_review_fields(text)
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+            "AI validation evidence recorded",
+            "Agent reviewed paper structure",
+            "Agent confirmed evidence backs the recorded verdict",
+            "Impact score is based on evidence, not agent guesswork",
+        ],
+    )
+    text = text.replace(
+        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
+        "- Supported: edge-case verdict recorded.",
+    )
+    text = re.sub(
+        r"(?ms)^Run records:\n\n- .+?\n\nFix records:",
+        "Run records:\n\nFix records:",
+        text,
+        count=1,
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def set_status(path: Path, status: str) -> None:
     text = path.read_text(encoding="utf-8")
     if "status: Draft" not in text:
@@ -1949,6 +1985,24 @@ def main() -> int:
         run_fail(
             [sys.executable, script("transition_paper.py"), str(empty_impact_basis_gate), "AI Validated"],
             "impact score basis missing Measured outcome",
+        )
+        empty_run_records_gate = create_edge_paper(root, "Empty Run Records Edge")
+        make_after_ready_with_empty_run_records(empty_run_records_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(empty_run_records_gate),
+                "--phase",
+                "after",
+            ],
+            "execution records Run records block has no concrete content",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(empty_run_records_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(empty_run_records_gate), "AI Validated"],
+            "execution records Run records block has no concrete content",
         )
         verdict_gate = create_edge_paper(root, "Verdict Instruction Gate Edge")
         make_after_ready_with_instruction_verdict(verdict_gate)

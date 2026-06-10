@@ -34,6 +34,7 @@ VALIDATION_PLAN_LABELS = [
     "After-change evidence to collect",
     "AI-actionable validation",
 ]
+EXECUTION_RECORD_LABELS = ["Run records", "Fix records"]
 VALIDATION_SECTION_LABELS = ["Before", "After", "Verdict", "AI validation evidence"]
 AGENT_REVIEW_FIELD_RE = re.compile(
     r"^(Agent reviewer|Review date|Decision):[ \t]*(.*?)[ \t]*$",
@@ -126,6 +127,15 @@ def validation_section_errors(section_text: str) -> list[str]:
         body = labeled_block(section_text, label, VALIDATION_SECTION_LABELS[index + 1 :])
         if not non_checkbox_lines(body):
             errors.append(f"validation {label} block has no concrete evidence")
+    return errors
+
+
+def execution_record_errors(section_text: str) -> list[str]:
+    errors: list[str] = []
+    for index, label in enumerate(EXECUTION_RECORD_LABELS):
+        body = labeled_block(section_text, label, EXECUTION_RECORD_LABELS[index + 1 :])
+        if not non_checkbox_lines(body):
+            errors.append(f"execution records {label} block has no concrete content")
     return errors
 
 
@@ -306,6 +316,8 @@ def validate_paper(path: Path, phase: str) -> list[str]:
             errors.append("after phase incomplete: no hypothesis verdict recorded")
         if checked_count(validation) < 1:
             errors.append("after phase incomplete: validation evidence checkbox is not checked")
+        execution_records = section(text, "Execution Records")
+        errors.extend(execution_record_errors(execution_records))
         agent = section(text, "Agent Review")
         errors.extend(agent_review_errors(agent))
         if checked_count(agent) < 2:
