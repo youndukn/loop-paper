@@ -71,7 +71,10 @@ def render_report(root: Path) -> str:
     lines.append("| --- | --- | ---: | ---: |")
     for paper in papers:
         item = impact_by_id.get(paper["paper_id"], {})
-        score = markdown_table_cell(item.get("deterministic_partial_score", "TBD"))
+        score = item.get("deterministic_score", "TBD")
+        if score == "TBD" and "deterministic_partial_score" in item:
+            score = f"TBD (partial {item['deterministic_partial_score']})"
+        score = markdown_table_cell(score)
         paper_label = markdown_table_cell(f"{paper['paper_id']} {paper['title']}")
         status = markdown_table_cell(paper["status"])
         lines.append(f"| {paper_label} | {status} | {unchecked_count(paper['text'])} | {score} |")

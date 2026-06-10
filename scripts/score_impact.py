@@ -12,6 +12,13 @@ from index_references import build_graph
 from paperstack_common import load_paper, paper_paths, section_has_checked, validation_not_run, write_text_output
 
 
+COMPONENT_WEIGHTS = {
+    "downstream_reference_score": 0.33,
+    "validation_strength_score": 0.33,
+    "measured_outcome_score": 0.34,
+}
+
+
 def downstream_score(count: int) -> int:
     if count <= 0:
         return 0
@@ -32,11 +39,15 @@ def validation_score(paper: dict) -> int:
     return 3 if section_has_checked(validation) else 0
 
 
-def partial_score(components: list[int | str]) -> float | str:
-    known = [component for component in components if isinstance(component, int)]
-    if not known:
+def weighted_score(components: dict[str, int | str], *, require_complete: bool) -> float | str:
+    if require_complete and any(not isinstance(value, int) for value in components.values()):
         return "TBD"
-    return round(sum(known) / len(known), 2)
+    known_total = sum(
+        value * COMPONENT_WEIGHTS[name]
+        for name, value in components.items()
+        if isinstance(value, int)
+    )
+    return round(known_total, 2)
 
 
 def score(root: Path) -> dict:
@@ -48,18 +59,20 @@ def score(root: Path) -> dict:
         downstream = downstream_score(inbound.get(paper["paper_id"], 0))
         validation = validation_score(paper)
         measured = "TBD"
-        components = [downstream, validation, measured]
+        components = {
+            "downstream_reference_score": downstream,
+            "validation_strength_score": validation,
+            "measured_outcome_score": measured,
+        }
         results.append(
             {
                 "paper_id": paper["paper_id"],
                 "title": paper["title"],
                 "declared_impact_score": paper["metadata"].get("impact_score", "TBD"),
-                "deterministic_partial_score": partial_score(components),
-                "components": {
-                    "downstream_reference_score": downstream,
-                    "validation_strength_score": validation,
-                    "measured_outcome_score": measured,
-                },
+                "deterministic_score": weighted_score(components, require_complete=True),
+                "deterministic_partial_score": weighted_score(components, require_complete=False),
+                "formula": "0.33*downstream_reference_score + 0.33*validation_strength_score + 0.34*measured_outcome_score",
+                "components": components,
                 "reason": "Measured outcomes remain TBD unless supplied as concrete evidence in the paper body.",
             }
         )

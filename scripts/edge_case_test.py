@@ -613,6 +613,26 @@ def main() -> int:
         if "Pipe \\| Title" not in report_text:
             raise SystemExit("Exported report table did not escape title pipe")
         impact_scores = root / "dashboard" / "impact-scores.json"
+        run_ok([sys.executable, script("score_impact.py"), str(root)])
+        impact_payload = json.loads(impact_scores.read_text(encoding="utf-8"))
+        first_score = impact_payload["papers"][0]
+        if first_score.get("deterministic_score") != "TBD":
+            raise SystemExit("Impact scorer fabricated a full score with missing measured outcome")
+        if first_score.get("deterministic_partial_score") != 0.99:
+            raise SystemExit("Impact scorer did not use weighted partial formula")
+        run_ok(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ]
+        )
+        report_text = report_output.read_text(encoding="utf-8")
+        if "TBD (partial 0.99)" not in report_text:
+            raise SystemExit("Exported report did not distinguish full impact from partial score")
+        impact_scores.unlink()
         impact_scores.mkdir()
         run_fail(
             [
