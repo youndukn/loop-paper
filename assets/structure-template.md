@@ -15,7 +15,7 @@ This directory is the project-local state for paper-backed work loops.
 - `inbox/`: untriaged claims, user notes, external links, or experiment ideas
   before they become papers.
 - `dashboard/`: generated outputs from `scripts/pipeline.py`. Do not hand-edit.
-- `config/`: local Loop Paper configuration, reviewer registry, and policy.
+- `config/`: local Loop Paper configuration and policy.
 - `archive/`: superseded or exported paper-stack material kept for history.
 
 ## File Contracts

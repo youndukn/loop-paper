@@ -21,14 +21,4 @@ jobs:
           python3 scripts/install_skill.py --agent codex --dest /tmp/loop-paper-install/loop-paper
           test -f /tmp/loop-paper-install/loop-paper/SKILL.md
       - name: Smoke initialize and pipeline
-        run: |
-          python3 scripts/init_loop_paper.py \
-            --root /tmp/loop-paper-ci/.paper-stack \
-            --project-name "Loop Paper CI" \
-            --seed-paper
-          python3 scripts/pipeline.py /tmp/loop-paper-ci/.paper-stack --strict
-          python3 scripts/combine_papers.py /tmp/loop-paper-ci/.paper-stack \
-            --from PAPER-0001 \
-            --to PAPER-0001 \
-            --mode both \
-            --json
+        run: python3 scripts/smoke_test.py

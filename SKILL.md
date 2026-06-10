@@ -103,7 +103,7 @@ This creates the generalizable directory contract:
   references/   stable prior work and source notes
   inbox/        untriaged claims, links, and ideas
   dashboard/    generated reports; do not hand-edit
-  config/       local Loop Paper config and reviewer registry
+  config/       local Loop Paper config
   archive/      superseded or exported material
 ```
 

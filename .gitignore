@@ -16,8 +16,6 @@ Thumbs.db
 # Loop Paper local data — never commit a real .paper-stack from this checkout.
 # The skill itself writes per-project .gitignore entries for these as well.
 .paper-stack/
-**/config/reviewers.json
-**/config/review-secret
 
 # Secrets — defense in depth
 .env
