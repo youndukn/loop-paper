@@ -76,9 +76,20 @@ def mark_checkboxes(text: str, labels: list[str]) -> str:
     return text
 
 
+def normalize_prior_research_options(text: str) -> str:
+    return text.replace(
+        "Prior Research Status: Recorded: Present/Missing/Retrospective",
+        "Prior Research Status: Present",
+    ).replace(
+        "Risk: Recorded: Low/Medium/High",
+        "Risk: Low",
+    )
+
+
 def make_before_ready_with_uppercase_checks(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
     text = mark_checkboxes(
         text,
         [
@@ -99,6 +110,7 @@ def make_before_ready_with_uppercase_checks(path: Path) -> None:
 def make_before_ready_except_prior_research(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
     text = mark_checkboxes(
         text,
         [
@@ -117,6 +129,7 @@ def make_before_ready_except_prior_research(path: Path) -> None:
 def make_before_ready_except_validation_plan(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
     text = mark_checkboxes(
         text,
         [
@@ -135,6 +148,7 @@ def make_before_ready_except_validation_plan(path: Path) -> None:
 def make_before_ready_with_empty_hypothesis_claim(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
     text = mark_checkboxes(
         text,
         [
@@ -161,6 +175,7 @@ def make_before_ready_with_empty_hypothesis_claim(path: Path) -> None:
 def make_after_ready_except_validation_evidence(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = mark_checkboxes(
         text,
@@ -188,6 +203,7 @@ def make_after_ready_except_validation_evidence(path: Path) -> None:
 def make_after_ready_with_instruction_verdict(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = mark_checkboxes(
         text,
@@ -1511,12 +1527,8 @@ def main() -> int:
         make_before_ready_with_uppercase_checks(missing_prior_risk_gate)
         missing_prior_risk_gate.write_text(
             missing_prior_risk_gate.read_text(encoding="utf-8").replace(
-                "Prior Research Status: Recorded: Present/Missing/Retrospective",
+                "Prior Research Status: Present",
                 "Prior Research Status: Missing",
-                1,
-            ).replace(
-                "Risk: Recorded: Low/Medium/High",
-                "Risk: Low",
                 1,
             ),
             encoding="utf-8",
@@ -1530,6 +1542,46 @@ def main() -> int:
                 "before",
             ],
             "missing prior research must explicitly mark Risk: High",
+        )
+        invalid_prior_status_gate = create_edge_paper(root, "Invalid Prior Status Gate Edge")
+        make_before_ready_with_uppercase_checks(invalid_prior_status_gate)
+        invalid_prior_status_gate.write_text(
+            invalid_prior_status_gate.read_text(encoding="utf-8").replace(
+                "Prior Research Status: Present",
+                "Prior Research Status: Maybe",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(invalid_prior_status_gate),
+                "--phase",
+                "before",
+            ],
+            "invalid Prior Research Status: Maybe; expected Present, Missing, or Retrospective",
+        )
+        invalid_risk_gate = create_edge_paper(root, "Invalid Risk Gate Edge")
+        make_before_ready_with_uppercase_checks(invalid_risk_gate)
+        invalid_risk_gate.write_text(
+            invalid_risk_gate.read_text(encoding="utf-8").replace(
+                "Risk: Low",
+                "Risk: Critical",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(invalid_risk_gate),
+                "--phase",
+                "before",
+            ],
+            "invalid Risk: Critical; expected Low, Medium, or High",
         )
         missing_prior_risk_pipeline_root = project / "missing-prior-risk-pipeline-stack"
         run_ok(
@@ -1551,12 +1603,8 @@ def main() -> int:
         make_before_ready_with_uppercase_checks(missing_prior_risk_pipeline)
         missing_prior_risk_pipeline.write_text(
             missing_prior_risk_pipeline.read_text(encoding="utf-8").replace(
-                "Prior Research Status: Recorded: Present/Missing/Retrospective",
+                "Prior Research Status: Present",
                 "Prior Research Status: Missing",
-                1,
-            ).replace(
-                "Risk: Recorded: Low/Medium/High",
-                "Risk: Low",
                 1,
             ),
             encoding="utf-8",

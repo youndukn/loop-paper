@@ -23,6 +23,10 @@ VERDICT_BULLET_RE = re.compile(
     r"^\s*-\s+(Supported|Failed|Inconclusive|Superseded)\s*:",
     flags=re.MULTILINE,
 )
+PRIOR_STATUS_RE = re.compile(r"^Prior Research Status:\s*(.+?)\s*$", flags=re.MULTILINE)
+RISK_RE = re.compile(r"^Risk:\s*(.+?)\s*$", flags=re.MULTILINE)
+PRIOR_RESEARCH_STATUSES = {"Present", "Missing", "Retrospective"}
+RISK_LEVELS = {"Low", "Medium", "High"}
 
 
 def section(text: str, name: str) -> str:
@@ -72,6 +76,23 @@ def prior_research_errors(sections: dict[str, str]) -> list[str]:
     prior = sections.get("Prior Research", "")
     refs = sections.get("References", "")
     errors: list[str] = []
+    status_match = PRIOR_STATUS_RE.search(prior)
+    if not status_match:
+        errors.append("prior research must declare Prior Research Status")
+    else:
+        status = status_match.group(1).strip()
+        if status not in PRIOR_RESEARCH_STATUSES:
+            errors.append(
+                "invalid Prior Research Status: "
+                f"{status}; expected Present, Missing, or Retrospective"
+            )
+    risk_match = RISK_RE.search(prior)
+    if not risk_match:
+        errors.append("prior research must declare Risk")
+    else:
+        risk = risk_match.group(1).strip()
+        if risk not in RISK_LEVELS:
+            errors.append(f"invalid Risk: {risk}; expected Low, Medium, or High")
     if "Prior Research Status: Missing" in prior and "Risk: High" not in prior:
         errors.append("missing prior research must explicitly mark Risk: High")
     if "- TBD" in refs and "Prior Research Status: Missing" not in prior:
