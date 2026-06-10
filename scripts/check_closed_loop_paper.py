@@ -27,6 +27,7 @@ PRIOR_STATUS_RE = re.compile(r"^Prior Research Status:\s*(.+?)\s*$", flags=re.MU
 RISK_RE = re.compile(r"^Risk:\s*(.+?)\s*$", flags=re.MULTILINE)
 PRIOR_RESEARCH_STATUSES = {"Present", "Missing", "Retrospective"}
 RISK_LEVELS = {"Low", "Medium", "High"}
+IMPLEMENTATION_PLAN_LABELS = ["TODO", "Risks", "Rollback/undo"]
 
 
 def section(text: str, name: str) -> str:
@@ -49,6 +50,40 @@ def table_data_rows(section_text: str) -> list[str]:
 
 def table_cells(row: str) -> list[str]:
     return [cell.strip() for cell in row.strip().strip("|").split("|")]
+
+
+def non_checkbox_lines(text: str) -> list[str]:
+    lines: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if re.match(r"- \[[ xX]\]", stripped):
+            continue
+        lines.append(stripped)
+    return lines
+
+
+def content_lines(text: str) -> list[str]:
+    return [line.strip() for line in text.splitlines() if line.strip()]
+
+
+def labeled_block(section_text: str, label: str, following_labels: list[str]) -> str:
+    labels = "|".join(re.escape(item) for item in following_labels)
+    pattern = rf"^{re.escape(label)}:\s*$\n(?P<body>.*?)(?=^(?:{labels}):\s*$|\Z)"
+    match = re.search(pattern, section_text, flags=re.MULTILINE | re.DOTALL)
+    return match.group("body") if match else ""
+
+
+def implementation_plan_errors(section_text: str) -> list[str]:
+    errors: list[str] = []
+    for index, label in enumerate(IMPLEMENTATION_PLAN_LABELS):
+        following = IMPLEMENTATION_PLAN_LABELS[index + 1 :]
+        body = labeled_block(section_text, label, following)
+        lines = content_lines(body) if label == "TODO" else non_checkbox_lines(body)
+        if not lines:
+            errors.append(f"implementation plan {label} block has no concrete content")
+    return errors
 
 
 def hypothesis_ledger_errors(rows: list[str]) -> list[str]:
@@ -175,6 +210,7 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         if checked_count(prior) < 1:
             errors.append("before phase incomplete: prior research checkboxes are not all checked")
         plan = section(text, "Implementation Plan")
+        errors.extend(implementation_plan_errors(plan))
         if checked_count(plan) < 3:
             errors.append("before phase incomplete: implementation plan checkboxes are not all checked")
         validation_plan = section(text, "Validation Plan")

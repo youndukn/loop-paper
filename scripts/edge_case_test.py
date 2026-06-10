@@ -199,6 +199,32 @@ def make_before_ready_with_empty_prior_finding(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def make_before_ready_with_empty_implementation_risks(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+        ],
+    )
+    text = re.sub(
+        r"(?ms)^Risks:\n\n- .+?\n\nRollback/undo:",
+        "Risks:\n\nRollback/undo:",
+        text,
+        count=1,
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def make_after_ready_except_validation_evidence(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
@@ -1669,6 +1695,18 @@ def main() -> int:
                 "before",
             ],
             "prior research ledger row 1 has empty required cells: Finding",
+        )
+        empty_implementation_risks_gate = create_edge_paper(root, "Empty Implementation Risks Edge")
+        make_before_ready_with_empty_implementation_risks(empty_implementation_risks_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(empty_implementation_risks_gate),
+                "--phase",
+                "before",
+            ],
+            "implementation plan Risks block has no concrete content",
         )
         validation_plan_gate = create_edge_paper(root, "Validation Plan Gate Edge")
         make_before_ready_except_validation_plan(validation_plan_gate)
