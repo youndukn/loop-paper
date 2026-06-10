@@ -55,13 +55,17 @@ def paper_id_from_filename(path: Path) -> str | None:
 
 def parse_review_targets(value: str) -> tuple[list[str], list[str]]:
     errors: list[str] = []
-    targets = [item.strip() for item in value.split(",") if item.strip()]
-    if not targets:
+    raw_targets = [item.strip() for item in value.split(",")]
+    if not raw_targets or all(not item for item in raw_targets):
         return [], ["Missing review_targets for review paper"]
+    if any(not item for item in raw_targets):
+        errors.append("review_targets contains empty entry")
 
     seen: set[str] = set()
     normalized: list[str] = []
-    for target in targets:
+    for target in raw_targets:
+        if not target:
+            continue
         if not valid_paper_id(target):
             errors.append(f"Invalid review_targets entry: {target}")
             continue

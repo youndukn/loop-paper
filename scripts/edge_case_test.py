@@ -1917,6 +1917,24 @@ def main() -> int:
         )
         review_paper.write_text(review_text, encoding="utf-8")
         review_paper.write_text(
+            review_text.replace("review_targets: PAPER-0001", "review_targets: PAPER-0001,", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(review_paper)],
+            "review_targets contains empty entry",
+        )
+        review_paper.write_text(review_text, encoding="utf-8")
+        review_paper.write_text(
+            review_text.replace("review_targets: PAPER-0001", "review_targets: PAPER-0001,,PAPER-0001", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(review_paper)],
+            "review_targets contains empty entry",
+        )
+        review_paper.write_text(review_text, encoding="utf-8")
+        review_paper.write_text(
             review_text.replace("review_targets: PAPER-0001", "review_targets: PAPER-9999", 1),
             encoding="utf-8",
         )
