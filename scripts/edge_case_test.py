@@ -2188,6 +2188,18 @@ def main() -> int:
             "--from must be less than or equal to --to",
         )
         run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(root),
+                "--from",
+                "PAPER-0001",
+                "--to",
+                "PAPER-9999",
+            ],
+            "Missing interval boundary paper IDs: PAPER-9999",
+        )
+        run_fail(
             [sys.executable, script("combine_papers.py"), str(root), "--last", "0"],
             "--last must be greater than zero",
         )

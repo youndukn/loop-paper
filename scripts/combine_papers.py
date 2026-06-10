@@ -196,6 +196,15 @@ def select_papers(args: argparse.Namespace, papers: list[dict]) -> list[dict]:
         end = paper_number(args.to_id)
         if start > end:
             raise SystemExit("--from must be less than or equal to --to.")
+        missing_boundaries = [
+            paper_id
+            for paper_id in (args.from_id, args.to_id)
+            if paper_id not in by_id
+        ]
+        if missing_boundaries:
+            raise SystemExit(
+                "Missing interval boundary paper IDs: " + ", ".join(missing_boundaries)
+            )
         selected = [paper for paper in papers if start <= paper_number(paper["paper_id"]) <= end]
 
     if not selected:
