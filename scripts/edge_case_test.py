@@ -62,6 +62,26 @@ def mark_checkboxes(text: str, labels: list[str]) -> str:
     return text
 
 
+def make_before_ready_with_uppercase_checks(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+        ],
+    )
+    text = text.replace("- [x]", "- [X]")
+    path.write_text(text, encoding="utf-8")
+
+
 def make_before_ready_except_prior_research(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
@@ -299,6 +319,11 @@ def main() -> int:
         run_fail(
             [sys.executable, script("transition_paper.py"), str(prior_gate), "Plan Ready"],
             "prior research checkboxes are not all checked",
+        )
+        uppercase_gate = create_edge_paper(root, "Uppercase Checkbox Edge")
+        make_before_ready_with_uppercase_checks(uppercase_gate)
+        run_ok(
+            [sys.executable, script("check_closed_loop_paper.py"), str(uppercase_gate), "--phase", "before"]
         )
         validation_plan_gate = create_edge_paper(root, "Validation Plan Gate Edge")
         make_before_ready_except_validation_plan(validation_plan_gate)

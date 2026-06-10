@@ -7,7 +7,7 @@ import argparse
 import re
 from pathlib import Path
 
-from paperstack_common import REQUIRED_SECTIONS, split_sections
+from paperstack_common import REQUIRED_SECTIONS, checked_count, split_sections
 
 
 PLACEHOLDER_RE = re.compile(r"\b(BEFORE_REQUIRED|AFTER_REQUIRED)\b")
@@ -15,10 +15,6 @@ PLACEHOLDER_RE = re.compile(r"\b(BEFORE_REQUIRED|AFTER_REQUIRED)\b")
 
 def section(text: str, name: str) -> str:
     return split_sections(text).get(name, "")
-
-
-def checked_count(text: str) -> int:
-    return len(re.findall(r"^- \[x\] ", text, flags=re.MULTILINE))
 
 
 def table_data_rows(section_text: str) -> list[str]:
