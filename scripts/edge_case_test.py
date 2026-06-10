@@ -1087,6 +1087,74 @@ def main() -> int:
             [sys.executable, script("pipeline.py"), str(duplicate_frontmatter_root), "--strict"],
             "Duplicate frontmatter key: status",
         )
+        heading_root = project / "heading-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(heading_root),
+                "--project-name",
+                "Loop Paper Heading Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        heading_mismatch = create_edge_paper(heading_root, "Heading Mismatch Edge")
+        heading_mismatch.write_text(
+            heading_mismatch.read_text(encoding="utf-8").replace(
+                "# PAPER-0001 Heading Mismatch Edge",
+                "# PAPER-9999 Heading Mismatch Edge",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(heading_mismatch)],
+            "heading paper_id PAPER-9999 does not match PAPER-0001",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(heading_root), "--strict"],
+            "heading paper_id PAPER-9999 does not match PAPER-0001",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(heading_root), "--last", "1"],
+            "Cannot combine invalid papers",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(heading_mismatch), "Research Ready"],
+            "heading paper_id PAPER-9999 does not match PAPER-0001",
+        )
+        duplicate_heading_root = project / "duplicate-heading-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(duplicate_heading_root),
+                "--project-name",
+                "Loop Paper Duplicate Heading Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        duplicate_heading = create_edge_paper(duplicate_heading_root, "Duplicate Heading Edge")
+        duplicate_heading.write_text(
+            duplicate_heading.read_text(encoding="utf-8").replace(
+                "# PAPER-0001 Duplicate Heading Edge",
+                "# PAPER-0001 Duplicate Heading Edge\n\n# PAPER-0001 Duplicate Heading Edge Copy",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(duplicate_heading)],
+            "Duplicate top-level paper heading",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(duplicate_heading_root), "--strict"],
+            "Duplicate top-level paper heading",
+        )
         duplicate_section_root = project / "duplicate-section-stack"
         run_ok(
             [

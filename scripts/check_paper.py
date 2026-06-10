@@ -96,6 +96,27 @@ def section_warnings(text: str) -> list[str]:
     ]
 
 
+def heading_warnings(text: str, expected_id: str | None) -> list[str]:
+    headings = [
+        match.group(1).strip()
+        for match in re.finditer(r"^#\s+(.+?)\s*$", text, flags=re.MULTILINE)
+    ]
+    if not headings:
+        return ["Missing top-level paper heading"]
+
+    warnings: list[str] = []
+    if len(headings) > 1:
+        warnings.append("Duplicate top-level paper heading")
+
+    first = headings[0]
+    match = re.match(r"^(PAPER-\d{4})(?:\s+|$)", first)
+    if not match:
+        warnings.append("Top-level paper heading must start with PAPER-NNNN")
+    elif expected_id and match.group(1) != expected_id:
+        warnings.append(f"heading paper_id {match.group(1)} does not match {expected_id}")
+    return warnings
+
+
 def check_file(path: Path) -> dict:
     require_paper_file(path)
     text = path.read_text(encoding="utf-8")
@@ -148,6 +169,8 @@ def check_file(path: Path) -> dict:
         warnings.append(f"Invalid paper_id: {declared_id}")
     elif filename_id and declared_id != filename_id:
         warnings.append(f"paper_id {declared_id} does not match filename {filename_id}")
+    expected_heading_id = declared_id if declared_id and valid_paper_id(declared_id) else filename_id
+    warnings.extend(heading_warnings(text, expected_heading_id))
 
     return {
         "path": str(path),
