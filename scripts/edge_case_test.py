@@ -894,6 +894,7 @@ def main() -> int:
             [sys.executable, script("index_references.py"), str(dangling_root)],
             [sys.executable, script("score_impact.py"), str(dangling_root)],
             [sys.executable, script("export_report.py"), str(dangling_root)],
+            [sys.executable, script("render_dashboard.py"), str(dangling_root)],
         ]:
             run_fail(command, "Dangling relationship target: References -> PAPER-9999")
         run_fail(

@@ -9,6 +9,7 @@ import json
 import re
 from pathlib import Path
 
+from check_paper import require_valid_stack
 from paperstack_common import (
     REQUIRED_SECTIONS,
     STATUSES,
@@ -246,6 +247,7 @@ def main() -> int:
     root = Path(args.root)
     papers_dir = root / "papers"
     ensure_directory(papers_dir, label="papers directory")
+    require_valid_stack(root)
     papers = [summarize_paper(path, root) for path in sorted(papers_dir.glob("PAPER-*.md"))]
     write_dashboard(root, papers)
     print(root / "dashboard" / "index.html")
