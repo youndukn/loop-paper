@@ -203,6 +203,30 @@ def ensure_validator_ignores_local_paper_stack() -> None:
             pass
 
 
+def ensure_validator_rejects_malformed_skill_frontmatter() -> None:
+    skill = ROOT / "SKILL.md"
+    original = skill.read_text(encoding="utf-8")
+    try:
+        skill.write_text(
+            original.replace("name: loop-paper", "name: loop-paper\nname: duplicate-loop-paper", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("validate_skill_repo.py")],
+            "duplicate frontmatter key: name",
+        )
+        skill.write_text(
+            original.replace("description:", "description", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("validate_skill_repo.py")],
+            "malformed frontmatter line",
+        )
+    finally:
+        skill.write_text(original, encoding="utf-8")
+
+
 def ensure_installed_payload_validates() -> None:
     with tempfile.TemporaryDirectory(prefix="loop-paper-installed-") as tmp:
         destination = Path(tmp) / "loop-paper"
@@ -303,6 +327,7 @@ def ensure_installer_rejects_file_parent() -> None:
 
 def main() -> int:
     ensure_validator_ignores_local_paper_stack()
+    ensure_validator_rejects_malformed_skill_frontmatter()
     ensure_installed_payload_validates()
     ensure_installer_rejects_recursive_destinations()
     ensure_installer_rejects_file_parent()

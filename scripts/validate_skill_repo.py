@@ -24,14 +24,28 @@ def parse_frontmatter(path: Path) -> dict[str, str]:
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
         fail(f"{path} missing YAML frontmatter")
-    end = text.find("\n---", 4)
-    if end == -1:
+    end = None
+    offset = 4
+    for line in text[offset:].splitlines(keepends=True):
+        if line.strip() == "---":
+            end = offset
+            break
+        offset += len(line)
+    if end is None:
         fail(f"{path} has unterminated YAML frontmatter")
     metadata: dict[str, str] = {}
-    for line in text[4:end].splitlines():
-        if ":" in line:
-            key, value = line.split(":", 1)
-            metadata[key.strip()] = value.strip().strip('"')
+    for index, line in enumerate(text[4:end].splitlines(), start=1):
+        if not line.strip():
+            continue
+        if ":" not in line:
+            fail(f"{path} malformed frontmatter line {index}: missing ':'")
+        key, value = line.split(":", 1)
+        key = key.strip()
+        if not key:
+            fail(f"{path} malformed frontmatter line {index}: empty key")
+        if key in metadata:
+            fail(f"{path} duplicate frontmatter key: {key}")
+        metadata[key] = value.strip().strip('"')
     return metadata
 
 
