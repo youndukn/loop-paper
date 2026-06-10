@@ -2313,6 +2313,33 @@ def main() -> int:
             [sys.executable, script("combine_papers.py"), str(papers_file_root), "--last", "1"],
         ]:
             run_fail(command, f"Expected papers directory, got file: {papers_file}")
+        stray_markdown_root = project / "stray-markdown-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(stray_markdown_root),
+                "--project-name",
+                "Loop Paper Stray Markdown Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        create_edge_paper(stray_markdown_root, "Stray Markdown Edge")
+        stray_markdown = stray_markdown_root / "papers" / "notes.md"
+        stray_markdown.write_text("not a paper", encoding="utf-8")
+        for command in [
+            [sys.executable, script("check_paper.py"), str(stray_markdown_root)],
+            [sys.executable, script("index_references.py"), str(stray_markdown_root)],
+            [sys.executable, script("score_impact.py"), str(stray_markdown_root)],
+            [sys.executable, script("export_report.py"), str(stray_markdown_root)],
+            [sys.executable, script("render_dashboard.py"), str(stray_markdown_root)],
+            [sys.executable, script("pipeline.py"), str(stray_markdown_root), "--strict"],
+            [sys.executable, script("watch_pipeline.py"), str(stray_markdown_root), "--once"],
+            [sys.executable, script("combine_papers.py"), str(stray_markdown_root), "--last", "1"],
+        ]:
+            run_fail(command, "Unexpected markdown file in papers directory: notes.md")
         run_fail(
             [
                 sys.executable,

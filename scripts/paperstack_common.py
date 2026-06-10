@@ -69,6 +69,15 @@ def paper_paths(root: Path) -> list[Path]:
     papers_dir = root / "papers"
     if papers_dir.exists() and not papers_dir.is_dir():
         raise SystemExit(f"Expected papers directory, got file: {papers_dir}")
+    unexpected = [
+        path.name
+        for path in sorted(papers_dir.glob("*.md"))
+        if not path.name.startswith("PAPER-")
+    ]
+    if unexpected:
+        raise SystemExit(
+            "Unexpected markdown file in papers directory: " + ", ".join(unexpected)
+        )
     return sorted(papers_dir.glob("PAPER-*.md"))
 
 
