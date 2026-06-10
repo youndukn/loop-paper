@@ -35,6 +35,19 @@ def parse_frontmatter(path: Path) -> dict[str, str]:
     return metadata
 
 
+def is_git_root() -> bool:
+    completed = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return False
+    return Path(completed.stdout.strip()).resolve() == ROOT
+
+
 def validate_skill_md() -> None:
     path = ROOT / "SKILL.md"
     if not path.exists():
@@ -89,6 +102,9 @@ def validate_directories() -> None:
 
 
 def tracked_files() -> list[Path]:
+    if not is_git_root():
+        return filesystem_payload_files()
+
     completed = subprocess.run(
         ["git", "ls-files"],
         cwd=ROOT,
@@ -99,6 +115,10 @@ def tracked_files() -> list[Path]:
     if completed.returncode == 0:
         return [ROOT / line for line in completed.stdout.splitlines() if line]
 
+    return filesystem_payload_files()
+
+
+def filesystem_payload_files() -> list[Path]:
     ignored_parts = {".git", "__pycache__", ".paper-stack"}
     return sorted(
         path
@@ -151,7 +171,9 @@ def validate_retired_review_gate_absent() -> None:
 def validate_ci_runs_core_checks() -> None:
     path = ROOT / ".github" / "workflows" / "ci.yml"
     if not path.exists():
-        fail("missing .github/workflows/ci.yml")
+        if is_git_root():
+            fail("missing .github/workflows/ci.yml")
+        return
 
     text = path.read_text(encoding="utf-8")
     required = [

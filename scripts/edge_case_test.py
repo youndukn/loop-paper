@@ -73,8 +73,26 @@ def ensure_validator_ignores_local_paper_stack() -> None:
             pass
 
 
+def ensure_installed_payload_validates() -> None:
+    with tempfile.TemporaryDirectory(prefix="loop-paper-installed-") as tmp:
+        destination = Path(tmp) / "loop-paper"
+        run_ok(
+            [
+                sys.executable,
+                script("install_skill.py"),
+                "--agent",
+                "codex",
+                "--dest",
+                str(destination),
+            ]
+        )
+        run_ok([sys.executable, str(destination / "scripts" / "validate_skill_repo.py")])
+        run_ok([sys.executable, str(destination / "scripts" / "smoke_test.py")])
+
+
 def main() -> int:
     ensure_validator_ignores_local_paper_stack()
+    ensure_installed_payload_validates()
 
     with tempfile.TemporaryDirectory(prefix="loop-paper-edge-") as tmp:
         project = Path(tmp)
