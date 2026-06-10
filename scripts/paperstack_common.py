@@ -47,7 +47,7 @@ REQUIRED_SECTIONS = [
 ]
 
 RELATION_LABELS = ["References", "Depends on", "Supersedes", "Contradicts", "Extends"]
-PAPER_FILENAME_RE = re.compile(r"^(PAPER-\d{4})(?:-[A-Za-z0-9][A-Za-z0-9-]*)?\.md$")
+PAPER_FILENAME_RE = re.compile(r"^(PAPER-\d{4})(?:-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)?\.md$")
 MAX_PAPER_NUMBER = 9999
 
 

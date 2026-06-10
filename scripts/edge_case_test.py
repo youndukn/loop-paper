@@ -1967,6 +1967,52 @@ def main() -> int:
             ],
             "Filename must contain canonical PAPER-NNNN ID",
         )
+        malformed_slug_filename_root = project / "malformed-slug-filename-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(malformed_slug_filename_root),
+                "--project-name",
+                "Loop Paper Malformed Slug Filename Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        malformed_slug_filename = create_edge_paper(
+            malformed_slug_filename_root,
+            "Malformed Slug Filename Edge",
+        )
+        renamed_malformed_slug_filename = malformed_slug_filename.with_name("PAPER-0001-bad--slug.md")
+        malformed_slug_filename.rename(renamed_malformed_slug_filename)
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(renamed_malformed_slug_filename)],
+            "Filename must contain canonical PAPER-NNNN ID",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(malformed_slug_filename_root), "--strict"],
+            "Filename must contain canonical PAPER-NNNN ID",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(malformed_slug_filename_root),
+                "--title",
+                "After Malformed Slug Filename",
+                "--hypothesis",
+                "Creation should reject malformed existing slug filenames",
+                "--finding",
+                "ID allocation depends on canonical filenames",
+                "--reference",
+                "scripts/edge_case_test.py",
+                "--date",
+                "2026-06-10",
+            ],
+            "Existing paper filename is not canonical: PAPER-0001-bad--slug.md",
+        )
         dangling_root = project / "dangling-stack"
         run_ok(
             [
