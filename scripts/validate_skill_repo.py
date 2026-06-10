@@ -56,9 +56,11 @@ def validate_openai_yaml() -> None:
 
 
 def validate_directories() -> None:
-    for directory in ["agents", "assets", "references", "scripts"]:
+    for directory in ["agents", "assets", "docs", "references", "scripts"]:
         if not (ROOT / directory).is_dir():
             fail(f"missing {directory}/")
+    if not (ROOT / "docs" / "install.md").exists():
+        fail("missing docs/install.md")
     nested = [
         path
         for path in ROOT.rglob("SKILL.md")

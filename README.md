@@ -18,20 +18,25 @@ git clone https://github.com/youndukn/loop-paper.git
 cd loop-paper
 ```
 
-Install for Codex by copying or linking this directory into your Codex skills
-directory:
+Use the installer for common agents:
 
 ```bash
-mkdir -p ~/.codex/skills
-ln -s "$(pwd)" ~/.codex/skills/loop-paper
+python3 scripts/install_skill.py --agent codex
+python3 scripts/install_skill.py --agent claude
+python3 scripts/install_skill.py --agent hermes
+python3 scripts/install_skill.py --agent pi
 ```
 
-If your Codex surface does not follow symlinks, copy the directory instead:
+Install everywhere the script knows about:
 
 ```bash
-mkdir -p ~/.codex/skills
-cp -R "$(pwd)" ~/.codex/skills/loop-paper
+python3 scripts/install_skill.py --agent all
 ```
+
+Supported targets include OpenAI Codex, Claude Code, Hermes Agent, pi-mono,
+OpenClaw, and generic Agent Skills directories. See
+[docs/install.md](docs/install.md) for user/project paths, dry-run usage,
+manual clone commands, and custom destinations.
 
 ## Quick Start
 
@@ -104,10 +109,13 @@ loop-paper/
 ├── assets/
 │   ├── paper-template.md      # base paper template
 │   └── structure-template.md  # .paper-stack/structure.md template
+├── docs/
+│   └── install.md             # multi-agent installation guide
 ├── references/
 │   ├── impact-scoring.md
 │   └── paper-states.md
 └── scripts/
+    ├── install_skill.py
     ├── init_loop_paper.py
     ├── new_closed_loop_paper.py
     ├── check_closed_loop_paper.py
