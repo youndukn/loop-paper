@@ -247,10 +247,29 @@ def ensure_installer_rejects_recursive_destinations() -> None:
     )
 
 
+def ensure_installer_rejects_file_parent() -> None:
+    with tempfile.TemporaryDirectory(prefix="loop-paper-install-parent-") as tmp:
+        parent_file = Path(tmp) / "not-a-directory"
+        parent_file.write_text("file parent", encoding="utf-8")
+        destination = parent_file / "loop-paper"
+        run_fail(
+            [
+                sys.executable,
+                script("install_skill.py"),
+                "--agent",
+                "codex",
+                "--dest",
+                str(destination),
+            ],
+            f"Expected install parent directory, got file: {parent_file}",
+        )
+
+
 def main() -> int:
     ensure_validator_ignores_local_paper_stack()
     ensure_installed_payload_validates()
     ensure_installer_rejects_recursive_destinations()
+    ensure_installer_rejects_file_parent()
 
     with tempfile.TemporaryDirectory(prefix="loop-paper-edge-") as tmp:
         project = Path(tmp)
@@ -917,6 +936,37 @@ def main() -> int:
             [sys.executable, script("export_report.py"), str(root), "--output", str(output_dir)],
         ]:
             run_fail(command, f"Expected output file, got directory: {output_dir}")
+        output_parent_file = root / "dashboard" / "output-parent-file"
+        output_parent_file.write_text("file parent", encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(root),
+                "--last",
+                "1",
+                "--output",
+                str(output_parent_file / "combined.md"),
+            ],
+            f"Expected parent directory for output, got file: {output_parent_file}",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Parent File Prompt Output Review",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+                "--prompt-out",
+                str(output_parent_file / "prompts.json"),
+            ],
+            f"Expected parent directory for prompt output, got file: {output_parent_file}",
+        )
         run_fail(
             [
                 sys.executable,

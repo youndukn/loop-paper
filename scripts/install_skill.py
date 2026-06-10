@@ -120,6 +120,8 @@ def copy_payload(destination: Path, *, force: bool, mode: str, dry_run: bool) ->
     if dry_run:
         return "would-install"
 
+    if destination.parent.exists() and not destination.parent.is_dir():
+        raise SystemExit(f"Expected install parent directory, got file: {destination.parent}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     if mode == "symlink":
         destination.symlink_to(source, target_is_directory=True)
