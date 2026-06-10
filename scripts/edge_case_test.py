@@ -1868,6 +1868,52 @@ def main() -> int:
             raise SystemExit("Review paper was not created for canonical no-slug target")
         run_ok([sys.executable, script("check_paper.py"), str(no_slug_target_root)])
 
+        conflicting_answers = root / "inbox" / "conflicting-answers.json"
+        write_answers(conflicting_answers)
+        before_conflict_count = len(list((root / "papers").glob("PAPER-*.md")))
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Conflicting Prompt Out Review",
+                "--target",
+                "PAPER-0001",
+                "--answers",
+                str(conflicting_answers),
+                "--prompt-out",
+                str(root / "inbox" / "ignored-prompts.json"),
+                "--date",
+                "2026-06-10",
+            ],
+            "Prompt rendering options cannot be used with --answers: --prompt-out",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Conflicting Format Review",
+                "--target",
+                "PAPER-0001",
+                "--answers",
+                str(conflicting_answers),
+                "--format",
+                "json",
+                "--date",
+                "2026-06-10",
+            ],
+            "Prompt rendering options cannot be used with --answers: --format",
+        )
+        if len(list((root / "papers").glob("PAPER-*.md"))) != before_conflict_count:
+            raise SystemExit("Conflicting review options created a review paper unexpectedly")
+        if (root / "inbox" / "ignored-prompts.json").exists():
+            raise SystemExit("Conflicting review options wrote prompt output unexpectedly")
+
         answers = root / "inbox" / "bad-answers.json"
         answers.parent.mkdir(parents=True, exist_ok=True)
         missing_answers = root / "inbox" / "missing-answers.json"

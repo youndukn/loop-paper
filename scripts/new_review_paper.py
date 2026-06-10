@@ -224,6 +224,21 @@ def unique_targets(targets: list[str]) -> list[str]:
     return targets
 
 
+def validate_mode_options(args: argparse.Namespace) -> None:
+    if args.answers is None:
+        return
+    ignored = []
+    if args.prompt_out is not None:
+        ignored.append("--prompt-out")
+    if args.format != "cli":
+        ignored.append("--format")
+    if ignored:
+        raise SystemExit(
+            "Prompt rendering options cannot be used with --answers: "
+            + ", ".join(ignored)
+        )
+
+
 def load_answers(path: Path, questions: list[dict]) -> dict:
     if not path.exists():
         raise SystemExit(f"Missing answers JSON file: {path}")
@@ -476,11 +491,12 @@ def main() -> int:
     parser.add_argument(
         "--prompt-out",
         type=Path,
-        help="Write phase-1 prompts to this file (default stdout). Ignored when --answers is set.",
+        help="Write phase-1 prompts to this file (default stdout). Cannot be used with --answers.",
     )
     parser.add_argument("--date", default=date.today().isoformat())
     args = parser.parse_args()
     args.date = validate_iso_date(args.date)
+    validate_mode_options(args)
 
     targets = unique_targets(args.target)
     papers_dir = args.root / "papers"
