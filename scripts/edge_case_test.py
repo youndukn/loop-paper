@@ -1025,6 +1025,74 @@ def main() -> int:
             [sys.executable, script("combine_papers.py"), str(status_root), "--last", "1"],
             "Cannot combine invalid papers",
         )
+        missing_status_root = project / "missing-status-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(missing_status_root),
+                "--project-name",
+                "Loop Paper Missing Status Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        missing_status = create_edge_paper(missing_status_root, "Missing Status Edge")
+        missing_status.write_text(
+            missing_status.read_text(encoding="utf-8").replace("status: Draft\n", "", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(missing_status)],
+            "Missing status frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(missing_status_root), "--strict"],
+            "Missing status frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(missing_status_root), "--last", "1"],
+            "Cannot combine invalid papers",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(missing_status), "Research Ready"],
+            "Missing status frontmatter",
+        )
+        missing_title_root = project / "missing-title-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(missing_title_root),
+                "--project-name",
+                "Loop Paper Missing Title Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        missing_title = create_edge_paper(missing_title_root, "Missing Title Edge")
+        missing_title.write_text(
+            missing_title.read_text(encoding="utf-8").replace("title: Missing Title Edge\n", "", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(missing_title)],
+            "Missing title frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(missing_title_root), "--strict"],
+            "Missing title frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(missing_title_root), "--last", "1"],
+            "Cannot combine invalid papers",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(missing_title), "Research Ready"],
+            "Missing title frontmatter",
+        )
         date_root = project / "date-stack"
         run_ok(
             [

@@ -138,9 +138,13 @@ def check_file(path: Path) -> dict:
     validation = sections.get("Validation", "")
     if "Not run" in validation and metadata.get("status") in {"AI Validated", "Accepted"}:
         warnings.append("Advanced status conflicts with validation evidence marked Not run.")
-    status = metadata.get("status", "Draft")
-    if status not in STATUSES:
+    status = metadata.get("status", "")
+    if not status:
+        warnings.append("Missing status frontmatter")
+    elif status not in STATUSES:
         warnings.append(f"Invalid status: {status}")
+    if not metadata.get("title"):
+        warnings.append("Missing title frontmatter")
     schema = metadata.get("closed_loop_schema")
     if not schema:
         warnings.append(f"Missing closed_loop_schema frontmatter")
