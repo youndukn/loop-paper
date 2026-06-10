@@ -217,6 +217,18 @@ def select_papers(args: argparse.Namespace, papers: list[dict]) -> list[dict]:
             raise SystemExit(
                 "Missing interval boundary paper IDs: " + ", ".join(missing_boundaries)
             )
+        expected_ids = [f"PAPER-{number:04d}" for number in range(start, end + 1)]
+        missing_interior = [
+            paper_id
+            for paper_id in expected_ids
+            if paper_id not in by_id and paper_id not in missing_boundaries
+        ]
+        if missing_interior:
+            raise SystemExit(
+                "Missing interior interval paper IDs: "
+                + ", ".join(missing_interior)
+                + ". Use --ids for intentional sparse selections."
+            )
         selected = [paper for paper in papers if start <= paper_number(paper["paper_id"]) <= end]
 
     if not selected:

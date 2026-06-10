@@ -245,8 +245,8 @@ def validate_docs_describe_pipeline_gates() -> None:
 
 def validate_docs_describe_combine_boundaries() -> None:
     required = [
-        (ROOT / "SKILL.md", ["explicit `--from`/`--to`", "must both exist in the stack"]),
-        (ROOT / "README.md", ["Explicit `--from`/`--to` boundaries", "must both exist in the stack"]),
+        (ROOT / "SKILL.md", ["explicit `--from`/`--to`", "every interior paper ID must exist", "`--ids` for intentional sparse selections"]),
+        (ROOT / "README.md", ["Explicit `--from`/`--to` boundaries", "every interior paper ID must exist", "Use `--ids` for intentional"]),
     ]
     for path, phrases in required:
         text = path.read_text(encoding="utf-8")

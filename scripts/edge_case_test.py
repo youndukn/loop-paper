@@ -4114,6 +4114,51 @@ def main() -> int:
             ],
             "Missing interval boundary paper IDs: PAPER-9999",
         )
+        sparse_interval_root = project / "sparse-interval-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(sparse_interval_root),
+                "--project-name",
+                "Loop Paper Sparse Interval Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        sparse_first = create_edge_paper(sparse_interval_root, "Sparse Interval First")
+        sparse_second = create_edge_paper(sparse_interval_root, "Sparse Interval Missing")
+        sparse_third = create_edge_paper(sparse_interval_root, "Sparse Interval Third")
+        sparse_second.unlink()
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(sparse_interval_root),
+                "--from",
+                "PAPER-0001",
+                "--to",
+                "PAPER-0003",
+            ],
+            "Missing interior interval paper IDs: PAPER-0002",
+        )
+        sparse_ids = run_ok(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(sparse_interval_root),
+                "--ids",
+                "PAPER-0001",
+                "PAPER-0003",
+                "--json",
+            ]
+        )
+        sparse_payload = json.loads(sparse_ids.stdout)
+        if [item["paper_id"] for item in sparse_payload["selected"]] != ["PAPER-0001", "PAPER-0003"]:
+            raise SystemExit("Sparse --ids selection did not preserve explicit paper set")
+        if sparse_first.name not in sparse_ids.stdout or sparse_third.name not in sparse_ids.stdout:
+            raise SystemExit("Sparse --ids output did not include expected paper paths")
         run_fail(
             [sys.executable, script("combine_papers.py"), str(root), "--last", "0"],
             "--last must be greater than zero",
