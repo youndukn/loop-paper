@@ -2410,6 +2410,7 @@ def main() -> int:
             f"Missing papers directory: {missing_root / 'papers'}",
         )
         for command in [
+            [sys.executable, script("update_paper_metadata.py"), str(missing_root)],
             [sys.executable, script("index_references.py"), str(missing_root)],
             [sys.executable, script("score_impact.py"), str(missing_root)],
             [sys.executable, script("export_report.py"), str(missing_root)],

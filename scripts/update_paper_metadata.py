@@ -70,12 +70,12 @@ def sync_file(path: Path, write: bool) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Sync Paper Stack frontmatter.")
-    parser.add_argument("target", nargs="?", default=".paper-stack", help="Paper Stack root or paper file")
+    parser.add_argument("target", nargs="?", default=".paper-stack", help="Paper Stack root or paper .md file")
     parser.add_argument("--check", action="store_true", help="Fail if metadata would change")
     args = parser.parse_args()
 
     target = Path(args.target)
-    paths = paper_paths(target) if target.is_dir() else [target]
+    paths = [target] if target.is_file() or target.suffix == ".md" else paper_paths(target)
     results = [sync_file(path, write=not args.check) for path in paths]
     for result in results:
         status = "CHANGED" if result["changed"] else "OK"
