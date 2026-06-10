@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from check_paper import require_valid_file
-from paperstack_common import load_paper, today
+from paperstack_common import load_paper, markdown_inline, today
 
 
 DEFAULT_SECTION = """## Agent Review
@@ -35,6 +35,9 @@ def ensure_section(text: str) -> str:
 
 def replace_section(text: str, reviewer: str, decision: str, notes: str) -> str:
     text = ensure_section(text)
+    reviewer = markdown_inline(reviewer)
+    decision = markdown_inline(decision)
+    notes = markdown_inline(notes)
     section = f"""## Agent Review
 
 Agent reviewer: {reviewer}

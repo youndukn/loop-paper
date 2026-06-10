@@ -575,6 +575,33 @@ def main() -> int:
         ]:
             run_fail(command, f"Missing paper file: {missing_paper}")
 
+        review_injection = create_edge_paper(root, "Agent Review Injection Edge")
+        run_ok(
+            [
+                sys.executable,
+                script("agent_review.py"),
+                str(review_injection),
+                "--reviewer",
+                "Codex\n## Agent Review",
+                "--decision",
+                "AI Validated\n## Impact Score",
+                "--notes",
+                "Looks good\n## Impact Score\ninjected",
+            ]
+        )
+        review_text = review_injection.read_text(encoding="utf-8")
+        if review_text.count("\n## Agent Review\n") != 1:
+            raise SystemExit("Agent review input injected an extra Agent Review heading")
+        if review_text.count("\n## Impact Score\n") != 1:
+            raise SystemExit("Agent review input injected an extra Impact Score heading")
+        if "Codex ## Agent Review" not in review_text:
+            raise SystemExit("Agent reviewer input was not collapsed to inline Markdown")
+        if "AI Validated ## Impact Score" not in review_text:
+            raise SystemExit("Agent decision input was not collapsed to inline Markdown")
+        if "Looks good ## Impact Score injected" not in review_text:
+            raise SystemExit("Agent review notes were not collapsed to inline Markdown")
+        run_ok([sys.executable, script("check_paper.py"), str(review_injection)])
+
         run_fail(
             [
                 sys.executable,
