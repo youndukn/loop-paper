@@ -430,7 +430,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", choices=("summary", "references", "both"), default="both")
     parser.add_argument("--target-paper", type=normalize_paper_id, help="Paper ID to rank references against")
     parser.add_argument("--query", default="", help="Additional deterministic term-overlap query")
-    parser.add_argument("--max-references", type=int, default=10)
+    parser.add_argument("--max-references", type=int, default=None)
     parser.add_argument("--output", type=Path, help="Output path; stdout when omitted")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of Markdown")
     return parser.parse_args()
@@ -444,6 +444,8 @@ def validate_mode_options(args: argparse.Namespace) -> None:
         ignored.append("--target-paper")
     if args.query:
         ignored.append("--query")
+    if args.max_references is not None:
+        ignored.append("--max-references")
     if ignored:
         raise SystemExit(
             "Reference ranking options require --mode references or --mode both: "
@@ -454,6 +456,8 @@ def validate_mode_options(args: argparse.Namespace) -> None:
 def main() -> int:
     args = parse_args()
     validate_mode_options(args)
+    if args.max_references is None:
+        args.max_references = 10
     if args.max_references < 1:
         raise SystemExit("--max-references must be greater than zero.")
 

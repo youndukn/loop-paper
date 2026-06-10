@@ -2706,6 +2706,7 @@ def main() -> int:
         for extra_args in [
             ["--target-paper", "PAPER-0001"],
             ["--query", "ignored reference terms"],
+            ["--max-references", "1"],
         ]:
             run_fail(
                 [
