@@ -64,7 +64,7 @@ STOPWORDS = {
 
 
 def normalize_paper_id(value: str) -> str:
-    match = PAPER_ID_RE.search(value.strip())
+    match = PAPER_ID_RE.fullmatch(value.strip())
     if not match:
         raise argparse.ArgumentTypeError(f"Expected PAPER-NNNN, got {value!r}")
     return f"PAPER-{int(match.group(1)):04d}"

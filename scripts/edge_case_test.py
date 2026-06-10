@@ -282,6 +282,21 @@ def main() -> int:
                 "--root",
                 str(root),
                 "--title",
+                "Malformed Target Review",
+                "--target",
+                "PAPER-0001-extra",
+                "--format",
+                "json",
+            ],
+            "Expected PAPER-NNNN",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
                 "Bad: Title",
                 "--target",
                 "PAPER-0001",
@@ -434,6 +449,18 @@ def main() -> int:
         run_fail(
             [sys.executable, script("combine_papers.py"), str(root), "--from", "PAPER-0001"],
             "Interval selection requires both --from and --to",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(root),
+                "--from",
+                "PAPER-0001-extra",
+                "--to",
+                "PAPER-0002",
+            ],
+            "Expected PAPER-NNNN",
         )
         run_fail(
             [

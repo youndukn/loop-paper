@@ -44,7 +44,7 @@ def validate_title(title: str) -> str:
 
 
 def normalize_paper_id(value: str) -> str:
-    match = PAPER_ID_RE.match(value.strip().upper())
+    match = PAPER_ID_RE.fullmatch(value.strip().upper())
     if not match:
         raise argparse.ArgumentTypeError(f"Expected PAPER-NNNN, got {value!r}")
     return f"PAPER-{int(match.group(1)):04d}"
