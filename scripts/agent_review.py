@@ -7,8 +7,16 @@ import argparse
 import re
 from pathlib import Path
 
-from check_paper import check_file
-from paperstack_common import load_paper, markdown_inline, replace_frontmatter, today
+from check_paper import check_file, check_paths
+from paperstack_common import (
+    load_paper,
+    markdown_inline,
+    paper_paths,
+    paper_root_from_path,
+    replace_frontmatter,
+    require_paper_file,
+    today,
+)
 
 
 DEFAULT_SECTION = """## Agent Review
@@ -54,7 +62,15 @@ Notes: {notes}
 
 
 def require_reviewable_file(path: Path) -> None:
-    result = check_file(path)
+    require_paper_file(path)
+    if path.parent.name == "papers":
+        root = paper_root_from_path(path)
+        results = check_paths(paper_paths(root), validate_relationships=True)
+        result = next((item for item in results if Path(item["path"]) == path), None)
+        if result is None:
+            raise SystemExit(f"Paper is not under a recognized papers directory: {path}")
+    else:
+        result = check_file(path)
     blocking = []
     for key in ("missing_sections", "empty_sections", "warnings"):
         for detail in result[key]:
