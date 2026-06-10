@@ -48,6 +48,7 @@ REQUIRED_SECTIONS = [
 
 RELATION_LABELS = ["References", "Depends on", "Supersedes", "Contradicts", "Extends"]
 PAPER_FILENAME_RE = re.compile(r"^(PAPER-\d{4})(?:-[A-Za-z0-9][A-Za-z0-9-]*)?\.md$")
+MAX_PAPER_NUMBER = 9999
 
 
 def today() -> str:
@@ -192,6 +193,18 @@ def split_sections(text: str) -> dict[str, str]:
 def paper_id_from_path(path: Path) -> str:
     match = PAPER_FILENAME_RE.fullmatch(path.name)
     return match.group(1) if match else path.stem
+
+
+def next_paper_id(papers_dir: Path) -> str:
+    max_id = 0
+    for path in sorted(papers_dir.glob("PAPER-*.md")):
+        match = PAPER_FILENAME_RE.fullmatch(path.name)
+        if not match:
+            raise SystemExit(f"Existing paper filename is not canonical: {path.name}")
+        max_id = max(max_id, int(match.group(1).split("-")[1]))
+    if max_id >= MAX_PAPER_NUMBER:
+        raise SystemExit("Cannot allocate next paper ID beyond PAPER-9999")
+    return f"PAPER-{max_id + 1:04d}"
 
 
 def load_paper(path: Path) -> dict:

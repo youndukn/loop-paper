@@ -1813,6 +1813,42 @@ def main() -> int:
             ],
             "Filename must contain canonical PAPER-NNNN ID",
         )
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(malformed_numeric_filename_root),
+                "--title",
+                "After Malformed Filename",
+                "--hypothesis",
+                "Creation should reject malformed existing filenames",
+                "--finding",
+                "ID allocation depends on canonical filenames",
+                "--reference",
+                "scripts/edge_case_test.py",
+                "--date",
+                "2026-06-10",
+            ],
+            "Existing paper filename is not canonical: PAPER-0001bad.md",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(malformed_numeric_filename_root),
+                "--title",
+                "Review After Malformed Filename",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+                "--date",
+                "2026-06-10",
+            ],
+            "Filename must contain canonical PAPER-NNNN ID",
+        )
         dangling_root = project / "dangling-stack"
         run_ok(
             [

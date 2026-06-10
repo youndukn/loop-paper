@@ -13,12 +13,17 @@ from datetime import date
 from pathlib import Path
 
 from check_paper import check_paths
-from paperstack_common import ensure_directory, paper_id_from_path, paper_paths, validate_iso_date, write_text_output
+from paperstack_common import (
+    ensure_directory,
+    next_paper_id,
+    paper_id_from_path,
+    paper_paths,
+    validate_iso_date,
+    write_text_output,
+)
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{1,4})$")
-FILENAME_PAPER_ID_RE = re.compile(r"^PAPER-(\d+)")
-MAX_PAPER_NUMBER = 9999
 UNSAFE_TITLE_CHARS = re.compile(r"[:\n\r]|---")
 SLUG_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")
 
@@ -62,17 +67,6 @@ def normalize_paper_id(value: str) -> str:
     if not match or int(match.group(1)) <= 0:
         raise argparse.ArgumentTypeError(f"Expected PAPER-NNNN, got {value!r}")
     return f"PAPER-{int(match.group(1)):04d}"
-
-
-def next_paper_id(papers_dir: Path) -> str:
-    max_id = 0
-    for path in papers_dir.glob("PAPER-*.md"):
-        match = FILENAME_PAPER_ID_RE.match(path.name)
-        if match:
-            max_id = max(max_id, int(match.group(1)))
-    if max_id >= MAX_PAPER_NUMBER:
-        raise SystemExit("Cannot allocate next paper ID beyond PAPER-9999")
-    return f"PAPER-{max_id + 1:04d}"
 
 
 def check_details(result: dict) -> list[str]:

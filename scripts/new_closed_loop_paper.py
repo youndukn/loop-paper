@@ -13,13 +13,12 @@ from paperstack_common import (
     ensure_directory,
     markdown_inline,
     markdown_table_cell,
+    next_paper_id,
     validate_iso_date,
     write_text_output,
 )
 
 
-PAPER_ID_RE = re.compile(r"^PAPER-(\d+)")
-MAX_PAPER_NUMBER = 9999
 UNSAFE_TITLE_CHARS = re.compile(r"[:\n\r]|---")
 SLUG_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")
 
@@ -46,17 +45,6 @@ def validate_slug(slug: str) -> str:
     if not SLUG_RE.fullmatch(cleaned):
         raise SystemExit("--slug must contain only ASCII letters, numbers, and single hyphens")
     return cleaned.lower()
-
-
-def next_paper_id(papers_dir: Path) -> str:
-    max_id = 0
-    for path in papers_dir.glob("PAPER-*.md"):
-        match = PAPER_ID_RE.match(path.name)
-        if match:
-            max_id = max(max_id, int(match.group(1)))
-    if max_id >= MAX_PAPER_NUMBER:
-        raise SystemExit("Cannot allocate next paper ID beyond PAPER-9999")
-    return f"PAPER-{max_id + 1:04d}"
 
 
 def table_rows(values: list[str], minimum: int, row_builder) -> str:
