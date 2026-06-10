@@ -1289,6 +1289,10 @@ def main() -> int:
             "Malformed frontmatter line",
         )
         run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(malformed_frontmatter), "--phase", "before"],
+            "Malformed frontmatter line",
+        )
+        run_fail(
             [sys.executable, script("pipeline.py"), str(frontmatter_root), "--strict"],
             "Malformed frontmatter line",
         )
@@ -1320,6 +1324,10 @@ def main() -> int:
         )
         run_fail(
             [sys.executable, script("check_paper.py"), str(malformed_close)],
+            "Unterminated YAML frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(malformed_close), "--phase", "before"],
             "Unterminated YAML frontmatter",
         )
         run_fail(
@@ -1493,6 +1501,10 @@ def main() -> int:
             "Duplicate section: Validation",
         )
         run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(duplicate_section), "--phase", "before"],
+            "Duplicate section: Validation",
+        )
+        run_fail(
             [sys.executable, script("pipeline.py"), str(duplicate_section_root), "--strict"],
             "Duplicate section: Validation",
         )
@@ -1528,6 +1540,10 @@ def main() -> int:
         )
         run_fail(
             [sys.executable, script("check_paper.py"), str(missing_schema)],
+            "Missing closed_loop_schema frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(missing_schema), "--phase", "before"],
             "Missing closed_loop_schema frontmatter",
         )
         run_fail(

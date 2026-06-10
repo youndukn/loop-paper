@@ -7,6 +7,7 @@ import argparse
 import re
 from pathlib import Path
 
+from check_paper import check_file, result_details
 from paperstack_common import REQUIRED_SECTIONS, checked_count, require_paper_file, split_sections
 
 
@@ -32,9 +33,16 @@ def table_data_rows(section_text: str) -> list[str]:
 
 
 def validate_paper(path: Path, phase: str) -> list[str]:
+    try:
+        structural = check_file(path)
+    except SystemExit as error:
+        return [str(error)]
+    structural_errors = result_details(structural)
     require_paper_file(path)
     text = path.read_text(encoding="utf-8")
-    errors: list[str] = []
+    errors: list[str] = [
+        "Paper structure check failed: " + "; ".join(structural_errors)
+    ] if structural_errors else []
     if "closed_loop_schema: paper_closed_loop.v1" not in text:
         errors.append("missing closed_loop_schema: paper_closed_loop.v1")
     for name in REQUIRED_SECTIONS:
