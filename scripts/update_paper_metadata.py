@@ -7,7 +7,7 @@ import argparse
 import re
 from pathlib import Path
 
-from check_paper import check_file, check_paths, result_details
+from check_paper import check_file, check_paths, relationship_targets, result_details
 from paperstack_common import (
     load_paper,
     paper_paths,
@@ -27,6 +27,7 @@ REPAIRABLE_WARNINGS = {
     "Missing impact_score frontmatter",
     "Missing paper_kind frontmatter",
 }
+REVIEW_SECTION_NAMES = {"Per-Target Verdicts", "Cross-Paper Findings"}
 
 
 def title_from_heading(text: str, fallback: str) -> str:
@@ -44,9 +45,28 @@ def title_from_heading(text: str, fallback: str) -> str:
 
 
 def is_repairable_warning(message: str) -> bool:
-    return message in REPAIRABLE_WARNINGS or (
+    return (
+        message in REPAIRABLE_WARNINGS
+        or message == "review_targets requires paper_kind: review"
+        or message == "Missing review_targets for review paper"
+    ) or (
         message.startswith("heading title ") and message.endswith(" does not match title frontmatter")
     )
+
+
+def infer_paper_kind(metadata: dict[str, str], sections: dict[str, str]) -> str:
+    if metadata.get("paper_kind"):
+        return metadata["paper_kind"]
+    if metadata.get("review_targets") or REVIEW_SECTION_NAMES & set(sections):
+        return "review"
+    return "closed_loop"
+
+
+def infer_review_targets(text: str) -> str:
+    targets = relationship_targets(text, "References")
+    if not targets:
+        raise SystemExit("Cannot repair missing review_targets for review paper: References has no targets")
+    return ", ".join(targets)
 
 
 def require_syncable_file(path: Path) -> None:
@@ -81,7 +101,9 @@ def sync_file(path: Path, write: bool) -> dict:
     metadata.setdefault("owners", "[]")
     metadata.setdefault("reviewers", "[]")
     metadata.setdefault("impact_score", "TBD")
-    metadata.setdefault("paper_kind", "closed_loop")
+    metadata["paper_kind"] = infer_paper_kind(metadata, paper["sections"])
+    if metadata["paper_kind"] == "review" and not metadata.get("review_targets"):
+        metadata["review_targets"] = infer_review_targets(paper["text"])
 
     def without_updated(data: dict) -> dict:
         return {key: value for key, value in data.items() if key != "updated"}

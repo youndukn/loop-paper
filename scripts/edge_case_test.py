@@ -1983,6 +1983,55 @@ def main() -> int:
         ]:
             run_fail(command, "review_targets must match References relationship targets")
         review_paper.write_text(review_text, encoding="utf-8")
+        review_paper.write_text(
+            review_text.replace("paper_kind: review\n", "", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(review_paper), "--check"],
+            f"CHANGED {review_id}",
+        )
+        run_ok([sys.executable, script("update_paper_metadata.py"), str(review_paper)])
+        repaired_review_text = review_paper.read_text(encoding="utf-8")
+        if "paper_kind: review" not in repaired_review_text:
+            raise SystemExit("Metadata sync did not repair missing review paper_kind")
+        if "review_targets: PAPER-0001" not in repaired_review_text:
+            raise SystemExit("Metadata sync lost review_targets while repairing paper_kind")
+        run_ok([sys.executable, script("check_paper.py"), str(review_paper)])
+        review_paper.write_text(review_text, encoding="utf-8")
+        review_paper.write_text(
+            review_text.replace("review_targets: PAPER-0001\n", "", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(review_paper), "--check"],
+            f"CHANGED {review_id}",
+        )
+        run_ok([sys.executable, script("update_paper_metadata.py"), str(review_paper)])
+        if "review_targets: PAPER-0001" not in review_paper.read_text(encoding="utf-8"):
+            raise SystemExit("Metadata sync did not repair missing review_targets from References")
+        run_ok([sys.executable, script("check_paper.py"), str(review_paper)])
+        review_paper.write_text(review_text, encoding="utf-8")
+        review_paper.write_text(
+            review_text.replace("paper_kind: review\n", "", 1).replace(
+                "review_targets: PAPER-0001\n",
+                "",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(review_paper), "--check"],
+            f"CHANGED {review_id}",
+        )
+        run_ok([sys.executable, script("update_paper_metadata.py"), str(review_paper)])
+        repaired_review_text = review_paper.read_text(encoding="utf-8")
+        if "paper_kind: review" not in repaired_review_text:
+            raise SystemExit("Metadata sync misclassified review paper as closed_loop")
+        if "review_targets: PAPER-0001" not in repaired_review_text:
+            raise SystemExit("Metadata sync did not restore review_targets when kind was missing")
+        run_ok([sys.executable, script("check_paper.py"), str(review_paper)])
+        review_paper.write_text(review_text, encoding="utf-8")
         closed_loop_with_targets = review_meta_root / "papers" / "PAPER-0001-review-metadata-target.md"
         closed_loop_text = closed_loop_with_targets.read_text(encoding="utf-8")
         closed_loop_with_targets.write_text(
