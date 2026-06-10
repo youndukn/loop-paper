@@ -25,6 +25,7 @@ from paperstack_common import (
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{4})$")
+PAPERISH_RE = re.compile(r"(?<![A-Za-z0-9_-])PAPER-[A-Za-z0-9_-]+(?![A-Za-z0-9_-])")
 EXPECTED_SCHEMA = "paper_closed_loop.v1"
 ALLOWED_PAPER_KINDS = {"closed_loop", "review"}
 
@@ -245,6 +246,9 @@ def check_paths(paths: list[Path], *, validate_relationships: bool = False) -> l
         text = path.read_text(encoding="utf-8")
         for label in RELATION_LABELS:
             for match in re.finditer(rf"^{re.escape(label)}:\s*(.*)$", text, flags=re.MULTILINE):
+                for target in PAPERISH_RE.findall(match.group(1)):
+                    if not valid_paper_id(target):
+                        result["warnings"].append(f"Invalid relationship target: {label} -> {target}")
                 for target in find_ids(match.group(1)):
                     if target == result["paper_id"]:
                         result["warnings"].append(f"Self relationship target: {label} -> {target}")

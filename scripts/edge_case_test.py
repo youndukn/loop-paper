@@ -2092,6 +2092,40 @@ def main() -> int:
             ],
             "Dangling relationship target: References -> PAPER-9999",
         )
+        malformed_relationship_root = project / "malformed-relationship-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(malformed_relationship_root),
+                "--project-name",
+                "Loop Paper Malformed Relationship Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        malformed_relationship = create_edge_paper(
+            malformed_relationship_root,
+            "Malformed Relationship Source",
+        )
+        create_edge_paper(malformed_relationship_root, "Malformed Relationship Target")
+        malformed_relationship.write_text(
+            malformed_relationship.read_text(encoding="utf-8").replace(
+                "References: None",
+                "References: PAPER-0002bad",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        for command in [
+            [sys.executable, script("check_paper.py"), str(malformed_relationship_root)],
+            [sys.executable, script("pipeline.py"), str(malformed_relationship_root), "--strict"],
+            [sys.executable, script("combine_papers.py"), str(malformed_relationship_root), "--last", "1"],
+            [sys.executable, script("index_references.py"), str(malformed_relationship_root)],
+            [sys.executable, script("render_dashboard.py"), str(malformed_relationship_root)],
+        ]:
+            run_fail(command, "Invalid relationship target: References -> PAPER-0002bad")
         dashboard_relation_root = project / "dashboard-relation-stack"
         run_ok(
             [

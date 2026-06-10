@@ -48,6 +48,7 @@ REQUIRED_SECTIONS = [
 
 RELATION_LABELS = ["References", "Depends on", "Supersedes", "Contradicts", "Extends"]
 PAPER_FILENAME_RE = re.compile(r"^(PAPER-\d{4})(?:-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)?\.md$")
+PAPER_ID_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9_-])PAPER-\d{4}(?![A-Za-z0-9_-])")
 MAX_PAPER_NUMBER = 9999
 
 
@@ -128,7 +129,7 @@ def markdown_table_cell(value: object) -> str:
 
 
 def find_ids(text: str) -> list[str]:
-    return sorted(set(re.findall(r"PAPER-\d{4}", text)))
+    return sorted(set(PAPER_ID_TOKEN_RE.findall(text)))
 
 
 def frontmatter_bounds(text: str) -> tuple[int, int] | None:
