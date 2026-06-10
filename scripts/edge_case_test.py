@@ -896,6 +896,36 @@ def main() -> int:
             [sys.executable, script("combine_papers.py"), str(status_root), "--last", "1"],
             "Cannot combine invalid papers",
         )
+        date_root = project / "date-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(date_root),
+                "--project-name",
+                "Loop Paper Date Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        invalid_date = create_edge_paper(date_root, "Invalid Metadata Date Edge")
+        invalid_date.write_text(
+            invalid_date.read_text(encoding="utf-8").replace("created: 2026-06-10", "created: 2026-02-30", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(invalid_date)],
+            "created must be a valid calendar date",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(date_root), "--strict"],
+            "created must be a valid calendar date",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(date_root), "--last", "1"],
+            "Cannot combine invalid papers",
+        )
         identity_root = project / "identity-stack"
         run_ok(
             [

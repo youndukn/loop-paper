@@ -20,6 +20,7 @@ from paperstack_common import (
     relation_key,
     require_paper_file,
     split_sections,
+    validate_iso_date,
 )
 
 
@@ -53,6 +54,15 @@ def check_file(path: Path) -> dict:
     status = metadata.get("status", "Draft")
     if status not in STATUSES:
         warnings.append(f"Invalid status: {status}")
+    for date_key in ("created", "updated"):
+        value = metadata.get(date_key)
+        if not value:
+            warnings.append(f"Missing {date_key} frontmatter")
+            continue
+        try:
+            validate_iso_date(value, label=date_key)
+        except SystemExit as error:
+            warnings.append(str(error))
     filename_id = paper_id_from_filename(path)
     declared_id = metadata.get("paper_id")
     if not filename_id:
