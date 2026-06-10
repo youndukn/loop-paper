@@ -141,12 +141,16 @@ def execution_record_errors(section_text: str) -> list[str]:
 
 
 def agent_review_errors(section_text: str) -> list[str]:
-    values = {
-        match.group(1): match.group(2).strip()
-        for match in AGENT_REVIEW_FIELD_RE.finditer(section_text)
+    matches = list(AGENT_REVIEW_FIELD_RE.finditer(section_text))
+    values = {match.group(1): match.group(2).strip() for match in matches}
+    counts = {
+        field: sum(1 for match in matches if match.group(1) == field)
+        for field in ["Agent reviewer", "Review date", "Decision"]
     }
     errors: list[str] = []
     for field in ["Agent reviewer", "Review date", "Decision"]:
+        if counts[field] > 1:
+            errors.append(f"agent review duplicate {field}")
         if not values.get(field):
             errors.append(f"agent review missing {field}")
     decision = values.get("Decision")
@@ -166,7 +170,10 @@ def agent_review_errors(section_text: str) -> list[str]:
 
 def impact_score_errors(section_text: str) -> list[str]:
     errors: list[str] = []
-    score_match = IMPACT_SCORE_RE.search(section_text)
+    score_matches = list(IMPACT_SCORE_RE.finditer(section_text))
+    if len(score_matches) > 1:
+        errors.append("impact score duplicate Impact score value")
+    score_match = score_matches[0] if score_matches else None
     if not score_match or not score_match.group(1).strip():
         errors.append("impact score missing Impact score value")
     elif score_match.group(1).strip() != "TBD":
@@ -178,11 +185,15 @@ def impact_score_errors(section_text: str) -> list[str]:
             if not 0 <= score <= 10:
                 errors.append("impact score value must be TBD or a number from 0 to 10")
 
-    basis_values = {
-        match.group(1): match.group(2).strip()
-        for match in IMPACT_BASIS_RE.finditer(section_text)
+    basis_matches = list(IMPACT_BASIS_RE.finditer(section_text))
+    basis_values = {match.group(1): match.group(2).strip() for match in basis_matches}
+    basis_counts = {
+        field: sum(1 for match in basis_matches if match.group(1) == field)
+        for field in IMPACT_BASIS_FIELDS
     }
     for field in IMPACT_BASIS_FIELDS:
+        if basis_counts[field] > 1:
+            errors.append(f"impact score basis duplicate {field}")
         if not basis_values.get(field):
             errors.append(f"impact score basis missing {field}")
     return errors

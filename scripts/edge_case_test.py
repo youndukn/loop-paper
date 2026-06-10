@@ -420,6 +420,37 @@ def make_after_ready_with_invalid_agent_decision(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def make_after_ready_with_duplicate_agent_decision(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = normalize_agent_review_fields(text)
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+            "AI validation evidence recorded",
+            "Agent reviewed paper structure",
+            "Agent confirmed evidence backs the recorded verdict",
+            "Impact score is based on evidence, not agent guesswork",
+        ],
+    )
+    text = text.replace(
+        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
+        "- Supported: edge-case verdict recorded.",
+    )
+    text = text.replace("Decision: AI Validated", "Decision: AI Validated\nDecision: Accepted", 1)
+    path.write_text(text, encoding="utf-8")
+
+
 def make_after_ready_with_empty_impact_basis(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
@@ -453,6 +484,42 @@ def make_after_ready_with_empty_impact_basis(path: Path) -> None:
         text,
         count=1,
         flags=re.MULTILINE,
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def make_after_ready_with_duplicate_impact_fields(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = normalize_agent_review_fields(text)
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+            "AI validation evidence recorded",
+            "Agent reviewed paper structure",
+            "Agent confirmed evidence backs the recorded verdict",
+            "Impact score is based on evidence, not agent guesswork",
+        ],
+    )
+    text = text.replace(
+        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
+        "- Supported: edge-case verdict recorded.",
+    )
+    text = text.replace("Impact score: TBD", "Impact score: TBD\nImpact score: 10", 1)
+    text = text.replace(
+        "- Validation strength: Recorded: TBD until validation runs",
+        "- Validation strength: Recorded: TBD until validation runs\n- Validation strength: duplicate value",
+        1,
     )
     path.write_text(text, encoding="utf-8")
 
@@ -2060,6 +2127,24 @@ def main() -> int:
             [sys.executable, script("transition_paper.py"), str(invalid_agent_decision_gate), "AI Validated"],
             "agent review invalid Decision",
         )
+        duplicate_agent_decision_gate = create_edge_paper(root, "Duplicate Agent Decision Edge")
+        make_after_ready_with_duplicate_agent_decision(duplicate_agent_decision_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(duplicate_agent_decision_gate),
+                "--phase",
+                "after",
+            ],
+            "agent review duplicate Decision",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(duplicate_agent_decision_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(duplicate_agent_decision_gate), "AI Validated"],
+            "agent review duplicate Decision",
+        )
         empty_impact_basis_gate = create_edge_paper(root, "Empty Impact Basis Edge")
         make_after_ready_with_empty_impact_basis(empty_impact_basis_gate)
         run_fail(
@@ -2077,6 +2162,24 @@ def main() -> int:
         run_fail(
             [sys.executable, script("transition_paper.py"), str(empty_impact_basis_gate), "AI Validated"],
             "impact score basis missing Measured outcome",
+        )
+        duplicate_impact_fields_gate = create_edge_paper(root, "Duplicate Impact Fields Edge")
+        make_after_ready_with_duplicate_impact_fields(duplicate_impact_fields_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(duplicate_impact_fields_gate),
+                "--phase",
+                "after",
+            ],
+            "impact score duplicate Impact score value",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(duplicate_impact_fields_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(duplicate_impact_fields_gate), "AI Validated"],
+            "impact score duplicate Impact score value",
         )
         invalid_impact_score_gate = create_edge_paper(root, "Invalid Impact Score Edge")
         make_after_ready_with_invalid_impact_score(invalid_impact_score_gate)
