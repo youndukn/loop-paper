@@ -152,6 +152,17 @@ def set_status(path: Path, status: str) -> None:
     path.write_text(text.replace("status: Draft", f"status: {status}", 1), encoding="utf-8")
 
 
+def set_paper_id(path: Path, paper_id: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    current = path.name.split("-", 2)
+    if len(current) < 2:
+        raise SystemExit(f"Cannot infer paper id from {path}")
+    filename_id = "-".join(current[:2])
+    if f"paper_id: {filename_id}" not in text:
+        raise SystemExit(f"Expected paper_id {filename_id} in {path}")
+    path.write_text(text.replace(f"paper_id: {filename_id}", f"paper_id: {paper_id}", 1), encoding="utf-8")
+
+
 def create_edge_paper(root: Path, title: str) -> Path:
     return Path(
         run_ok(
@@ -363,6 +374,29 @@ def main() -> int:
         run_fail(
             [sys.executable, script("pipeline.py"), str(root), "--strict"],
             "Invalid status: Totally Done",
+        )
+        identity_root = project / "identity-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(identity_root),
+                "--project-name",
+                "Loop Paper Identity Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        mismatch = create_edge_paper(identity_root, "Identity Mismatch Edge")
+        set_paper_id(mismatch, "PAPER-9999")
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(mismatch)],
+            "paper_id PAPER-9999 does not match filename PAPER-0001",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(identity_root), "--strict"],
+            "paper_id PAPER-9999 does not match filename PAPER-0001",
         )
         run_fail(
             [

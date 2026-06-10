@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 from paperstack_common import (
@@ -13,6 +14,14 @@ from paperstack_common import (
     parse_frontmatter,
     split_sections,
 )
+
+
+PAPER_ID_RE = re.compile(r"^PAPER-\d{4}$")
+
+
+def paper_id_from_filename(path: Path) -> str | None:
+    match = re.search(r"PAPER-\d{4}", path.name)
+    return match.group(0) if match else None
 
 
 def check_file(path: Path) -> dict:
@@ -33,10 +42,18 @@ def check_file(path: Path) -> dict:
     status = metadata.get("status", "Draft")
     if status not in STATUSES:
         warnings.append(f"Invalid status: {status}")
+    filename_id = paper_id_from_filename(path)
+    declared_id = metadata.get("paper_id")
+    if not declared_id:
+        warnings.append("Missing paper_id frontmatter")
+    elif not PAPER_ID_RE.fullmatch(declared_id):
+        warnings.append(f"Invalid paper_id: {declared_id}")
+    elif filename_id and declared_id != filename_id:
+        warnings.append(f"paper_id {declared_id} does not match filename {filename_id}")
 
     return {
         "path": str(path),
-        "paper_id": metadata.get("paper_id", path.stem.split("-")[0]),
+        "paper_id": declared_id or path.stem.split("-")[0],
         "title": metadata.get("title", path.stem),
         "status": status,
         "missing_sections": missing,
