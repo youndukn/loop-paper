@@ -18,7 +18,7 @@ Decision: Pending
 Notes:
 
 - [ ] Agent reviewed paper structure
-- [ ] Agent confirmed remaining human-only gates are still human-only
+- [ ] Agent confirmed evidence backs the recorded verdict
 
 """
 
@@ -26,7 +26,7 @@ Notes:
 def ensure_section(text: str) -> str:
     if re.search(r"^## Agent Review\s*$", text, flags=re.MULTILINE):
         return text
-    marker = re.search(r"^## Human Review\s*$", text, flags=re.MULTILINE)
+    marker = re.search(r"^## Impact Score\s*$", text, flags=re.MULTILINE)
     if not marker:
         return text.rstrip() + "\n\n" + DEFAULT_SECTION
     return text[: marker.start()] + DEFAULT_SECTION + text[marker.start() :]
@@ -42,7 +42,7 @@ Decision: {decision}
 Notes: {notes}
 
 - [x] Agent reviewed paper structure
-- [x] Agent confirmed remaining human-only gates are still human-only
+- [x] Agent confirmed evidence backs the recorded verdict
 
 """
     pattern = r"^## Agent Review\s*\n.*?(?=^## |\Z)"

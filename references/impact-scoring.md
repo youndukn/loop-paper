@@ -1,6 +1,6 @@
 # Impact Scoring
 
-Impact score must be evidence-based. Agents may calculate or propose a score, but must not invent human grade or measured outcomes.
+Impact score must be evidence-based. Agents may calculate or propose a score, but must not invent measured outcomes.
 
 ## Recommended Formula
 
@@ -8,10 +8,9 @@ Use a 0-10 score:
 
 ```text
 impact_score =
-  0.25 * downstream_reference_score +
-  0.25 * validation_strength_score +
-  0.25 * human_grade_score +
-  0.25 * measured_outcome_score
+  0.33 * downstream_reference_score +
+  0.33 * validation_strength_score +
+  0.34 * measured_outcome_score
 ```
 
 If a component is unavailable, mark it `TBD` instead of fabricating it.
@@ -31,11 +30,6 @@ Validation strength score:
 - 3: implementation checks only
 - 6: tests or measurable evidence
 - 10: independent validation plus real-world outcome
-
-Human grade score:
-
-- Must come from an explicit human or superior grade.
-- Leave `TBD` when missing.
 
 Measured outcome score:
 

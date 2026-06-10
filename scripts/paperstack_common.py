@@ -4,9 +4,6 @@
 from __future__ import annotations
 
 import datetime as dt
-import hashlib
-import hmac
-import json
 import re
 from pathlib import Path
 
@@ -18,7 +15,6 @@ STATUSES = [
     "Implementing",
     "Implemented",
     "AI Validated",
-    "Human Review Required",
     "Accepted",
     "Rejected",
     "Superseded",
@@ -32,8 +28,7 @@ ALLOWED_TRANSITIONS = {
     "Plan Ready": {"Implementing", "Research Ready", "Rejected", "Superseded"},
     "Implementing": {"Implemented", "Plan Ready", "Rejected", "Superseded"},
     "Implemented": {"AI Validated", "Implementing", "Rejected", "Superseded"},
-    "AI Validated": {"Human Review Required", "Implemented", "Rejected", "Superseded"},
-    "Human Review Required": {"Accepted", "AI Validated", "Rejected", "Superseded"},
+    "AI Validated": {"Accepted", "Implemented", "Rejected", "Superseded"},
     "Accepted": {"Superseded"},
     "Rejected": {"Draft", "Superseded"},
     "Superseded": set(),
@@ -48,7 +43,6 @@ REQUIRED_SECTIONS = [
     "Validation Plan",
     "Validation",
     "Agent Review",
-    "Human Review",
     "Impact Score",
 ]
 
@@ -82,7 +76,19 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
 
 
 def format_frontmatter(metadata: dict[str, str]) -> str:
-    order = ["paper_id", "title", "status", "created", "updated", "owners", "reviewers", "impact_score"]
+    order = [
+        "paper_id",
+        "title",
+        "status",
+        "created",
+        "updated",
+        "owners",
+        "reviewers",
+        "impact_score",
+        "paper_kind",
+        "review_targets",
+        "closed_loop_schema",
+    ]
     lines = ["---"]
     seen = set()
     for key in order:
@@ -164,69 +170,10 @@ def section_has_unchecked(section_text: str) -> bool:
     return bool(re.search(r"- \[ \]", section_text))
 
 
-def has_explicit_human_acceptance(sections: dict[str, str]) -> bool:
-    human = sections.get("Human Review", "")
-    has_decision = bool(re.search(r"Decision:\s*(Accepted|Approved)", human, flags=re.IGNORECASE))
-    has_reviewer = bool(re.search(r"Human reviewer:\s*\S+", human, flags=re.IGNORECASE))
-    has_date = bool(re.search(r"Review date:\s*\d{4}-\d{2}-\d{2}", human, flags=re.IGNORECASE))
-    has_checked_human = bool(re.search(r"- \[x\].*human", human, flags=re.IGNORECASE))
-    has_verification = bool(re.search(r"Verification:\s*password-verified:[a-f0-9]{16}", human, flags=re.IGNORECASE))
-    return has_decision and has_reviewer and has_date and has_checked_human and has_verification
-
-
 def paper_root_from_path(path: Path) -> Path:
     if path.parent.name == "papers":
         return path.parent.parent
     return path.parent
-
-
-def reviewers_path(root: Path) -> Path:
-    return root / "config" / "reviewers.json"
-
-
-def load_reviewers(root: Path) -> dict:
-    path = reviewers_path(root)
-    if not path.exists():
-        return {"reviewers": {}}
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def password_hash(password: str, salt: str, iterations: int) -> str:
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt), iterations)
-    return digest.hex()
-
-
-def verification_token(reviewer: str, paper_id: str, review_date: str, decision: str, stored_hash: str) -> str:
-    payload = f"{reviewer}|{paper_id}|{review_date}|{decision.lower()}|{stored_hash}"
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
-
-
-def human_review_fields(sections: dict[str, str]) -> dict[str, str]:
-    human = sections.get("Human Review", "")
-    fields = {}
-    for key in ["Human reviewer", "Review date", "Decision", "Verification"]:
-        match = re.search(rf"^{re.escape(key)}:\s*(.*?)\s*$", human, flags=re.IGNORECASE | re.MULTILINE)
-        fields[key.lower().replace(" ", "_")] = match.group(1).strip() if match else ""
-    return fields
-
-
-def verify_human_review_password(root: Path, paper: dict) -> tuple[bool, str]:
-    fields = human_review_fields(paper["sections"])
-    reviewer = fields.get("human_reviewer", "")
-    review_date = fields.get("review_date", "")
-    decision = fields.get("decision", "")
-    verification = fields.get("verification", "")
-    if not reviewer or not review_date or not decision or not verification:
-        return False, "Human review verification fields are incomplete."
-    config = load_reviewers(root)
-    reviewer_config = config.get("reviewers", {}).get(reviewer)
-    if not reviewer_config:
-        return False, f"Reviewer {reviewer!r} is not registered."
-    token = verification_token(reviewer, paper["paper_id"], review_date, decision, reviewer_config["password_hash"])
-    expected = f"password-verified:{token}"
-    if not hmac.compare_digest(verification, expected):
-        return False, "Human review verification token does not match registered reviewer password."
-    return True, "Human review password verification passed."
 
 
 def validation_not_run(sections: dict[str, str]) -> bool:

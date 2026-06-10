@@ -14,7 +14,6 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 CHECK = SCRIPT_DIR / "check_paper.py"
 RENDER = SCRIPT_DIR / "render_dashboard.py"
 METADATA = SCRIPT_DIR / "update_paper_metadata.py"
-HUMAN_GATE = SCRIPT_DIR / "validate_human_gate.py"
 REFERENCES = SCRIPT_DIR / "index_references.py"
 IMPACT = SCRIPT_DIR / "score_impact.py"
 REPORT = SCRIPT_DIR / "export_report.py"
@@ -39,7 +38,6 @@ def main() -> int:
 
     steps = [
         ("metadata_synced", [sys.executable, str(METADATA), str(root)]),
-        ("human_gate_passed", [sys.executable, str(HUMAN_GATE), str(root), "--json"]),
         ("references_indexed", [sys.executable, str(REFERENCES), str(root)]),
         ("impact_scored", [sys.executable, str(IMPACT), str(root)]),
         ("check_passed", [sys.executable, str(CHECK), str(root), "--json"]),

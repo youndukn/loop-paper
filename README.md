@@ -79,6 +79,35 @@ python3 ~/.codex/skills/loop-paper/scripts/check_closed_loop_paper.py \
 python3 ~/.codex/skills/loop-paper/scripts/pipeline.py .paper-stack
 ```
 
+## Review Papers
+
+Reviews are themselves papers. `new_review_paper.py` walks the user (or the
+host agent) through structured multiple-choice prompts for each target
+paper, then writes a review paper that cites the targets via `References:`.
+
+```bash
+# Phase 1 — render prompts for the host agent (cli|json|claude|codex|pi):
+python3 ~/.codex/skills/loop-paper/scripts/new_review_paper.py \
+  --root .paper-stack \
+  --title "Review of PAPER-0010 and PAPER-0011" \
+  --target PAPER-0010 --target PAPER-0011 \
+  --format claude --prompt-out .paper-stack/inbox/prompts.json
+
+# Phase 2 — generate the paper from collected answers:
+python3 ~/.codex/skills/loop-paper/scripts/new_review_paper.py \
+  --root .paper-stack \
+  --title "Review of PAPER-0010 and PAPER-0011" \
+  --target PAPER-0010 --target PAPER-0011 \
+  --answers .paper-stack/inbox/answers.json
+```
+
+Per-target dimensions: hypothesis verdict, evidence strength, production
+readiness, recommended action. Cross-paper dimensions: coherence and next
+direction. The generated paper conforms to the closed-loop schema and
+passes `check_closed_loop_paper.py --phase after` out of the box. Phase-1
+prompts include `answer_id` values; phase 2 expects `answers.json` to map
+those IDs to selected option labels.
+
 ## Combine Papers
 
 Use `combine_papers.py` to close or summarize an interval and generate ranked
@@ -107,7 +136,6 @@ loop-paper/
 ├── agents/
 │   └── openai.yaml            # Codex UI metadata
 ├── assets/
-│   ├── paper-template.md      # base paper template
 │   └── structure-template.md  # .paper-stack/structure.md template
 ├── docs/
 │   └── install.md             # multi-agent installation guide
@@ -134,7 +162,7 @@ The project-local structure created by `init_loop_paper.py` is:
   references/   source notes and prior work
   inbox/        untriaged ideas or claims
   dashboard/    generated reports
-  config/       local config and reviewers
+  config/       local config
   archive/      old or superseded material
 ```
 

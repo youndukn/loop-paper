@@ -17,17 +17,24 @@ def title_from_heading(text: str, fallback: str) -> str:
 
 def sync_file(path: Path, write: bool) -> dict:
     paper = load_paper(path)
-    metadata = dict(paper["metadata"])
+    original = dict(paper["metadata"])
+    metadata = dict(original)
     metadata["paper_id"] = paper["paper_id"]
     metadata["title"] = title_from_heading(paper["text"], paper["title"])
     metadata.setdefault("status", paper["status"])
     metadata.setdefault("created", today())
-    metadata["updated"] = today()
+    metadata.setdefault("updated", today())
     metadata.setdefault("owners", "[]")
     metadata.setdefault("reviewers", "[]")
     metadata.setdefault("impact_score", "TBD")
 
-    changed = metadata != paper["metadata"]
+    def without_updated(data: dict) -> dict:
+        return {key: value for key, value in data.items() if key != "updated"}
+
+    if without_updated(metadata) != without_updated(original):
+        metadata["updated"] = today()
+
+    changed = metadata != original
     if write and changed:
         path.write_text(replace_frontmatter(paper["text"], metadata), encoding="utf-8")
     return {"path": str(path), "paper_id": metadata["paper_id"], "changed": changed}

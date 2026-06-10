@@ -70,7 +70,6 @@ def render_gitignore() -> str:
             "# Loop Paper generated/runtime files",
             "dashboard/*.tmp",
             "dashboard/watch-state.json",
-            "config/reviewers.json",
             "",
         ]
     )
@@ -94,6 +93,8 @@ def create_seed_paper(args: argparse.Namespace, root: Path) -> str | None:
         str(root / "structure.md"),
         "--min-hypotheses",
         "1",
+        "--date",
+        args.date,
     ]
     completed = subprocess.run(command, text=True, capture_output=True, check=False)
     if completed.returncode != 0:

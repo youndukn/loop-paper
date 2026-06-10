@@ -1,12 +1,83 @@
 ---
 name: loop-paper
-description: Use when initializing, planning, executing, validating, summarizing, combining, or closing research-paper-style work loops. Trigger for creating a project-local .paper-stack structure, Paper Stack workflows, closed-loop papers, deterministic paper dashboards, hypothesis/baseline/validation gates, human-review-safe acceptance, combining multiple papers by ID interval, or selecting best reference papers for a new or closing paper.
+description: Use when running substantial work as a hypothesis-first paper loop — initializing a project-local .paper-stack, creating or closing a closed-loop paper, validating before/after gates, combining paper intervals, or ranking reference papers.
 ---
 
 # Loop Paper
 
 Loop Paper treats meaningful work as a paper-backed loop: claim, prior work,
 implementation plan, validation plan, evidence, verdict, review, and impact.
+
+## Operating Model
+
+The loop runs autonomously. Papers walk
+`Draft -> Research Ready -> Plan Ready -> Implementing -> Implemented ->
+AI Validated -> Accepted` without any human checkbox gate. The agent is
+expected to keep producing papers indefinitely, one after the next.
+
+**Review is itself a paper, not a checkbox.** When a target paper needs
+review, write a *review paper* whose body assesses the targets via a
+structured multiple-choice walk. The review paper sits in the same paper
+stack and flows through the same loop. It does not block or modify the
+target papers; it cites them.
+
+Use `scripts/new_review_paper.py` to drive the review:
+
+```bash
+# Phase 1 — render the multiple-choice prompts for the host agent:
+python3 scripts/new_review_paper.py \
+  --root .paper-stack \
+  --title "Quarter Review of PAPER-0010 and PAPER-0011" \
+  --target PAPER-0010 --target PAPER-0011 \
+  --format claude --prompt-out .paper-stack/inbox/prompts.json
+
+# (Host agent presents the prompts to the user and writes answers.json)
+
+# Phase 2 — generate the review paper from answers:
+python3 scripts/new_review_paper.py \
+  --root .paper-stack \
+  --title "Quarter Review of PAPER-0010 and PAPER-0011" \
+  --target PAPER-0010 --target PAPER-0011 \
+  --answers .paper-stack/inbox/answers.json
+```
+
+`--format` selects the prompt rendering: `cli` (interactive stdin),
+`json` (canonical), `claude` (AskUserQuestion-shape JSON), `codex` (codex
+interactive block), `pi` (pi-mono YAML-style). Same questions in every
+format. The per-target dimensions are: hypothesis verdict, evidence
+strength, production readiness, recommended action. The cross-paper
+dimensions are: coherence and recommended next direction.
+
+## Purpose
+
+The loop exists so a human can reconstruct the full path of the work by
+reading only the `Abstract` sections of the papers, in numeric order. Every
+abstract must:
+
+- Stand alone (no jargon that requires reading the body).
+- Name the work unit, the hypothesis, the verdict, and the next step.
+- Read as the next sentence in the project's running narrative when placed
+  after the previous paper's abstract.
+
+When writing or updating an abstract, optimize for the reader who has not
+read any other section of any paper. The abstract is the only deliverable
+guaranteed to be read.
+
+## Production Bar
+
+A loop is "done" only when its work is production-level. The AI treats any
+state below production — TODOs, untested code, mocks, partial validation,
+unmeasured outcomes — as in-progress, regardless of how many checkboxes are
+ticked. Acceptable terminal states are:
+
+- The paper reaches `Accepted` with production-level evidence, and the loop
+  is paused intentionally because no further production-impacting work
+  remains for now.
+- The paper reaches `Rejected` because the hypothesis failed.
+- The paper is `Superseded` by a stronger one.
+
+Do not pause a loop just because the immediate change runs locally. Keep
+iterating until the change would survive being shipped.
 
 Use `.paper-stack/` in the active project unless the user gives another root.
 Resolve scripts relative to this `SKILL.md` and execute them with absolute
@@ -47,8 +118,10 @@ closed-loop paper.
 3. Keep `Validation Plan` separate from `Validation`; the plan says what would
    count, and validation records what actually happened.
 4. Mark AI-actionable validation only after executing or inspecting evidence.
-5. Never mark human validation, human review, or human impact grades complete
-   by hand. Use `scripts/human_review.py` for password-verified human review.
+5. The loop runs autonomously through `Accepted`. There is no human-checkbox
+   gate. If a paper needs human assessment, write a *review paper* with
+   `scripts/new_review_paper.py` that cites the target via `References:`.
+   Do not pause or stall waiting for a human on the target paper.
 6. Use deterministic scripts for paper metadata, graph edges, dashboards,
    impact components, reports, transitions, and combined summaries.
 7. If work happened before the paper existed, mark the evidence as
@@ -66,6 +139,7 @@ closed-loop paper.
      --finding "Concrete prior finding that justifies this work" \
      --reference "docs/current_findings.md"
    ```
+
 
 2. Fill all `BEFORE_REQUIRED` slots, then check the before phase:
 
@@ -138,7 +212,6 @@ Plan Ready
 Implementing
 Implemented
 AI Validated
-Human Review Required
 Accepted
 Rejected
 Superseded
@@ -147,7 +220,7 @@ Superseded
 Allowed progression:
 
 ```text
-Draft -> Research Ready -> Plan Ready -> Implementing -> Implemented -> AI Validated -> Human Review Required -> Accepted
+Draft -> Research Ready -> Plan Ready -> Implementing -> Implemented -> AI Validated -> Accepted
 ```
 
 Move to `Rejected` when a hypothesis fails or the user rejects the paper. Move
@@ -167,29 +240,23 @@ Each paper must contain these top-level sections:
 ## Validation Plan
 ## Validation
 ## Agent Review
-## Human Review
 ## Impact Score
 ```
 
-Leave human-only checkboxes unchecked until a human explicitly approves them.
-
 ## Resources
 
-- `assets/paper-template.md`: Base paper template.
 - `assets/structure-template.md`: Project-local `.paper-stack/structure.md` template.
 - `references/paper-states.md`: Detailed state and gate rules.
 - `references/impact-scoring.md`: Evidence-based impact scoring.
 - `scripts/init_loop_paper.py`: Initialize the generalizable `.paper-stack` structure.
 - `scripts/new_closed_loop_paper.py`: Create a hypothesis-first paper.
+- `scripts/new_review_paper.py`: Create a review paper from structured multiple-choice answers across one or more target papers.
 - `scripts/check_closed_loop_paper.py`: Validate before/after closed-loop slots.
+- `scripts/check_paper.py`: Validate required sections.
 - `scripts/combine_papers.py`: Deterministically summarize intervals and rank references.
-- `scripts/new_paper.py`: Create a basic paper with the next ID.
-- `scripts/check_paper.py`: Validate required sections and gate integrity.
-- `scripts/pipeline.py`: Run metadata sync, human-gate validation, graph index,
-  impact scoring, dashboard render, and report export.
+- `scripts/pipeline.py`: Run metadata sync, graph index, impact scoring, dashboard render, and report export.
 - `scripts/index_references.py`: Build `dashboard/references.json`.
 - `scripts/score_impact.py`: Calculate deterministic impact components.
 - `scripts/transition_paper.py`: Enforce allowed status transitions.
-- `scripts/human_review.py`: Apply password-verified human review.
 - `scripts/render_dashboard.py`: Build `dashboard/data.json` and dashboard HTML.
 - `scripts/export_report.py`: Generate `dashboard/report.md`.

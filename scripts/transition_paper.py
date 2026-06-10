@@ -11,13 +11,10 @@ from paperstack_common import (
     ALLOWED_TRANSITIONS,
     REQUIRED_SECTIONS,
     STATUSES,
-    has_explicit_human_acceptance,
     load_paper,
-    paper_root_from_path,
     replace_frontmatter,
     section_has_checked,
     today,
-    verify_human_review_password,
     validation_not_run,
 )
 
@@ -28,29 +25,23 @@ def gate_errors(paper: dict, target: str) -> list[str]:
     missing = [section for section in REQUIRED_SECTIONS if section not in sections or not sections[section].strip()]
     if target not in {"Draft", "Rejected", "Superseded"} and missing:
         errors.append("Missing or empty required sections: " + ", ".join(missing))
-    if target in {"Research Ready", "Plan Ready", "Implementing", "Implemented", "AI Validated", "Human Review Required", "Accepted"}:
+    if target in {"Research Ready", "Plan Ready", "Implementing", "Implemented", "AI Validated", "Accepted"}:
         prior = sections.get("Prior Research", "")
         refs = sections.get("References", "")
         if "Prior Research Status: Missing" in prior and "Risk: High" not in prior:
             errors.append("Missing prior research must explicitly mark Risk: High")
         if "- TBD" in refs and "Prior Research Status: Missing" not in prior:
             errors.append("References are TBD without explicit missing prior research acknowledgement")
-    if target in {"Plan Ready", "Implementing", "Implemented", "AI Validated", "Human Review Required", "Accepted"}:
+    if target in {"Plan Ready", "Implementing", "Implemented", "AI Validated", "Accepted"}:
         if not section_has_checked(sections.get("Implementation Plan", "")):
             errors.append("Implementation Plan has no checked gate")
         if not section_has_checked(sections.get("Validation Plan", "")):
             errors.append("Validation Plan has no checked gate")
-    if target in {"AI Validated", "Human Review Required", "Accepted"}:
+    if target in {"AI Validated", "Accepted"}:
         if validation_not_run(sections):
             errors.append("Validation still says Not run")
         if not section_has_checked(sections.get("Validation", "")):
             errors.append("Validation has no checked evidence gate")
-    if target == "Accepted" and not has_explicit_human_acceptance(sections):
-        errors.append("Accepted requires reviewer, review date, accepted/approved decision, checked human review, and password verification")
-    if target == "Accepted" and has_explicit_human_acceptance(sections):
-        verified, message = verify_human_review_password(paper_root_from_path(paper["path"]), paper)
-        if not verified:
-            errors.append(message)
     return errors
 
 

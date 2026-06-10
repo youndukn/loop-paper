@@ -11,12 +11,24 @@ from pathlib import Path
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d+)")
+UNSAFE_TITLE_CHARS = re.compile(r"[:\n\r]|---")
 
 
 def slugify(value: str) -> str:
     ascii_value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", ascii_value).strip("-").lower()
     return slug or "closed-loop-paper"
+
+
+def validate_title(title: str) -> str:
+    cleaned = title.strip()
+    if not cleaned:
+        raise SystemExit("--title must not be empty")
+    if UNSAFE_TITLE_CHARS.search(cleaned):
+        raise SystemExit(
+            "--title must not contain ':', newlines, or '---' (would break YAML frontmatter)"
+        )
+    return cleaned
 
 
 def next_paper_id(papers_dir: Path) -> str:
@@ -163,11 +175,6 @@ AI-actionable validation:
 
 - [ ] BEFORE_REQUIRED: test/verifier/check to run
 
-Human-required validation:
-
-- [ ] Human validation required if the claim needs product, prose, UX, or taste
-  judgment
-
 ## Execution Records
 
 Run records:
@@ -195,9 +202,9 @@ Verdict:
 - AFTER_REQUIRED: mark each hypothesis Supported, Failed, Inconclusive, or
   Superseded, with the evidence reason.
 
-Human validation evidence:
+AI validation evidence:
 
-- [ ] Human validation required
+- [ ] AI validation evidence recorded
 
 ## Agent Review
 
@@ -209,18 +216,7 @@ Notes:
 - AFTER_REQUIRED: agent review findings
 
 - [ ] Agent reviewed paper structure
-- [ ] Agent confirmed remaining human-only gates are still human-only
-
-## Human Review
-
-Human reviewer:
-Review date:
-Decision: Pending
-Verification:
-Notes:
-
-- [ ] Human reviewed the paper
-- [ ] Human accepted the validation evidence
+- [ ] Agent confirmed evidence backs the recorded verdict
 
 ## Impact Score
 
@@ -230,7 +226,6 @@ Basis:
 
 - Downstream references: AFTER_REQUIRED: TBD until measured
 - Validation strength: AFTER_REQUIRED: TBD until validation runs
-- Human grade: TBD
 - Measured outcome: AFTER_REQUIRED: before/after delta or failed result
 
 - [ ] Impact score is based on evidence, not agent guesswork
@@ -252,14 +247,15 @@ def main() -> None:
     papers_dir = args.root / "papers"
     papers_dir.mkdir(parents=True, exist_ok=True)
     paper_id = next_paper_id(papers_dir)
-    slug = args.slug or slugify(args.title)
+    title = validate_title(args.title)
+    slug = args.slug or slugify(title)
     path = papers_dir / f"{paper_id}-{slug}.md"
     if path.exists():
         raise SystemExit(f"Refusing to overwrite existing paper: {path}")
     path.write_text(
         render_paper(
             paper_id=paper_id,
-            title=args.title,
+            title=title,
             today=args.date,
             hypotheses=args.hypothesis,
             findings=args.finding,

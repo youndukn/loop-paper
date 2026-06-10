@@ -27,7 +27,7 @@ Implementation and validation plans are concrete enough to execute.
 Exit criteria:
 
 - Implementation Plan names likely changes.
-- Validation Plan separates AI-actionable and human-required evidence.
+- Validation Plan names the AI-actionable evidence the paper will collect.
 
 ## Implementing
 
@@ -53,23 +53,18 @@ Exit criteria:
 
 - Validation section contains command output summaries, file links, screenshots, metrics, or inspection notes.
 
-## Human Review Required
-
-All agent-actionable work is done, but human judgment is still required.
-
-Exit criteria:
-
-- A human explicitly accepts, rejects, or requests changes.
-
 ## Accepted
 
-The paper is complete and accepted by a human.
+The paper is complete.
 
 Exit criteria:
 
-- Human review checkbox is checked because the user explicitly approved it.
-- Human-required validation is checked only if the user explicitly approved it.
-- Impact score has an evidence basis.
+- AI validation evidence is recorded.
+- Impact score has an evidence basis where measurable.
+
+If a human needs to review the paper, write a separate review paper with
+`scripts/new_review_paper.py` that cites it via `References:`. The target
+paper itself stays on the autonomous loop.
 
 ## Rejected
 

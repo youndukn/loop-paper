@@ -9,65 +9,18 @@ import json
 import re
 from pathlib import Path
 
-
-STATUSES = [
-    "Draft",
-    "Research Ready",
-    "Plan Ready",
-    "Implementing",
-    "Implemented",
-    "AI Validated",
-    "Human Review Required",
-    "Accepted",
-    "Rejected",
-    "Superseded",
-]
-
-REQUIRED_SECTIONS = [
-    "Abstract",
-    "Hypothesis",
-    "Prior Research",
-    "References",
-    "Implementation Plan",
-    "Validation Plan",
-    "Validation",
-    "Agent Review",
-    "Human Review",
-    "Impact Score",
-]
-
-
-def parse_frontmatter(text: str) -> dict[str, str]:
-    if not text.startswith("---\n"):
-        return {}
-    end = text.find("\n---", 4)
-    if end == -1:
-        return {}
-    data: dict[str, str] = {}
-    for line in text[4:end].splitlines():
-        if ":" in line:
-            key, value = line.split(":", 1)
-            data[key.strip()] = value.strip()
-    return data
-
-
-def split_sections(text: str) -> dict[str, str]:
-    matches = list(re.finditer(r"^##\s+(.+?)\s*$", text, flags=re.MULTILINE))
-    sections: dict[str, str] = {}
-    for index, match in enumerate(matches):
-        start = match.end()
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
-        sections[match.group(1).strip()] = text[start:end].strip()
-    return sections
-
-
-def find_ids(text: str) -> list[str]:
-    return sorted(set(re.findall(r"PAPER-\d{4}", text)))
+from paperstack_common import (
+    REQUIRED_SECTIONS,
+    STATUSES,
+    find_ids,
+    parse_frontmatter,
+    split_sections,
+)
 
 
 def summarize_paper(path: Path, root: Path) -> dict:
     text = path.read_text(encoding="utf-8")
-    meta = parse_frontmatter(text)
+    meta, _ = parse_frontmatter(text)
     sections = split_sections(text)
     paper_id = meta.get("paper_id") or re.search(r"PAPER-\d{4}", path.name).group(0)
     missing = [section for section in REQUIRED_SECTIONS if section not in sections]
@@ -84,6 +37,7 @@ def summarize_paper(path: Path, root: Path) -> dict:
         "title": meta.get("title", path.stem),
         "status": meta.get("status", "Draft"),
         "impact_score": meta.get("impact_score", "TBD"),
+        "paper_kind": meta.get("paper_kind", "closed_loop"),
         "path": str(path),
         "relative_path": str(path.relative_to(root.parent)) if path.is_relative_to(root.parent) else str(path),
         "missing_sections": missing,
@@ -162,7 +116,7 @@ dialog::backdrop {{ background: rgba(15, 23, 42, 0.35); }}
     <select id="filter">
       <option value="">All papers</option>
       <option value="missing">Missing sections</option>
-      <option value="human">Human review needed</option>
+      <option value="review">Review papers</option>
       <option value="impact">Impact TBD</option>
     </select>
   </div>
@@ -198,7 +152,7 @@ function visiblePapers() {{
     if (q && !text.includes(q)) return false;
     if (status && p.status !== status) return false;
     if (filter === 'missing' && p.missing_sections.length === 0) return false;
-    if (filter === 'human' && p.status !== 'Human Review Required') return false;
+    if (filter === 'review' && p.paper_kind !== 'review') return false;
     if (filter === 'impact' && p.impact_score !== 'TBD') return false;
     return true;
   }});
@@ -206,13 +160,13 @@ function visiblePapers() {{
 
 function renderSummary(papers) {{
   const accepted = papers.filter(p => p.status === 'Accepted').length;
-  const human = papers.filter(p => p.status === 'Human Review Required').length;
+  const reviews = papers.filter(p => p.paper_kind === 'review').length;
   const missing = papers.filter(p => p.missing_sections.length).length;
   const impact = papers.filter(p => p.impact_score !== 'TBD').length;
   summary.innerHTML = [
     ['Papers', papers.length],
     ['Accepted', accepted],
-    ['Human review', human],
+    ['Reviews', reviews],
     ['Scored impact', impact],
   ].map(([label, value]) => `<div class="metric"><b>${{value}}</b><span>${{label}}</span></div>`).join('');
 }}

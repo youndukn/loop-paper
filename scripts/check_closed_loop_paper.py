@@ -7,17 +7,14 @@ import argparse
 import re
 from pathlib import Path
 
+from paperstack_common import REQUIRED_SECTIONS, split_sections
+
 
 PLACEHOLDER_RE = re.compile(r"\b(BEFORE_REQUIRED|AFTER_REQUIRED)\b")
 
 
 def section(text: str, name: str) -> str:
-    pattern = re.compile(
-        rf"^## {re.escape(name)}\s*$([\s\S]*?)(?=^## |\Z)",
-        re.MULTILINE,
-    )
-    match = pattern.search(text)
-    return match.group(1).strip() if match else ""
+    return split_sections(text).get(name, "")
 
 
 def checked_count(text: str) -> int:
@@ -43,19 +40,7 @@ def validate_paper(path: Path, phase: str) -> list[str]:
     errors: list[str] = []
     if "closed_loop_schema: paper_closed_loop.v1" not in text:
         errors.append("missing closed_loop_schema: paper_closed_loop.v1")
-    required_sections = [
-        "Abstract",
-        "Hypothesis",
-        "Prior Research",
-        "References",
-        "Implementation Plan",
-        "Validation Plan",
-        "Validation",
-        "Agent Review",
-        "Human Review",
-        "Impact Score",
-    ]
-    for name in required_sections:
+    for name in REQUIRED_SECTIONS:
         if not section(text, name):
             errors.append(f"missing or empty section: {name}")
     hypothesis = section(text, "Hypothesis")

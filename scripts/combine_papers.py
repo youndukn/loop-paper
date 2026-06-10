@@ -16,7 +16,6 @@ PAPER_ID_RE = re.compile(r"PAPER-(\d{1,4})", re.IGNORECASE)
 
 STATUS_SCORE = {
     "Accepted": 70,
-    "Human Review Required": 55,
     "AI Validated": 45,
     "Implemented": 35,
     "Implementing": 25,

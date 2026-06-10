@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 from index_references import build_graph
-from paperstack_common import has_explicit_human_acceptance, load_paper, paper_paths, section_has_checked, validation_not_run
+from paperstack_common import load_paper, paper_paths, section_has_checked, validation_not_run
 
 
 def downstream_score(count: int) -> int:
@@ -32,15 +32,6 @@ def validation_score(paper: dict) -> int:
     return 3 if section_has_checked(validation) else 0
 
 
-def human_grade_score(paper: dict) -> int | str:
-    if not has_explicit_human_acceptance(paper["sections"]):
-        return "TBD"
-    match = re.search(r"Human grade:[^\S\r\n]*(\d+(?:\.\d+)?)", paper["sections"].get("Impact Score", ""), flags=re.IGNORECASE)
-    if not match:
-        return "TBD"
-    return max(0, min(10, round(float(match.group(1)))))
-
-
 def partial_score(components: list[int | str]) -> float | str:
     known = [component for component in components if isinstance(component, int)]
     if not known:
@@ -56,9 +47,8 @@ def score(root: Path) -> dict:
         paper = load_paper(path)
         downstream = downstream_score(inbound.get(paper["paper_id"], 0))
         validation = validation_score(paper)
-        human = human_grade_score(paper)
         measured = "TBD"
-        components = [downstream, validation, human, measured]
+        components = [downstream, validation, measured]
         results.append(
             {
                 "paper_id": paper["paper_id"],
@@ -68,10 +58,9 @@ def score(root: Path) -> dict:
                 "components": {
                     "downstream_reference_score": downstream,
                     "validation_strength_score": validation,
-                    "human_grade_score": human,
                     "measured_outcome_score": measured,
                 },
-                "reason": "Only explicit human-reviewed grades are included; measured outcomes remain TBD unless supplied as concrete evidence.",
+                "reason": "Measured outcomes remain TBD unless supplied as concrete evidence in the paper body.",
             }
         )
     return {"papers": results}

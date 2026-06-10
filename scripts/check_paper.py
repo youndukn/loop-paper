@@ -5,64 +5,19 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from pathlib import Path
 
-from paperstack_common import has_explicit_human_acceptance
-
-
-REQUIRED_SECTIONS = [
-    "Abstract",
-    "Hypothesis",
-    "Prior Research",
-    "References",
-    "Implementation Plan",
-    "Validation Plan",
-    "Validation",
-    "Agent Review",
-    "Human Review",
-    "Impact Score",
-]
-
-HUMAN_ONLY_PATTERNS = [
-    re.compile(r"- \[x\].*human", re.IGNORECASE),
-    re.compile(r"Decision:\s*(Accepted|Approved)", re.IGNORECASE),
-]
-
-
-def split_sections(text: str) -> dict[str, str]:
-    matches = list(re.finditer(r"^##\s+(.+?)\s*$", text, flags=re.MULTILINE))
-    sections: dict[str, str] = {}
-    for index, match in enumerate(matches):
-        start = match.end()
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
-        sections[match.group(1).strip()] = text[start:end].strip()
-    return sections
-
-
-def parse_frontmatter(text: str) -> dict[str, str]:
-    if not text.startswith("---\n"):
-        return {}
-    end = text.find("\n---", 4)
-    if end == -1:
-        return {}
-    data: dict[str, str] = {}
-    for line in text[4:end].splitlines():
-        if ":" in line:
-            key, value = line.split(":", 1)
-            data[key.strip()] = value.strip()
-    return data
-
-
-def human_validation_block(validation: str) -> str:
-    match = re.search(r"Human validation evidence:\s*(.*)$", validation, flags=re.IGNORECASE | re.DOTALL)
-    return match.group(1) if match else ""
+from paperstack_common import (
+    REQUIRED_SECTIONS,
+    parse_frontmatter,
+    split_sections,
+)
 
 
 def check_file(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
     sections = split_sections(text)
-    metadata = parse_frontmatter(text)
+    metadata, _ = parse_frontmatter(text)
     missing = [section for section in REQUIRED_SECTIONS if section not in sections]
     empty = [
         section
@@ -71,16 +26,8 @@ def check_file(path: Path) -> dict:
     ]
     warnings = []
 
-    if metadata.get("status") == "Accepted":
-        human_review = sections.get("Human Review", "")
-        if not any(pattern.search(human_review) for pattern in HUMAN_ONLY_PATTERNS):
-            warnings.append("Accepted status requires explicit checked human review evidence.")
-
     validation = sections.get("Validation", "")
-    human_validation = human_validation_block(validation)
-    if "- [x]" in human_validation.lower() and not has_explicit_human_acceptance(sections):
-        warnings.append("Check human-required validation only after explicit human approval.")
-    if "Not run" in validation and metadata.get("status") in {"AI Validated", "Human Review Required", "Accepted"}:
+    if "Not run" in validation and metadata.get("status") in {"AI Validated", "Accepted"}:
         warnings.append("Advanced status conflicts with validation evidence marked Not run.")
 
     return {
