@@ -763,7 +763,8 @@ def ensure_validator_rejects_malformed_skill_frontmatter() -> None:
 
 def ensure_installed_payload_validates() -> None:
     with tempfile.TemporaryDirectory(prefix="loop-paper-installed-") as tmp:
-        destination = Path(tmp) / "loop-paper"
+        tmp_path = Path(tmp)
+        destination = tmp_path / "loop-paper"
         run_ok(
             [
                 sys.executable,
@@ -776,6 +777,31 @@ def ensure_installed_payload_validates() -> None:
         )
         run_ok([sys.executable, str(destination / "scripts" / "validate_skill_repo.py")])
         run_ok([sys.executable, str(destination / "scripts" / "smoke_test.py")])
+
+        home = tmp_path / "home"
+        run_ok(
+            [
+                sys.executable,
+                script("install_skill.py"),
+                "--agent",
+                "all",
+                "--home",
+                str(home),
+            ]
+        )
+        expected_user_installs = {
+            "agents": home / ".agents" / "skills" / "loop-paper",
+            "claude": home / ".claude" / "skills" / "loop-paper",
+            "codex": home / ".codex" / "skills" / "loop-paper",
+            "hermes": home / ".hermes" / "skills" / "loop-paper",
+            "openclaw": home / ".openclaw" / "skills" / "loop-paper",
+            "pimo": home / ".pimo" / "skills" / "loop-paper",
+        }
+        for agent, install_root in expected_user_installs.items():
+            if not (install_root / "SKILL.md").exists():
+                raise SystemExit(f"Missing installed SKILL.md for {agent}: {install_root}")
+            run_ok([sys.executable, str(install_root / "scripts" / "validate_skill_repo.py")])
+        run_ok([sys.executable, str(expected_user_installs["codex"] / "scripts" / "smoke_test.py")])
 
 
 def ensure_installer_rejects_recursive_destinations() -> None:
