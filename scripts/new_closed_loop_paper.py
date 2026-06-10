@@ -257,6 +257,8 @@ def main() -> None:
     parser.add_argument("--date", default=date.today().isoformat())
     args = parser.parse_args()
     args.date = validate_iso_date(args.date)
+    if args.min_hypotheses < 1:
+        raise SystemExit("--min-hypotheses must be greater than zero")
 
     papers_dir = args.root / "papers"
     papers_dir.mkdir(parents=True, exist_ok=True)
@@ -274,7 +276,7 @@ def main() -> None:
             hypotheses=args.hypothesis,
             findings=args.finding,
             references=args.reference,
-            min_hypotheses=max(1, args.min_hypotheses),
+            min_hypotheses=args.min_hypotheses,
         ),
         encoding="utf-8",
     )
