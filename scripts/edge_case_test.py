@@ -748,7 +748,22 @@ def main() -> int:
             "impact score references unknown paper_id: PAPER-9999",
         )
         impact_scores.write_text(
-            json.dumps({"papers": [{"paper_id": "PAPER-0001"}, {"paper_id": "PAPER-0001"}]}),
+            json.dumps(
+                {
+                    "papers": [
+                        {
+                            "paper_id": "PAPER-0001",
+                            "deterministic_score": "TBD",
+                            "deterministic_partial_score": 0.99,
+                        },
+                        {
+                            "paper_id": "PAPER-0001",
+                            "deterministic_score": "TBD",
+                            "deterministic_partial_score": 0.99,
+                        },
+                    ]
+                }
+            ),
             encoding="utf-8",
         )
         run_fail(
@@ -761,7 +776,20 @@ def main() -> int:
             ],
             "duplicate impact score paper_id: PAPER-0001",
         )
-        impact_scores.write_text(json.dumps({"papers": [{"paper_id": "PAPER-0001"}]}), encoding="utf-8")
+        impact_scores.write_text(
+            json.dumps(
+                {
+                    "papers": [
+                        {
+                            "paper_id": "PAPER-0001",
+                            "deterministic_score": "TBD",
+                            "deterministic_partial_score": 0.99,
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
         run_fail(
             [
                 sys.executable,
@@ -778,7 +806,6 @@ def main() -> int:
             current_score_items.append(
                 {
                     "paper_id": paper_id,
-                    "deterministic_partial_score": "A | B" if paper_id == "PAPER-0001" else "TBD",
                 }
             )
         impact_scores.write_text(
@@ -789,6 +816,46 @@ def main() -> int:
             ),
             encoding="utf-8",
         )
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            "impact score paper item 1 missing deterministic_score",
+        )
+        current_score_items[0]["deterministic_score"] = "A | B"
+        current_score_items[0]["deterministic_partial_score"] = 0.99
+        impact_scores.write_text(json.dumps({"papers": current_score_items}), encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            "impact score paper item 1 deterministic_score must be TBD or a number from 0 to 10",
+        )
+        current_score_items[0]["deterministic_score"] = "TBD"
+        current_score_items[0]["deterministic_partial_score"] = "A | B"
+        impact_scores.write_text(json.dumps({"papers": current_score_items}), encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            "impact score paper item 1 deterministic_partial_score must be a number from 0 to 10",
+        )
+        for item in current_score_items:
+            item["deterministic_score"] = "TBD"
+            item["deterministic_partial_score"] = 0.99
+        impact_scores.write_text(json.dumps({"papers": current_score_items}), encoding="utf-8")
         run_ok(
             [
                 sys.executable,
@@ -798,8 +865,8 @@ def main() -> int:
                 str(report_output),
             ]
         )
-        if "A \\| B" not in report_output.read_text(encoding="utf-8"):
-            raise SystemExit("Exported report table did not escape score pipe")
+        if "TBD (partial 0.99)" not in report_output.read_text(encoding="utf-8"):
+            raise SystemExit("Exported report did not render valid canonical score payload")
         impact_scores.unlink()
         run_fail(
             [

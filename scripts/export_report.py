@@ -19,6 +19,27 @@ from paperstack_common import (
 )
 
 
+def is_score_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 10
+
+
+def validate_impact_score_item(item: dict, *, index: int) -> None:
+    if "deterministic_score" not in item:
+        raise SystemExit(f"impact score paper item {index} missing deterministic_score")
+    score = item["deterministic_score"]
+    if score != "TBD" and not is_score_number(score):
+        raise SystemExit(
+            f"impact score paper item {index} deterministic_score must be TBD or a number from 0 to 10"
+        )
+    if "deterministic_partial_score" not in item:
+        raise SystemExit(f"impact score paper item {index} missing deterministic_partial_score")
+    partial_score = item["deterministic_partial_score"]
+    if not is_score_number(partial_score):
+        raise SystemExit(
+            f"impact score paper item {index} deterministic_partial_score must be a number from 0 to 10"
+        )
+
+
 def load_impact_scores(path: Path, known_ids: set[str]) -> dict[str, dict]:
     if not path.exists():
         return {}
@@ -47,6 +68,7 @@ def load_impact_scores(path: Path, known_ids: set[str]) -> dict[str, dict]:
             raise SystemExit(f"impact score references unknown paper_id: {paper_id}")
         if paper_id in impact_by_id:
             raise SystemExit(f"duplicate impact score paper_id: {paper_id}")
+        validate_impact_score_item(item, index=index)
         impact_by_id[paper_id] = item
     missing = sorted(known_ids - set(impact_by_id))
     if missing:
