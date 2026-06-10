@@ -62,7 +62,14 @@ def render_config(root: Path, project_name: str, today: str) -> str:
         "run_id_format": "RUN-YYYY-MM-DD-PAPER-NNNN-short-name",
         "fix_id_format": "FIX-YYYY-MM-DD-PAPER-NNNN-short-name",
         "relationship_empty_value": "None",
-        "generated_outputs": ["dashboard/data.json", "dashboard/index.html", "dashboard/report.md"],
+        "generated_outputs": [
+            "dashboard/data.json",
+            "dashboard/index.html",
+            "dashboard/references.json",
+            "dashboard/impact-scores.json",
+            "dashboard/report.md",
+            "dashboard/pipeline-summary.json",
+        ],
     }
     return json.dumps(payload, indent=2) + "\n"
 

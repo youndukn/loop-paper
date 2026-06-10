@@ -391,6 +391,21 @@ def main() -> int:
                 "2026-06-10",
             ]
         )
+        config = json.loads((root / "config" / "loop-paper.json").read_text(encoding="utf-8"))
+        expected_generated_outputs = {
+            "dashboard/data.json",
+            "dashboard/index.html",
+            "dashboard/references.json",
+            "dashboard/impact-scores.json",
+            "dashboard/report.md",
+            "dashboard/pipeline-summary.json",
+        }
+        actual_generated_outputs = set(config.get("generated_outputs", []))
+        if actual_generated_outputs != expected_generated_outputs:
+            raise SystemExit(
+                "Initialized generated_outputs mismatch: "
+                + ", ".join(sorted(actual_generated_outputs))
+            )
         papers_file_root = project / "creator-papers-file-stack"
         run_ok(
             [
