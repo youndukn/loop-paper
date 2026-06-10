@@ -23,7 +23,7 @@ from paperstack_common import (
 )
 
 
-PAPER_ID_RE = re.compile(r"^PAPER-(\d{1,4})$")
+PAPER_ID_RE = re.compile(r"^PAPER-(\d{4})$")
 UNSAFE_TITLE_CHARS = re.compile(r"[:\n\r]|---")
 SLUG_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")
 

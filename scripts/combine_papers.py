@@ -13,7 +13,7 @@ from check_paper import check_paths
 from paperstack_common import RELATION_LABELS, extract_relations, load_paper, paper_paths, relation_key, write_text_output
 
 
-PAPER_ID_RE = re.compile(r"PAPER-(\d{1,4})", re.IGNORECASE)
+PAPER_ID_RE = re.compile(r"PAPER-(\d{4})", re.IGNORECASE)
 
 STATUS_SCORE = {
     "Accepted": 70,

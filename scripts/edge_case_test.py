@@ -799,6 +799,21 @@ def main() -> int:
                 "--root",
                 str(root),
                 "--title",
+                "Short Target Review",
+                "--target",
+                "PAPER-1",
+                "--format",
+                "json",
+            ],
+            "Expected PAPER-NNNN",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
                 "Bad Date Review",
                 "--target",
                 "PAPER-0001",
@@ -2113,6 +2128,18 @@ def main() -> int:
                 "PAPER-0000",
                 "--to",
                 "PAPER-0001",
+            ],
+            "Expected PAPER-NNNN",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(root),
+                "--from",
+                "PAPER-1",
+                "--to",
+                "PAPER-0002",
             ],
             "Expected PAPER-NNNN",
         )
