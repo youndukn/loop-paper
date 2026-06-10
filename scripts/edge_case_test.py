@@ -304,6 +304,41 @@ def make_after_ready_with_instruction_verdict(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def make_after_ready_with_empty_validation_after(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+            "AI validation evidence recorded",
+            "Agent reviewed paper structure",
+            "Agent confirmed evidence backs the recorded verdict",
+            "Impact score is based on evidence, not agent guesswork",
+        ],
+    )
+    text = text.replace(
+        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
+        "- Supported: edge-case verdict recorded.",
+    )
+    text = re.sub(
+        r"(?ms)^After:\n\n- .+?\n\nVerdict:",
+        "After:\n\nVerdict:",
+        text,
+        count=1,
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def set_status(path: Path, status: str) -> None:
     text = path.read_text(encoding="utf-8")
     if "status: Draft" not in text:
@@ -1773,6 +1808,24 @@ def main() -> int:
         run_fail(
             [sys.executable, script("transition_paper.py"), str(validation_evidence_gate), "AI Validated"],
             "validation evidence checkbox is not checked",
+        )
+        empty_validation_after_gate = create_edge_paper(root, "Empty Validation After Edge")
+        make_after_ready_with_empty_validation_after(empty_validation_after_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(empty_validation_after_gate),
+                "--phase",
+                "after",
+            ],
+            "validation After block has no concrete evidence",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(empty_validation_after_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(empty_validation_after_gate), "AI Validated"],
+            "validation After block has no concrete evidence",
         )
         verdict_gate = create_edge_paper(root, "Verdict Instruction Gate Edge")
         make_after_ready_with_instruction_verdict(verdict_gate)

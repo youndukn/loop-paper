@@ -33,6 +33,7 @@ VALIDATION_PLAN_LABELS = [
     "After-change evidence to collect",
     "AI-actionable validation",
 ]
+VALIDATION_SECTION_LABELS = ["Before", "After", "Verdict", "AI validation evidence"]
 
 
 def section(text: str, name: str) -> str:
@@ -104,6 +105,16 @@ def validation_plan_errors(section_text: str) -> list[str]:
     actionable = labeled_block(section_text, "AI-actionable validation", [])
     if not content_lines(actionable):
         errors.append("validation plan AI-actionable validation block has no concrete content")
+    return errors
+
+
+def validation_section_errors(section_text: str) -> list[str]:
+    errors: list[str] = []
+    for label in ["Before", "After"]:
+        index = VALIDATION_SECTION_LABELS.index(label)
+        body = labeled_block(section_text, label, VALIDATION_SECTION_LABELS[index + 1 :])
+        if not non_checkbox_lines(body):
+            errors.append(f"validation {label} block has no concrete evidence")
     return errors
 
 
@@ -245,6 +256,7 @@ def validate_paper(path: Path, phase: str) -> list[str]:
                 f"after phase incomplete: {len(after_placeholders)} AFTER_REQUIRED slots remain"
             )
         validation = section(text, "Validation")
+        errors.extend(validation_section_errors(validation))
         if not VERDICT_BULLET_RE.search(validation):
             errors.append("after phase incomplete: no hypothesis verdict recorded")
         if checked_count(validation) < 1:
