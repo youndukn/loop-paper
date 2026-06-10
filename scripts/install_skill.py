@@ -119,6 +119,11 @@ def copy_payload(destination: Path, *, force: bool, mode: str, dry_run: bool) ->
     if blocked:
         raise SystemExit(f"Expected install parent directory, got file: {blocked}")
 
+    if destination.is_symlink() and not destination.exists():
+        if dry_run:
+            return "would-replace-broken-symlink"
+        destination.unlink()
+
     if destination.exists() or destination.is_symlink():
         try:
             if destination.resolve() == source_resolved:

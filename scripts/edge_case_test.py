@@ -911,12 +911,51 @@ def ensure_installer_rejects_file_parent() -> None:
         )
 
 
+def ensure_installer_replaces_broken_symlink() -> None:
+    with tempfile.TemporaryDirectory(prefix="loop-paper-install-broken-link-") as tmp:
+        destination = Path(tmp) / "loop-paper"
+        missing_target = Path(tmp) / "missing-target"
+        destination.symlink_to(missing_target, target_is_directory=True)
+        dry_run = run_ok(
+            [
+                sys.executable,
+                script("install_skill.py"),
+                "--agent",
+                "codex",
+                "--dest",
+                str(destination),
+                "--dry-run",
+            ]
+        )
+        if "would-replace-broken-symlink" not in dry_run.stdout:
+            raise SystemExit("Installer dry run did not report broken symlink replacement")
+        if not destination.is_symlink():
+            raise SystemExit("Installer dry run modified a broken symlink destination")
+
+        run_ok(
+            [
+                sys.executable,
+                script("install_skill.py"),
+                "--agent",
+                "codex",
+                "--dest",
+                str(destination),
+            ]
+        )
+        if destination.is_symlink():
+            raise SystemExit("Installer left broken symlink in place")
+        if not (destination / "SKILL.md").exists():
+            raise SystemExit("Installer did not replace broken symlink with skill payload")
+        run_ok([sys.executable, str(destination / "scripts" / "validate_skill_repo.py")])
+
+
 def main() -> int:
     ensure_validator_ignores_local_paper_stack()
     ensure_validator_rejects_malformed_skill_frontmatter()
     ensure_installed_payload_validates()
     ensure_installer_rejects_recursive_destinations()
     ensure_installer_rejects_file_parent()
+    ensure_installer_replaces_broken_symlink()
 
     with tempfile.TemporaryDirectory(prefix="loop-paper-edge-") as tmp:
         project = Path(tmp)
