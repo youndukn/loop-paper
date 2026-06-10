@@ -157,6 +157,7 @@ def validate_ci_runs_core_checks() -> None:
     required = [
         "scripts/validate_skill_repo.py",
         "scripts/smoke_test.py",
+        "scripts/edge_case_test.py",
         "scripts/install_skill.py --agent all",
     ]
     for item in required:
@@ -169,6 +170,8 @@ def validate_docs_reference_smoke_test() -> None:
     text = path.read_text(encoding="utf-8")
     if "scripts/smoke_test.py" not in text:
         fail("docs/install.md must document scripts/smoke_test.py validation")
+    if "scripts/edge_case_test.py" not in text:
+        fail("docs/install.md must document scripts/edge_case_test.py validation")
 
 
 def validate_python_scripts() -> None:

@@ -22,3 +22,5 @@ jobs:
           test -f /tmp/loop-paper-install/loop-paper/SKILL.md
       - name: Smoke initialize and pipeline
         run: python3 scripts/smoke_test.py
+      - name: Edge-case rejection tests
+        run: python3 scripts/edge_case_test.py

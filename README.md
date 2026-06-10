@@ -176,12 +176,15 @@ Run the repository validator before publishing changes:
 ```bash
 python3 scripts/validate_skill_repo.py
 python3 scripts/smoke_test.py
+python3 scripts/edge_case_test.py
 ```
 
-It checks the required skill files, parses `agents/openai.yaml`, rejects nested
-`SKILL.md` files, and compiles all Python scripts. The smoke test exercises
-initialization, closed-loop paper transitions, review-paper generation, prompt
-formats, combining, and the dashboard/report pipeline.
+It checks the required skill files, resource references, CI coverage, retired
+workflow references, `agents/openai.yaml`, nested `SKILL.md` files, and Python
+syntax. The smoke test exercises initialization, closed-loop paper transitions,
+review-paper generation, prompt formats, combining, and the dashboard/report
+pipeline. The edge-case test exercises rejection paths for invalid review
+inputs and ambiguous combine selections.
 
 ## Public Repo Notes
 

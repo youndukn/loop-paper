@@ -260,3 +260,7 @@ Each paper must contain these top-level sections:
 - `scripts/transition_paper.py`: Enforce allowed status transitions.
 - `scripts/render_dashboard.py`: Build `dashboard/data.json` and dashboard HTML.
 - `scripts/export_report.py`: Generate `dashboard/report.md`.
+- `scripts/install_skill.py`: Install the portable skill payload into supported agent skill directories.
+- `scripts/validate_skill_repo.py`: Validate the public skill repository contract.
+- `scripts/smoke_test.py`: Run the end-to-end happy-path workflow smoke test.
+- `scripts/edge_case_test.py`: Run deterministic rejection-path tests for review and combine CLIs.

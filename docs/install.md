@@ -64,4 +64,5 @@ git clone https://github.com/youndukn/loop-paper.git ~/.pimo/skills/loop-paper
 ```bash
 python3 scripts/validate_skill_repo.py
 python3 scripts/smoke_test.py
+python3 scripts/edge_case_test.py
 ```
