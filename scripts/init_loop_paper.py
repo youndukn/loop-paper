@@ -11,6 +11,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
+from paperstack_common import validate_iso_date
+
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SKILL_DIR = SCRIPT_DIR.parent
@@ -112,6 +114,7 @@ def main() -> int:
     parser.add_argument("--seed-hypothesis", help="Hypothesis for the optional seed paper")
     parser.add_argument("--date", default=date.today().isoformat())
     args = parser.parse_args()
+    args.date = validate_iso_date(args.date)
 
     root = args.root
     args.project_name = args.project_name or project_name_from_root(root)

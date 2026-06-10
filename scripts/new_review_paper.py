@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 
 from check_paper import check_paths
-from paperstack_common import paper_paths, write_text_output
+from paperstack_common import paper_paths, validate_iso_date, write_text_output
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{1,4})$")
@@ -465,6 +465,7 @@ def main() -> int:
     )
     parser.add_argument("--date", default=date.today().isoformat())
     args = parser.parse_args()
+    args.date = validate_iso_date(args.date)
 
     targets = list(dict.fromkeys(args.target))
     papers_dir = args.root / "papers"

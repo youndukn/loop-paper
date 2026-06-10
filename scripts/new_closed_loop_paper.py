@@ -9,6 +9,8 @@ import unicodedata
 from datetime import date
 from pathlib import Path
 
+from paperstack_common import validate_iso_date
+
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d+)")
 MAX_PAPER_NUMBER = 9999
@@ -254,6 +256,7 @@ def main() -> None:
     parser.add_argument("--min-hypotheses", type=int, default=2)
     parser.add_argument("--date", default=date.today().isoformat())
     args = parser.parse_args()
+    args.date = validate_iso_date(args.date)
 
     papers_dir = args.root / "papers"
     papers_dir.mkdir(parents=True, exist_ok=True)

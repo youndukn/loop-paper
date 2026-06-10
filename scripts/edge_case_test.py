@@ -274,6 +274,19 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="loop-paper-edge-") as tmp:
         project = Path(tmp)
         root = project / ".paper-stack"
+        run_fail(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(project / "bad-date-stack"),
+                "--project-name",
+                "Bad Date Stack",
+                "--date",
+                "2026-02-30",
+            ],
+            "--date must be a valid calendar date",
+        )
         run_ok(
             [
                 sys.executable,
@@ -305,6 +318,25 @@ def main() -> int:
                     "2026-06-10",
                 ]
             ).stdout.strip()
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Bad Date Paper",
+                "--hypothesis",
+                "Bad date should fail",
+                "--finding",
+                "Generated frontmatter dates must be deterministic ISO dates",
+                "--reference",
+                "scripts/edge_case_test.py",
+                "--date",
+                "20260610",
+            ],
+            "--date must be YYYY-MM-DD",
         )
         run_fail(
             [
@@ -364,6 +396,23 @@ def main() -> int:
                 "json",
             ],
             "Expected PAPER-NNNN",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Bad Date Review",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+                "--date",
+                "2026-13-01",
+            ],
+            "--date must be a valid calendar date",
         )
         run_fail(
             [

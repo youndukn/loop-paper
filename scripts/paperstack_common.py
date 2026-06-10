@@ -54,6 +54,16 @@ def today() -> str:
     return dt.date.today().isoformat()
 
 
+def validate_iso_date(value: str, *, label: str = "--date") -> str:
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise SystemExit(f"{label} must be YYYY-MM-DD")
+    try:
+        dt.date.fromisoformat(value)
+    except ValueError as error:
+        raise SystemExit(f"{label} must be a valid calendar date") from error
+    return value
+
+
 def paper_paths(root: Path) -> list[Path]:
     return sorted((root / "papers").glob("PAPER-*.md"))
 
