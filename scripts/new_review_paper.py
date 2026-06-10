@@ -14,7 +14,6 @@ from pathlib import Path
 
 from check_paper import check_paths
 from paperstack_common import (
-    ensure_directory,
     next_paper_id,
     paper_id_from_path,
     paper_paths,
@@ -484,7 +483,6 @@ def main() -> int:
 
     targets = unique_targets(args.target)
     papers_dir = args.root / "papers"
-    ensure_directory(papers_dir, label="papers directory")
     validate_targets(args.root, targets)
 
     title = validate_title(args.title)

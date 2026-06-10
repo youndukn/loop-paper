@@ -443,6 +443,26 @@ def main() -> int:
             ],
             f"Expected papers directory, got file: {creator_papers_file}",
         )
+        missing_review_root = project / "missing-review-root"
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(missing_review_root),
+                "--title",
+                "Missing Root Review",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+                "--date",
+                "2026-06-10",
+            ],
+            f"Missing papers directory: {missing_review_root / 'papers'}",
+        )
+        if missing_review_root.exists():
+            raise SystemExit("Review paper creation initialized a missing root unexpectedly")
         created = Path(
             run_ok(
                 [
