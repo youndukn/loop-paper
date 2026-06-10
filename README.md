@@ -184,7 +184,7 @@ workflow references, `agents/openai.yaml`, nested `SKILL.md` files, and Python
 syntax. The smoke test exercises initialization, closed-loop paper transitions,
 review-paper generation, prompt formats, combining, and the dashboard/report
 pipeline. The edge-case test exercises rejection paths for invalid review
-inputs and ambiguous combine selections.
+inputs, ambiguous combine selections, and ignored local paper-stack artifacts.
 
 ## Public Repo Notes
 

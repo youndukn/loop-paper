@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+ROOT = SCRIPT_DIR.parent
 
 
 def script(name: str) -> str:
@@ -55,7 +56,26 @@ def write_answers(path: Path, *, evidence: str = "Strong") -> None:
     path.write_text(json.dumps(answers, indent=2), encoding="utf-8")
 
 
+def ensure_validator_ignores_local_paper_stack() -> None:
+    local_skill = ROOT / ".paper-stack" / "validator-ignore" / "SKILL.md"
+    local_skill.parent.mkdir(parents=True, exist_ok=True)
+    local_skill.write_text(
+        "---\nname: local-artifact\ndescription: ignored local test artifact\n---\n",
+        encoding="utf-8",
+    )
+    try:
+        run_ok([sys.executable, script("validate_skill_repo.py")])
+    finally:
+        local_skill.unlink(missing_ok=True)
+        try:
+            local_skill.parent.rmdir()
+        except OSError:
+            pass
+
+
 def main() -> int:
+    ensure_validator_ignores_local_paper_stack()
+
     with tempfile.TemporaryDirectory(prefix="loop-paper-edge-") as tmp:
         project = Path(tmp)
         root = project / ".paper-stack"

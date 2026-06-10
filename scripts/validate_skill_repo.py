@@ -81,8 +81,8 @@ def validate_directories() -> None:
         fail("missing docs/install.md")
     nested = [
         path
-        for path in ROOT.rglob("SKILL.md")
-        if path != ROOT / "SKILL.md" and ".git" not in path.parts
+        for path in tracked_files()
+        if path.name == "SKILL.md" and path != ROOT / "SKILL.md"
     ]
     if nested:
         fail("nested SKILL.md files are not allowed: " + ", ".join(str(path) for path in nested))
