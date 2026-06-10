@@ -426,6 +426,88 @@ def main() -> int:
         report_text = report_output.read_text(encoding="utf-8")
         if "Pipe \\| Title" not in report_text:
             raise SystemExit("Exported report table did not escape title pipe")
+        impact_scores = root / "dashboard" / "impact-scores.json"
+        impact_scores.mkdir()
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            f"Expected impact scores JSON file, got directory: {impact_scores}",
+        )
+        impact_scores.rmdir()
+        impact_scores.write_text("{", encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            "impact scores JSON is invalid",
+        )
+        impact_scores.write_text(json.dumps([]), encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            "impact scores JSON must be an object",
+        )
+        impact_scores.write_text(json.dumps({"papers": {}}), encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            "impact scores JSON field 'papers' must be a list",
+        )
+        impact_scores.write_text(json.dumps({"papers": [{}]}), encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            "impact score paper item 1 missing paper_id",
+        )
+        impact_scores.write_text(
+            json.dumps(
+                {
+                    "papers": [
+                        {
+                            "paper_id": "PAPER-0001",
+                            "deterministic_partial_score": "A | B",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        run_ok(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ]
+        )
+        if "A \\| B" not in report_output.read_text(encoding="utf-8"):
+            raise SystemExit("Exported report table did not escape score pipe")
+        impact_scores.unlink()
         run_fail(
             [
                 sys.executable,
