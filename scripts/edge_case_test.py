@@ -56,20 +56,96 @@ def write_answers(path: Path, *, evidence: str = "Strong") -> None:
     path.write_text(json.dumps(answers, indent=2), encoding="utf-8")
 
 
+def mark_checkboxes(text: str, labels: list[str]) -> str:
+    for label in labels:
+        text = text.replace(f"- [ ] {label}", f"- [x] {label}")
+    return text
+
+
+def make_before_ready_except_prior_research(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+        ],
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def make_before_ready_except_validation_plan(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    for checkbox in [
-        "Hypothesis is specific",
-        "Hypothesis can be validated or rejected",
-        "Baseline evidence is recorded before implementation",
-        "Prior work is cited, or missing prior work is explicitly acknowledged",
-        "Implementation plan is concrete",
-        "Dependencies are named",
-        "Risks are named",
-    ]:
-        text = text.replace(f"- [ ] {checkbox}", f"- [x] {checkbox}")
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+        ],
+    )
     path.write_text(text, encoding="utf-8")
+
+
+def make_after_ready_except_validation_evidence(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+            "Agent reviewed paper structure",
+            "Agent confirmed evidence backs the recorded verdict",
+            "Impact score is based on evidence, not agent guesswork",
+        ],
+    )
+    text = text.replace(
+        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
+        "- Supported: edge-case verdict recorded with evidence pending.",
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def create_edge_paper(root: Path, title: str) -> Path:
+    return Path(
+        run_ok(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                title,
+                "--hypothesis",
+                f"{title} can exercise a checker edge case",
+                "--finding",
+                "Edge tests need a generated paper",
+                "--reference",
+                "scripts/edge_case_test.py",
+                "--date",
+                "2026-06-10",
+            ]
+        ).stdout.strip()
+    )
 
 
 def ensure_validator_ignores_local_paper_stack() -> None:
@@ -206,10 +282,23 @@ def main() -> int:
             [sys.executable, script("check_closed_loop_paper.py"), str(created), "--phase", "before"],
             "BEFORE_REQUIRED slots remain",
         )
-        make_before_ready_except_validation_plan(created)
+        prior_gate = create_edge_paper(root, "Prior Gate Edge")
+        make_before_ready_except_prior_research(prior_gate)
         run_fail(
-            [sys.executable, script("check_closed_loop_paper.py"), str(created), "--phase", "before"],
+            [sys.executable, script("check_closed_loop_paper.py"), str(prior_gate), "--phase", "before"],
+            "prior research checkboxes are not all checked",
+        )
+        validation_plan_gate = create_edge_paper(root, "Validation Plan Gate Edge")
+        make_before_ready_except_validation_plan(validation_plan_gate)
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(validation_plan_gate), "--phase", "before"],
             "validation plan checkboxes are not all checked",
+        )
+        validation_evidence_gate = create_edge_paper(root, "Validation Evidence Gate Edge")
+        make_after_ready_except_validation_evidence(validation_evidence_gate)
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(validation_evidence_gate), "--phase", "after"],
+            "validation evidence checkbox is not checked",
         )
         run_fail(
             [

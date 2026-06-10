@@ -55,6 +55,9 @@ def validate_paper(path: Path, phase: str) -> list[str]:
             )
         if checked_count(hypothesis) < 3:
             errors.append("before phase incomplete: hypothesis checkboxes are not all checked")
+        prior = section(text, "Prior Research")
+        if checked_count(prior) < 1:
+            errors.append("before phase incomplete: prior research checkboxes are not all checked")
         plan = section(text, "Implementation Plan")
         if checked_count(plan) < 3:
             errors.append("before phase incomplete: implementation plan checkboxes are not all checked")
@@ -70,6 +73,8 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         validation = section(text, "Validation")
         if not re.search(r"\b(Supported|Failed|Inconclusive|Superseded)\b", validation):
             errors.append("after phase incomplete: no hypothesis verdict recorded")
+        if checked_count(validation) < 1:
+            errors.append("after phase incomplete: validation evidence checkbox is not checked")
         agent = section(text, "Agent Review")
         if checked_count(agent) < 2:
             errors.append("after phase incomplete: agent review checkboxes are not all checked")
