@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
 from paperstack_common import (
@@ -79,9 +80,16 @@ def check_paths(paths: list[Path], *, validate_relationships: bool = False) -> l
         for result in results
         if PAPER_ID_RE.fullmatch(result["paper_id"])
     }
+    counts = Counter(
+        result["paper_id"]
+        for result in results
+        if PAPER_ID_RE.fullmatch(result["paper_id"])
+    )
     by_path = {result["path"]: result for result in results}
     for path in paths:
         result = by_path[str(path)]
+        if counts[result["paper_id"]] > 1:
+            result["warnings"].append(f"Duplicate paper_id in stack: {result['paper_id']}")
         text = path.read_text(encoding="utf-8")
         relations = extract_relations(text, result["paper_id"])
         for label in RELATION_LABELS:

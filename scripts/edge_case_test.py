@@ -519,6 +519,38 @@ def main() -> int:
             [sys.executable, script("transition_paper.py"), str(dangling), "Research Ready"],
             "Dangling relationship target: References -> PAPER-9999",
         )
+        duplicate_root = project / "duplicate-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(duplicate_root),
+                "--project-name",
+                "Loop Paper Duplicate Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        duplicate = create_edge_paper(duplicate_root, "Duplicate Identity Edge")
+        duplicate_copy = duplicate.with_name("PAPER-0001-duplicate-copy.md")
+        duplicate_copy.write_text(duplicate.read_text(encoding="utf-8"), encoding="utf-8")
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(duplicate_root)],
+            "Duplicate paper_id in stack: PAPER-0001",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(duplicate_root), "--strict"],
+            "Duplicate paper_id in stack: PAPER-0001",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(duplicate_root), "--last", "1"],
+            "Duplicate paper_id in stack: PAPER-0001",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(duplicate), "Research Ready"],
+            "Duplicate paper_id in stack: PAPER-0001",
+        )
         run_fail(
             [
                 sys.executable,
