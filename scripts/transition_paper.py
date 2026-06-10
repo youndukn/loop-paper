@@ -27,8 +27,7 @@ BEFORE_PHASE_TARGETS = {"Plan Ready", "Implementing", "Implemented"}
 AFTER_PHASE_TARGETS = {"AI Validated", "Accepted"}
 
 
-def gate_errors(paper: dict, target: str) -> list[str]:
-    sections = paper["sections"]
+def structural_errors(paper: dict) -> list[str]:
     errors = []
     current_path = Path(paper["path"])
     root = paper_root_from_path(current_path)
@@ -42,6 +41,12 @@ def gate_errors(paper: dict, target: str) -> list[str]:
         structural = {"ok": True, "missing_sections": [], "empty_sections": [], "warnings": []}
     if not structural["ok"]:
         errors.append("Paper structure check failed: " + "; ".join(result_details(structural)))
+    return errors
+
+
+def gate_errors(paper: dict, target: str) -> list[str]:
+    sections = paper["sections"]
+    errors = []
     missing = [section for section in REQUIRED_SECTIONS if section not in sections or not sections[section].strip()]
     if target not in {"Draft", "Rejected", "Superseded"} and missing:
         errors.append("Missing or empty required sections: " + ", ".join(missing))
@@ -83,6 +88,12 @@ def main() -> int:
     allowed = ALLOWED_TRANSITIONS.get(current, set())
     if target != current and target not in allowed and not args.force:
         print(f"FAIL invalid transition: {current} -> {target}", file=sys.stderr)
+        return 1
+
+    structure_failures = structural_errors(paper)
+    if structure_failures:
+        for error in structure_failures:
+            print(f"FAIL {error}", file=sys.stderr)
         return 1
 
     errors = gate_errors(paper, target)

@@ -1133,6 +1133,16 @@ def main() -> int:
             [sys.executable, script("check_closed_loop_paper.py"), str(validation_plan_gate), "--phase", "before"],
             "validation plan checkboxes are not all checked",
         )
+        run_ok(
+            [
+                sys.executable,
+                script("transition_paper.py"),
+                str(validation_plan_gate),
+                "Plan Ready",
+                "--force",
+            ]
+        )
+        run_ok([sys.executable, script("transition_paper.py"), str(validation_plan_gate), "Research Ready"])
         validation_evidence_gate = create_edge_paper(root, "Validation Evidence Gate Edge")
         make_after_ready_except_validation_evidence(validation_evidence_gate)
         run_fail(
@@ -1355,6 +1365,10 @@ def main() -> int:
         )
         run_fail(
             [sys.executable, script("transition_paper.py"), str(malformed_frontmatter), "Research Ready"],
+            "Malformed frontmatter line",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(malformed_frontmatter), "Research Ready", "--force"],
             "Malformed frontmatter line",
         )
         malformed_close_root = project / "malformed-frontmatter-close-stack"
