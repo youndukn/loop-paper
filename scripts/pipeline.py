@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from check_closed_loop_paper import validate_paper
-from paperstack_common import load_paper, paper_paths, write_text_output
+from paperstack_common import ensure_directory, load_paper, paper_paths, write_text_output
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -121,8 +121,8 @@ def main() -> int:
         "impact_scores": str(root / "dashboard" / "impact-scores.json"),
     }
     summary_path = root / "dashboard" / "pipeline-summary.json"
-    if all(results.values()) and summary_path.parent.exists():
-        write_text_output(summary_path, json.dumps(summary, indent=2), label="pipeline summary")
+    ensure_directory(summary_path.parent, label="dashboard directory")
+    write_text_output(summary_path, json.dumps(summary, indent=2), label="pipeline summary")
 
     print(json.dumps(summary, indent=2))
     return 0 if all(results.values()) else 1

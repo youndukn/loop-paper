@@ -1406,11 +1406,18 @@ def main() -> int:
             phase_output_root / "dashboard" / "impact-scores.json",
             phase_output_root / "dashboard" / "index.html",
             phase_output_root / "dashboard" / "report.md",
-            phase_output_root / "dashboard" / "pipeline-summary.json",
         ]
         written = [str(path) for path in blocked_outputs if path.exists()]
         if written:
             raise SystemExit("Failed phase gate wrote generated outputs: " + ", ".join(written))
+        failed_summary = phase_output_root / "dashboard" / "pipeline-summary.json"
+        if not failed_summary.exists():
+            raise SystemExit("Failed phase gate did not write pipeline summary")
+        failed_summary_payload = json.loads(failed_summary.read_text(encoding="utf-8"))
+        if failed_summary_payload.get("closed_loop_checked") is not False:
+            raise SystemExit("Failed phase gate summary did not record closed_loop_checked=false")
+        if failed_summary_payload.get("dashboard_rendered") is not False:
+            raise SystemExit("Failed phase gate summary did not record skipped dashboard render")
         run_fail(
             [sys.executable, script("watch_pipeline.py"), str(root), "--once"],
             "validation evidence checkbox is not checked",
