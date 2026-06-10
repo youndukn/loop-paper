@@ -2199,6 +2199,7 @@ def main() -> int:
             [sys.executable, script("score_impact.py"), str(papers_file_root)],
             [sys.executable, script("export_report.py"), str(papers_file_root)],
             [sys.executable, script("pipeline.py"), str(papers_file_root), "--strict"],
+            [sys.executable, script("watch_pipeline.py"), str(papers_file_root), "--once"],
             [sys.executable, script("combine_papers.py"), str(papers_file_root), "--last", "1"],
         ]:
             run_fail(command, f"Expected papers directory, got file: {papers_file}")

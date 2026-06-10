@@ -9,16 +9,15 @@ import sys
 import time
 from pathlib import Path
 
+from paperstack_common import paper_paths
+
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PIPELINE = SCRIPT_DIR / "pipeline.py"
 
 
 def snapshot(root: Path) -> dict[str, int]:
-    papers = root / "papers"
-    if not papers.exists():
-        return {}
-    return {str(path): path.stat().st_mtime_ns for path in papers.glob("PAPER-*.md")}
+    return {str(path): path.stat().st_mtime_ns for path in paper_paths(root)}
 
 
 def run_pipeline(root: Path) -> int:
