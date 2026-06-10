@@ -39,6 +39,12 @@ AGENT_REVIEW_FIELD_RE = re.compile(
     r"^(Agent reviewer|Review date|Decision):[ \t]*(.*?)[ \t]*$",
     flags=re.MULTILINE,
 )
+IMPACT_SCORE_RE = re.compile(r"^Impact score:[ \t]*(.*?)[ \t]*$", flags=re.MULTILINE)
+IMPACT_BASIS_RE = re.compile(
+    r"^-\s+(Downstream references|Validation strength|Measured outcome):[ \t]*(.*?)[ \t]*$",
+    flags=re.MULTILINE,
+)
+IMPACT_BASIS_FIELDS = ["Downstream references", "Validation strength", "Measured outcome"]
 
 
 def section(text: str, name: str) -> str:
@@ -138,6 +144,22 @@ def agent_review_errors(section_text: str) -> list[str]:
             validate_iso_date(review_date, label="Review date")
         except SystemExit as error:
             errors.append(str(error))
+    return errors
+
+
+def impact_score_errors(section_text: str) -> list[str]:
+    errors: list[str] = []
+    score_match = IMPACT_SCORE_RE.search(section_text)
+    if not score_match or not score_match.group(1).strip():
+        errors.append("impact score missing Impact score value")
+
+    basis_values = {
+        match.group(1): match.group(2).strip()
+        for match in IMPACT_BASIS_RE.finditer(section_text)
+    }
+    for field in IMPACT_BASIS_FIELDS:
+        if not basis_values.get(field):
+            errors.append(f"impact score basis missing {field}")
     return errors
 
 
@@ -289,6 +311,7 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         if checked_count(agent) < 2:
             errors.append("after phase incomplete: agent review checkboxes are not all checked")
         impact = section(text, "Impact Score")
+        errors.extend(impact_score_errors(impact))
         if checked_count(impact) < 1:
             errors.append("after phase incomplete: impact evidence checkbox is not checked")
     if phase == "draft" and not PLACEHOLDER_RE.search(text):
