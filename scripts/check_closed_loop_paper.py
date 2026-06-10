@@ -72,6 +72,28 @@ def hypothesis_ledger_errors(rows: list[str]) -> list[str]:
     return errors
 
 
+def prior_research_ledger_errors(rows: list[str]) -> list[str]:
+    errors: list[str] = []
+    required = [
+        ("Date", 0),
+        ("Finding", 1),
+        ("Evidence", 2),
+        ("Implementation Boundary", 3),
+    ]
+    for index, row in enumerate(rows, start=1):
+        cells = table_cells(row)
+        if len(cells) < 4:
+            errors.append(f"prior research ledger row {index} must have 4 columns")
+            continue
+        missing = [label for label, cell_index in required if not cells[cell_index]]
+        if missing:
+            errors.append(
+                f"prior research ledger row {index} has empty required cells: "
+                + ", ".join(missing)
+            )
+    return errors
+
+
 def prior_research_errors(sections: dict[str, str]) -> list[str]:
     prior = sections.get("Prior Research", "")
     refs = sections.get("References", "")
@@ -145,6 +167,11 @@ def validate_paper(path: Path, phase: str) -> list[str]:
             errors.append("before phase incomplete: hypothesis checkboxes are not all checked")
         prior = section(text, "Prior Research")
         errors.extend(prior_research_errors(split_sections(text)))
+        prior_rows = table_data_rows(prior)
+        if len(prior_rows) < 1:
+            errors.append("prior research ledger has no data rows")
+        else:
+            errors.extend(prior_research_ledger_errors(prior_rows))
         if checked_count(prior) < 1:
             errors.append("before phase incomplete: prior research checkboxes are not all checked")
         plan = section(text, "Implementation Plan")

@@ -172,6 +172,33 @@ def make_before_ready_with_empty_hypothesis_claim(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def make_before_ready_with_empty_prior_finding(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+        ],
+    )
+    text = re.sub(
+        r"^(\| \d{4}-\d{2}-\d{2} \| )[^|]+(\|)",
+        r"\1 \2",
+        text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def make_after_ready_except_validation_evidence(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
@@ -1630,6 +1657,18 @@ def main() -> int:
                 "before",
             ],
             "hypothesis ledger row 1 has empty required cells: Claim",
+        )
+        empty_prior_finding_gate = create_edge_paper(root, "Empty Prior Finding Edge")
+        make_before_ready_with_empty_prior_finding(empty_prior_finding_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(empty_prior_finding_gate),
+                "--phase",
+                "before",
+            ],
+            "prior research ledger row 1 has empty required cells: Finding",
         )
         validation_plan_gate = create_edge_paper(root, "Validation Plan Gate Edge")
         make_before_ready_except_validation_plan(validation_plan_gate)
