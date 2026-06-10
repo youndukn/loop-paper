@@ -104,6 +104,12 @@ def copy_payload(destination: Path, *, force: bool, mode: str, dry_run: bool) ->
         if source_resolved.is_relative_to(destination_resolved):
             raise SystemExit(f"Refusing to install over a parent of the source checkout: {destination}")
 
+    if destination.parent.exists() and not destination.parent.is_dir():
+        raise SystemExit(f"Expected install parent directory, got file: {destination.parent}")
+    blocked = file_ancestor(destination.parent)
+    if blocked:
+        raise SystemExit(f"Expected install parent directory, got file: {blocked}")
+
     if destination.exists() or destination.is_symlink():
         try:
             if destination.resolve() == source_resolved:
@@ -122,11 +128,6 @@ def copy_payload(destination: Path, *, force: bool, mode: str, dry_run: bool) ->
     if dry_run:
         return "would-install"
 
-    if destination.parent.exists() and not destination.parent.is_dir():
-        raise SystemExit(f"Expected install parent directory, got file: {destination.parent}")
-    blocked = file_ancestor(destination.parent)
-    if blocked:
-        raise SystemExit(f"Expected install parent directory, got file: {blocked}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     if mode == "symlink":
         destination.symlink_to(source, target_is_directory=True)
