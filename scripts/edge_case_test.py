@@ -816,6 +816,99 @@ def main() -> int:
         if before_count != after_count:
             raise SystemExit("Failed review answer validation wrote a paper unexpectedly")
 
+        review_meta_root = project / "review-metadata-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(review_meta_root),
+                "--project-name",
+                "Loop Paper Review Metadata Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        create_edge_paper(review_meta_root, "Review Metadata Target")
+        review_answers = review_meta_root / "inbox" / "answers.json"
+        review_answers.parent.mkdir(parents=True, exist_ok=True)
+        write_answers(review_answers)
+        review_paper = Path(
+            run_ok(
+                [
+                    sys.executable,
+                    script("new_review_paper.py"),
+                    "--root",
+                    str(review_meta_root),
+                    "--title",
+                    "Review Metadata Paper",
+                    "--target",
+                    "PAPER-0001",
+                    "--answers",
+                    str(review_answers),
+                    "--date",
+                    "2026-06-10",
+                ]
+            ).stdout.strip()
+        )
+        run_ok([sys.executable, script("check_paper.py"), str(review_meta_root)])
+        review_text = review_paper.read_text(encoding="utf-8")
+        review_paper.write_text(
+            review_text.replace("paper_kind: review", "paper_kind: mystery", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(review_paper)],
+            "Invalid paper_kind: mystery",
+        )
+        review_paper.write_text(review_text, encoding="utf-8")
+        review_paper.write_text(
+            review_text.replace("review_targets: PAPER-0001", "review_targets: PAPER-1", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(review_paper)],
+            "Invalid review_targets entry: PAPER-1",
+        )
+        review_paper.write_text(review_text, encoding="utf-8")
+        review_paper.write_text(
+            review_text.replace("review_targets: PAPER-0001", "review_targets: PAPER-9999", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(review_meta_root)],
+            "Dangling review target: PAPER-9999",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(review_meta_root), "--strict"],
+            "Dangling review target: PAPER-9999",
+        )
+        review_paper.write_text(review_text, encoding="utf-8")
+        review_id = "-".join(review_paper.name.split("-", 2)[:2])
+        review_paper.write_text(
+            review_text.replace("review_targets: PAPER-0001", f"review_targets: {review_id}", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(review_meta_root)],
+            f"Review paper cannot target itself: {review_id}",
+        )
+        review_paper.write_text(review_text, encoding="utf-8")
+        closed_loop_with_targets = review_meta_root / "papers" / "PAPER-0001-review-metadata-target.md"
+        closed_loop_text = closed_loop_with_targets.read_text(encoding="utf-8")
+        closed_loop_with_targets.write_text(
+            closed_loop_text.replace(
+                "impact_score: TBD\n",
+                "impact_score: TBD\nreview_targets: PAPER-0002\n",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(closed_loop_with_targets)],
+            "review_targets requires paper_kind: review",
+        )
+
         run_fail(
             [sys.executable, script("check_closed_loop_paper.py"), str(created), "--phase", "before"],
             "BEFORE_REQUIRED slots remain",

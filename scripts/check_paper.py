@@ -26,6 +26,7 @@ from paperstack_common import (
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{4})$")
 EXPECTED_SCHEMA = "paper_closed_loop.v1"
+ALLOWED_PAPER_KINDS = {"closed_loop", "review"}
 
 
 def valid_paper_id(value: str) -> bool:
@@ -36,6 +37,26 @@ def valid_paper_id(value: str) -> bool:
 def paper_id_from_filename(path: Path) -> str | None:
     value = paper_id_from_path(path)
     return value if valid_paper_id(value) else None
+
+
+def parse_review_targets(value: str) -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    targets = [item.strip() for item in value.split(",") if item.strip()]
+    if not targets:
+        return [], ["Missing review_targets for review paper"]
+
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for target in targets:
+        if not valid_paper_id(target):
+            errors.append(f"Invalid review_targets entry: {target}")
+            continue
+        if target in seen:
+            errors.append(f"Duplicate review target: {target}")
+            continue
+        seen.add(target)
+        normalized.append(target)
+    return normalized, errors
 
 
 def check_file(path: Path) -> dict:
@@ -62,6 +83,15 @@ def check_file(path: Path) -> dict:
         warnings.append(f"Missing closed_loop_schema frontmatter")
     elif schema != EXPECTED_SCHEMA:
         warnings.append(f"Invalid closed_loop_schema: {schema}")
+    paper_kind = metadata.get("paper_kind", "closed_loop")
+    review_targets: list[str] = []
+    if paper_kind not in ALLOWED_PAPER_KINDS:
+        warnings.append(f"Invalid paper_kind: {paper_kind}")
+    elif paper_kind == "review":
+        review_targets, target_errors = parse_review_targets(metadata.get("review_targets", ""))
+        warnings.extend(target_errors)
+    elif metadata.get("review_targets"):
+        warnings.append("review_targets requires paper_kind: review")
     for date_key in ("created", "updated"):
         value = metadata.get(date_key)
         if not value:
@@ -87,6 +117,8 @@ def check_file(path: Path) -> dict:
         "paper_id": declared_id or path.stem.split("-")[0],
         "title": metadata.get("title", path.stem),
         "status": status,
+        "paper_kind": paper_kind,
+        "review_targets": review_targets,
         "missing_sections": missing,
         "empty_sections": empty,
         "warnings": warnings,
@@ -146,6 +178,12 @@ def check_paths(paths: list[Path], *, validate_relationships: bool = False) -> l
             for target in relations[key]:
                 if target not in known_ids:
                     result["warnings"].append(f"Dangling relationship target: {label} -> {target}")
+        if result.get("paper_kind") == "review":
+            for target in result.get("review_targets", []):
+                if target == result["paper_id"]:
+                    result["warnings"].append(f"Review paper cannot target itself: {target}")
+                elif target not in known_ids:
+                    result["warnings"].append(f"Dangling review target: {target}")
         result["ok"] = (
             not result["missing_sections"]
             and not result["empty_sections"]
