@@ -948,6 +948,74 @@ def ensure_installer_replaces_broken_symlink() -> None:
         run_ok([sys.executable, str(destination / "scripts" / "validate_skill_repo.py")])
 
 
+def ensure_installer_force_copy_replaces_source_symlink() -> None:
+    with tempfile.TemporaryDirectory(prefix="loop-paper-install-mode-switch-") as tmp:
+        destination = Path(tmp) / "loop-paper"
+        run_ok(
+            [
+                sys.executable,
+                script("install_skill.py"),
+                "--agent",
+                "codex",
+                "--dest",
+                str(destination),
+                "--mode",
+                "symlink",
+            ]
+        )
+        if not destination.is_symlink():
+            raise SystemExit("Installer did not create an initial symlink install")
+        run_fail(
+            [
+                sys.executable,
+                script("install_skill.py"),
+                "--agent",
+                "codex",
+                "--dest",
+                str(destination),
+                "--mode",
+                "copy",
+            ],
+            "Refusing to overwrite existing destination",
+        )
+        dry_run = run_ok(
+            [
+                sys.executable,
+                script("install_skill.py"),
+                "--agent",
+                "codex",
+                "--dest",
+                str(destination),
+                "--mode",
+                "copy",
+                "--force",
+                "--dry-run",
+            ]
+        )
+        if "would-replace" not in dry_run.stdout:
+            raise SystemExit("Installer dry run did not report symlink-to-copy replacement")
+        if not destination.is_symlink():
+            raise SystemExit("Installer dry run modified the source symlink install")
+        run_ok(
+            [
+                sys.executable,
+                script("install_skill.py"),
+                "--agent",
+                "codex",
+                "--dest",
+                str(destination),
+                "--mode",
+                "copy",
+                "--force",
+            ]
+        )
+        if destination.is_symlink():
+            raise SystemExit("Installer did not replace source symlink with copied payload")
+        if not (destination / "SKILL.md").exists():
+            raise SystemExit("Installer copy replacement did not include SKILL.md")
+        run_ok([sys.executable, str(destination / "scripts" / "validate_skill_repo.py")])
+
+
 def main() -> int:
     ensure_validator_ignores_local_paper_stack()
     ensure_validator_rejects_malformed_skill_frontmatter()
@@ -955,6 +1023,7 @@ def main() -> int:
     ensure_installer_rejects_recursive_destinations()
     ensure_installer_rejects_file_parent()
     ensure_installer_replaces_broken_symlink()
+    ensure_installer_force_copy_replaces_source_symlink()
 
     with tempfile.TemporaryDirectory(prefix="loop-paper-edge-") as tmp:
         project = Path(tmp)

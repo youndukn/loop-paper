@@ -125,11 +125,14 @@ def copy_payload(destination: Path, *, force: bool, mode: str, dry_run: bool) ->
         destination.unlink()
 
     if destination.exists() or destination.is_symlink():
+        same_source = False
         try:
-            if destination.resolve() == source_resolved:
-                return "already-installed-source"
+            same_source = destination.resolve() == source_resolved
         except FileNotFoundError:
-            pass
+            same_source = False
+
+        if same_source and (mode == "symlink" or not destination.is_symlink()):
+            return "already-installed-source"
         if not force:
             raise SystemExit(f"Refusing to overwrite existing destination: {destination}")
         if dry_run:
