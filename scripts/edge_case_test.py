@@ -263,6 +263,18 @@ def ensure_installer_rejects_file_parent() -> None:
             ],
             f"Expected install parent directory, got file: {parent_file}",
         )
+        nested_destination = parent_file / "nested" / "loop-paper"
+        run_fail(
+            [
+                sys.executable,
+                script("install_skill.py"),
+                "--agent",
+                "codex",
+                "--dest",
+                str(nested_destination),
+            ],
+            f"Expected install parent directory, got file: {parent_file}",
+        )
 
 
 def main() -> int:
