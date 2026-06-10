@@ -20,6 +20,8 @@ jobs:
           python3 scripts/install_skill.py --agent all --home /tmp/loop-paper-home --dry-run
           python3 scripts/install_skill.py --agent codex --dest /tmp/loop-paper-install/loop-paper
           test -f /tmp/loop-paper-install/loop-paper/SKILL.md
+          python3 /tmp/loop-paper-install/loop-paper/scripts/validate_skill_repo.py
+          python3 /tmp/loop-paper-install/loop-paper/scripts/smoke_test.py
       - name: Smoke initialize and pipeline
         run: python3 scripts/smoke_test.py
       - name: Edge-case rejection tests

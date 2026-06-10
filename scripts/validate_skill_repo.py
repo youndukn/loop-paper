@@ -205,6 +205,8 @@ def validate_ci_runs_core_checks() -> None:
         "scripts/smoke_test.py",
         "scripts/edge_case_test.py",
         "scripts/install_skill.py --agent all",
+        "/tmp/loop-paper-install/loop-paper/scripts/validate_skill_repo.py",
+        "/tmp/loop-paper-install/loop-paper/scripts/smoke_test.py",
     ]
     for item in required:
         if item not in text:
