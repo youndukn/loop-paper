@@ -25,6 +25,9 @@ from paperstack_common import (
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{4})$")
+EXPECTED_SCHEMA = "paper_closed_loop.v1"
+
+
 def valid_paper_id(value: str) -> bool:
     match = PAPER_ID_RE.fullmatch(value)
     return bool(match and int(match.group(1)) > 0)
@@ -54,6 +57,11 @@ def check_file(path: Path) -> dict:
     status = metadata.get("status", "Draft")
     if status not in STATUSES:
         warnings.append(f"Invalid status: {status}")
+    schema = metadata.get("closed_loop_schema")
+    if not schema:
+        warnings.append(f"Missing closed_loop_schema frontmatter")
+    elif schema != EXPECTED_SCHEMA:
+        warnings.append(f"Invalid closed_loop_schema: {schema}")
     for date_key in ("created", "updated"):
         value = metadata.get(date_key)
         if not value:

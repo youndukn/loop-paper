@@ -926,6 +926,70 @@ def main() -> int:
             [sys.executable, script("combine_papers.py"), str(date_root), "--last", "1"],
             "Cannot combine invalid papers",
         )
+        schema_root = project / "schema-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(schema_root),
+                "--project-name",
+                "Loop Paper Schema Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        missing_schema = create_edge_paper(schema_root, "Missing Schema Edge")
+        missing_schema.write_text(
+            missing_schema.read_text(encoding="utf-8").replace(
+                "closed_loop_schema: paper_closed_loop.v1\n",
+                "",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(missing_schema)],
+            "Missing closed_loop_schema frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(schema_root), "--strict"],
+            "Missing closed_loop_schema frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(schema_root), "--last", "1"],
+            "Cannot combine invalid papers",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(missing_schema), "Research Ready"],
+            "Missing closed_loop_schema frontmatter",
+        )
+        invalid_schema_root = project / "invalid-schema-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(invalid_schema_root),
+                "--project-name",
+                "Loop Paper Invalid Schema Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        invalid_schema = create_edge_paper(invalid_schema_root, "Invalid Schema Edge")
+        invalid_schema.write_text(
+            invalid_schema.read_text(encoding="utf-8").replace(
+                "closed_loop_schema: paper_closed_loop.v1",
+                "closed_loop_schema: paper_closed_loop.v0",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(invalid_schema)],
+            "Invalid closed_loop_schema: paper_closed_loop.v0",
+        )
         identity_root = project / "identity-stack"
         run_ok(
             [
