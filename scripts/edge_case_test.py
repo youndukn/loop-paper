@@ -2174,6 +2174,38 @@ def main() -> int:
             [sys.executable, script("render_dashboard.py"), str(prose_relationship_root)],
         ]:
             run_fail(command, "Invalid relationship value: References -> PAPER-0002 and background notes")
+        duplicate_relationship_target_root = project / "duplicate-relationship-target-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(duplicate_relationship_target_root),
+                "--project-name",
+                "Loop Paper Duplicate Relationship Target Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        duplicate_relationship_target = create_edge_paper(
+            duplicate_relationship_target_root,
+            "Duplicate Relationship Target Source",
+        )
+        create_edge_paper(duplicate_relationship_target_root, "Duplicate Relationship Target")
+        duplicate_relationship_target.write_text(
+            duplicate_relationship_target.read_text(encoding="utf-8").replace(
+                "References: None",
+                "References: PAPER-0002, PAPER-0002",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        for command in [
+            [sys.executable, script("check_paper.py"), str(duplicate_relationship_target)],
+            [sys.executable, script("pipeline.py"), str(duplicate_relationship_target_root), "--strict"],
+            [sys.executable, script("index_references.py"), str(duplicate_relationship_target_root)],
+        ]:
+            run_fail(command, "Duplicate relationship target: References -> PAPER-0002")
         dangling_root = project / "dangling-stack"
         run_ok(
             [

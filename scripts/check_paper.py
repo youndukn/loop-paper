@@ -155,7 +155,11 @@ def relationship_line_warnings(text: str) -> list[str]:
             elif not RELATION_TARGET_LIST_RE.fullmatch(value) and not invalid_targets:
                 warnings.append(f"Invalid relationship value: {label} -> {value}")
             else:
-                for target in ids:
+                targets = [item.strip() for item in value.split(",")]
+                for target, count in Counter(targets).items():
+                    if count > 1:
+                        warnings.append(f"Duplicate relationship target: {label} -> {target}")
+                for target in targets:
                     if not valid_paper_id(target):
                         warnings.append(f"Invalid relationship target: {label} -> {target}")
     return warnings
