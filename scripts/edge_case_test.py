@@ -2046,6 +2046,10 @@ def main() -> int:
             [sys.executable, script("check_paper.py"), str(closed_loop_with_targets)],
             "review_targets requires paper_kind: review",
         )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(closed_loop_with_targets)],
+            "review_targets requires paper_kind: review",
+        )
 
         run_fail(
             [sys.executable, script("check_closed_loop_paper.py"), str(created), "--phase", "before"],

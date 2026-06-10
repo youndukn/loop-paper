@@ -47,11 +47,32 @@ def title_from_heading(text: str, fallback: str) -> str:
 def is_repairable_warning(message: str) -> bool:
     return (
         message in REPAIRABLE_WARNINGS
-        or message == "review_targets requires paper_kind: review"
-        or message == "Missing review_targets for review paper"
     ) or (
         message.startswith("heading title ") and message.endswith(" does not match title frontmatter")
     )
+
+
+def is_inferable_review_metadata(paper: dict) -> bool:
+    metadata = paper["metadata"]
+    kind = metadata.get("paper_kind")
+    if kind and kind != "review":
+        return False
+    return bool(metadata.get("review_targets") or REVIEW_SECTION_NAMES & set(paper["sections"]))
+
+
+def repair_blockers(result: dict, paper: dict) -> list[str]:
+    blockers: list[str] = []
+    can_infer_review = is_inferable_review_metadata(paper)
+    for detail in result_details(result):
+        if is_repairable_warning(detail):
+            continue
+        if detail in {
+            "review_targets requires paper_kind: review",
+            "Missing review_targets for review paper",
+        } and can_infer_review:
+            continue
+        blockers.append(detail)
+    return blockers
 
 
 def infer_paper_kind(metadata: dict[str, str], sections: dict[str, str]) -> str:
@@ -71,6 +92,7 @@ def infer_review_targets(text: str) -> str:
 
 def require_syncable_file(path: Path) -> None:
     require_paper_file(path)
+    paper = load_paper(path)
     if path.parent.name == "papers":
         root = paper_root_from_path(path)
         results = check_paths(paper_paths(root), validate_relationships=True)
@@ -79,11 +101,7 @@ def require_syncable_file(path: Path) -> None:
             raise SystemExit(f"Paper is not under a recognized papers directory: {path}")
     else:
         result = check_file(path)
-    blocking = [
-        detail
-        for detail in result_details(result)
-        if not is_repairable_warning(detail)
-    ]
+    blocking = repair_blockers(result, paper)
     if blocking:
         raise SystemExit("Paper structure check failed: " + "; ".join(blocking))
 
