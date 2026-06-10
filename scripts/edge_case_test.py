@@ -161,6 +161,32 @@ def make_before_ready_except_validation_plan(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def make_before_ready_with_unrelated_validation_plan_check(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+        ],
+    )
+    text = text.replace(
+        "After-change evidence to collect:\n\n- AFTER_REQUIRED: command, artifact, metric, screenshot, or inspection",
+        "After-change evidence to collect:\n\n"
+        "- AFTER_REQUIRED: command, artifact, metric, screenshot, or inspection\n"
+        "- [x] unrelated validation-plan checkbox",
+        1,
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def make_before_ready_with_empty_hypothesis_claim(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
@@ -2129,7 +2155,7 @@ def main() -> int:
         make_before_ready_except_validation_plan(validation_plan_gate)
         run_fail(
             [sys.executable, script("check_closed_loop_paper.py"), str(validation_plan_gate), "--phase", "before"],
-            "validation plan checkboxes are not all checked",
+            "validation plan AI-actionable validation block has no checked item",
         )
         run_ok(
             [
@@ -2141,6 +2167,23 @@ def main() -> int:
             ]
         )
         run_ok([sys.executable, script("transition_paper.py"), str(validation_plan_gate), "Research Ready"])
+        unrelated_validation_plan_check_gate = create_edge_paper(root, "Unrelated Validation Plan Check Edge")
+        make_before_ready_with_unrelated_validation_plan_check(unrelated_validation_plan_check_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(unrelated_validation_plan_check_gate),
+                "--phase",
+                "before",
+            ],
+            "validation plan AI-actionable validation block has no checked item",
+        )
+        run_ok([sys.executable, script("transition_paper.py"), str(unrelated_validation_plan_check_gate), "Research Ready"])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(unrelated_validation_plan_check_gate), "Plan Ready"],
+            "validation plan AI-actionable validation block has no checked item",
+        )
         validation_evidence_gate = create_edge_paper(root, "Validation Evidence Gate Edge")
         make_after_ready_except_validation_evidence(validation_evidence_gate)
         run_fail(

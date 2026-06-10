@@ -148,6 +148,8 @@ def validation_plan_errors(section_text: str) -> list[str]:
     actionable = labeled_block(section_text, "AI-actionable validation", [])
     if not content_lines(actionable):
         errors.append("validation plan AI-actionable validation block has no concrete content")
+    elif checked_count(actionable) < 1:
+        errors.append("validation plan AI-actionable validation block has no checked item")
     return errors
 
 
@@ -358,8 +360,6 @@ def validate_paper(path: Path, phase: str) -> list[str]:
             errors.append("before phase incomplete: implementation plan checkboxes are not all checked")
         validation_plan = section(text, "Validation Plan")
         errors.extend(validation_plan_errors(validation_plan))
-        if checked_count(validation_plan) < 1:
-            errors.append("before phase incomplete: validation plan checkboxes are not all checked")
     if phase == "after":
         after_placeholders = re.findall(r"\bAFTER_REQUIRED\b", text)
         if after_placeholders:
