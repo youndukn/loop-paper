@@ -216,9 +216,11 @@ def check_file(path: Path) -> dict:
         warnings.append(f"Missing closed_loop_schema frontmatter")
     elif schema != EXPECTED_SCHEMA:
         warnings.append(f"Invalid closed_loop_schema: {schema}")
-    paper_kind = metadata.get("paper_kind", "closed_loop")
+    paper_kind = metadata.get("paper_kind", "")
     review_targets: list[str] = []
-    if paper_kind not in ALLOWED_PAPER_KINDS:
+    if not paper_kind:
+        warnings.append("Missing paper_kind frontmatter")
+    elif paper_kind not in ALLOWED_PAPER_KINDS:
         warnings.append(f"Invalid paper_kind: {paper_kind}")
     elif paper_kind == "review":
         review_targets, target_errors = parse_review_targets(metadata.get("review_targets", ""))
@@ -230,7 +232,7 @@ def check_file(path: Path) -> dict:
                 f"review_targets={', '.join(sorted(review_targets)) or 'None'}; "
                 f"References={', '.join(reference_targets) or 'None'}"
             )
-    elif metadata.get("review_targets"):
+    if paper_kind != "review" and metadata.get("review_targets"):
         warnings.append("review_targets requires paper_kind: review")
     for date_key in ("created", "updated"):
         value = metadata.get(date_key)

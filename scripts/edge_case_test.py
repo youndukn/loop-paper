@@ -2626,6 +2626,37 @@ def main() -> int:
             raise SystemExit("Metadata sync did not backfill closed-loop paper_kind")
         run_ok([sys.executable, script("pipeline.py"), str(missing_status_root), "--strict"])
         run_ok([sys.executable, script("combine_papers.py"), str(missing_status_root), "--last", "1"])
+        missing_kind_root = project / "missing-kind-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(missing_kind_root),
+                "--project-name",
+                "Loop Paper Missing Kind Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        missing_kind = create_edge_paper(missing_kind_root, "Missing Kind Edge")
+        missing_kind.write_text(
+            missing_kind.read_text(encoding="utf-8").replace("paper_kind: closed_loop\n", "", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(missing_kind)],
+            "Missing paper_kind frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(missing_kind), "--check"],
+            "CHANGED PAPER-0001",
+        )
+        run_ok([sys.executable, script("update_paper_metadata.py"), str(missing_kind)])
+        run_ok([sys.executable, script("check_paper.py"), str(missing_kind)])
+        if "paper_kind: closed_loop" not in missing_kind.read_text(encoding="utf-8"):
+            raise SystemExit("Metadata sync did not repair missing paper_kind")
+        run_ok([sys.executable, script("pipeline.py"), str(missing_kind_root), "--strict"])
         missing_title_root = project / "missing-title-stack"
         run_ok(
             [
