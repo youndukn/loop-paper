@@ -779,6 +779,47 @@ def main() -> int:
             "--title must not contain",
         )
 
+        no_slug_target_root = project / "no-slug-target-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(no_slug_target_root),
+                "--project-name",
+                "Loop Paper No Slug Target Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        slugged_target = create_edge_paper(no_slug_target_root, "No Slug Target Edge")
+        no_slug_target = no_slug_target_root / "papers" / "PAPER-0001.md"
+        slugged_target.rename(no_slug_target)
+        no_slug_answers = no_slug_target_root / "inbox" / "answers.json"
+        no_slug_answers.parent.mkdir(parents=True, exist_ok=True)
+        write_answers(no_slug_answers)
+        no_slug_review = Path(
+            run_ok(
+                [
+                    sys.executable,
+                    script("new_review_paper.py"),
+                    "--root",
+                    str(no_slug_target_root),
+                    "--title",
+                    "No Slug Target Review",
+                    "--target",
+                    "PAPER-0001",
+                    "--answers",
+                    str(no_slug_answers),
+                    "--date",
+                    "2026-06-10",
+                ]
+            ).stdout.strip()
+        )
+        if not no_slug_review.exists():
+            raise SystemExit("Review paper was not created for canonical no-slug target")
+        run_ok([sys.executable, script("check_paper.py"), str(no_slug_target_root)])
+
         answers = root / "inbox" / "bad-answers.json"
         answers.parent.mkdir(parents=True, exist_ok=True)
         missing_answers = root / "inbox" / "missing-answers.json"

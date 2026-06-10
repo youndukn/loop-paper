@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 
 from check_paper import check_paths
-from paperstack_common import ensure_directory, paper_paths, validate_iso_date, write_text_output
+from paperstack_common import ensure_directory, paper_id_from_path, paper_paths, validate_iso_date, write_text_output
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{1,4})$")
@@ -82,25 +82,32 @@ def check_details(result: dict) -> list[str]:
 
 
 def validate_targets(root: Path, targets: list[str]) -> None:
-    papers_dir = root / "papers"
     paths = paper_paths(root)
     results = check_paths(paths, validate_relationships=True)
-    by_path = {Path(result["path"]).resolve(): result for result in results}
+    by_id: dict[str, list[dict]] = {}
+    for result in results:
+        by_id.setdefault(result["paper_id"], []).append(result)
+        filename_id = paper_id_from_path(Path(result["path"]))
+        if PAPER_ID_RE.fullmatch(filename_id):
+            by_id.setdefault(filename_id, []).append(result)
 
     missing = []
     invalid = []
     for target in targets:
-        matches = list(papers_dir.glob(f"{target}-*.md"))
-        if not matches:
+        seen_results: set[int] = set()
+        target_results = []
+        for result in by_id.get(target, []):
+            result_id = id(result)
+            if result_id in seen_results:
+                continue
+            seen_results.add(result_id)
+            target_results.append(result)
+        if not target_results:
             missing.append(target)
             continue
-        for path in matches:
-            result = by_path.get(path.resolve())
-            if result is None:
-                invalid.append(f"{target} {path}: not found in stack index")
-                continue
+        for result in target_results:
             if not result["ok"]:
-                invalid.append(f"{target} {path}: {'; '.join(check_details(result))}")
+                invalid.append(f"{target} {result['path']}: {'; '.join(check_details(result))}")
     if missing:
         raise SystemExit(f"Missing target paper files for: {', '.join(missing)}")
     if invalid:
