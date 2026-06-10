@@ -467,6 +467,20 @@ def main() -> int:
             [
                 sys.executable,
                 script("combine_papers.py"),
+                str(root),
+                "--last",
+                "1",
+                "--mode",
+                "references",
+                "--target-paper",
+                "PAPER-9999",
+            ],
+            "Missing target paper ID for reference ranking: PAPER-9999",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
                 str(project / "missing-root"),
                 "--last",
                 "1",

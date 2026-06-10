@@ -153,6 +153,14 @@ def validate_stack(root: Path) -> None:
         raise SystemExit("Cannot combine invalid papers:\n" + "\n".join(failures))
 
 
+def validate_reference_target(target_id: str | None, all_papers: list[dict]) -> None:
+    if target_id is None:
+        return
+    known_ids = {paper["paper_id"] for paper in all_papers}
+    if target_id not in known_ids:
+        raise SystemExit(f"Missing target paper ID for reference ranking: {target_id}")
+
+
 def selection_mode_count(args: argparse.Namespace) -> int:
     explicit_ids = bool(args.ids)
     interval = bool(args.from_id or args.to_id)
@@ -428,6 +436,7 @@ def main() -> int:
     chunks = chunk_papers(selected, args.interval_size)
     references = []
     if args.mode in {"references", "both"}:
+        validate_reference_target(args.target_paper, all_papers)
         references = rank_references(
             selected=selected,
             all_papers=all_papers,

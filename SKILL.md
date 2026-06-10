@@ -202,6 +202,7 @@ Use:
 - `--mode summary` for interval summaries only.
 - `--mode references` for ranked reference candidates and relationship lines.
 - `--mode both` when closing a set of papers and preparing a next paper.
+- `--target-paper PAPER-NNNN` only when that target paper exists in the stack.
 - `--last N` only for a recent deterministic suffix.
 - `--ids PAPER-0001 PAPER-0007` only when the user names exact papers.
 

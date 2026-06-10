@@ -129,7 +129,8 @@ python3 ~/.codex/skills/loop-paper/scripts/combine_papers.py .paper-stack \
 
 Selection is stable by numeric paper ID. Reference ranking is deterministic and
 uses status, inbound references, explicit relation edges, target-paper distance,
-and term overlap.
+and term overlap. When `--target-paper` is supplied, that paper must exist in
+the stack.
 
 ## Repository Structure
 
