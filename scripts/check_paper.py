@@ -23,6 +23,7 @@ from paperstack_common import (
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{4})$")
+PAPER_FILENAME_RE = re.compile(r"^(PAPER-\d{4})(?:-[A-Za-z0-9][A-Za-z0-9-]*)?\.md$")
 
 
 def valid_paper_id(value: str) -> bool:
@@ -31,8 +32,8 @@ def valid_paper_id(value: str) -> bool:
 
 
 def paper_id_from_filename(path: Path) -> str | None:
-    match = re.search(r"PAPER-\d{4}", path.name)
-    return match.group(0) if match else None
+    match = PAPER_FILENAME_RE.fullmatch(path.name)
+    return match.group(1) if match else None
 
 
 def check_file(path: Path) -> dict:

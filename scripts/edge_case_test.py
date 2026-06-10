@@ -734,6 +734,52 @@ def main() -> int:
             [sys.executable, script("transition_paper.py"), str(renamed_bad_filename), "Research Ready"],
             "Filename must contain canonical PAPER-NNNN ID",
         )
+        malformed_numeric_filename_root = project / "malformed-numeric-filename-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(malformed_numeric_filename_root),
+                "--project-name",
+                "Loop Paper Malformed Numeric Filename Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        malformed_numeric_filename = create_edge_paper(
+            malformed_numeric_filename_root,
+            "Malformed Numeric Filename Edge",
+        )
+        renamed_malformed_numeric_filename = malformed_numeric_filename.with_name("PAPER-0001bad.md")
+        malformed_numeric_filename.rename(renamed_malformed_numeric_filename)
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(renamed_malformed_numeric_filename)],
+            "Filename must contain canonical PAPER-NNNN ID",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(malformed_numeric_filename_root), "--strict"],
+            "Filename must contain canonical PAPER-NNNN ID",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(malformed_numeric_filename_root),
+                "--last",
+                "1",
+            ],
+            "Filename must contain canonical PAPER-NNNN ID",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("transition_paper.py"),
+                str(renamed_malformed_numeric_filename),
+                "Research Ready",
+            ],
+            "Filename must contain canonical PAPER-NNNN ID",
+        )
         dangling_root = project / "dangling-stack"
         run_ok(
             [
