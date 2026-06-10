@@ -125,6 +125,13 @@ def make_after_ready_except_validation_evidence(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def set_status(path: Path, status: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    if "status: Draft" not in text:
+        raise SystemExit(f"Expected draft status in {path}")
+    path.write_text(text.replace("status: Draft", f"status: {status}", 1), encoding="utf-8")
+
+
 def create_edge_paper(root: Path, title: str) -> Path:
     return Path(
         run_ok(
@@ -309,6 +316,13 @@ def main() -> int:
             run_ok([sys.executable, script("transition_paper.py"), str(validation_evidence_gate), status])
         run_fail(
             [sys.executable, script("transition_paper.py"), str(validation_evidence_gate), "AI Validated"],
+            "validation evidence checkbox is not checked",
+        )
+        pipeline_gate = create_edge_paper(root, "Pipeline Gate Edge")
+        make_after_ready_except_validation_evidence(pipeline_gate)
+        set_status(pipeline_gate, "AI Validated")
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(root), "--strict"],
             "validation evidence checkbox is not checked",
         )
         run_fail(
