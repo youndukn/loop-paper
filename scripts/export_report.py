@@ -8,7 +8,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from paperstack_common import STATUSES, load_paper, paper_paths, unchecked_count
+from paperstack_common import STATUSES, load_paper, paper_paths, unchecked_count, write_text_output
 
 
 def load_json(path: Path, default: dict) -> dict:
@@ -48,8 +48,7 @@ def main() -> int:
 
     root = Path(args.root)
     output = Path(args.output) if args.output else root / "dashboard" / "report.md"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(render_report(root), encoding="utf-8")
+    write_text_output(output, render_report(root))
     print(output)
     return 0
 

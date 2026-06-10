@@ -64,6 +64,13 @@ def require_paper_file(path: Path) -> None:
         raise SystemExit(f"Expected paper file, got directory: {path}")
 
 
+def write_text_output(path: Path, text: str, *, label: str = "output") -> None:
+    if path.exists() and path.is_dir():
+        raise SystemExit(f"Expected {label} file, got directory: {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
 def find_ids(text: str) -> list[str]:
     return sorted(set(re.findall(r"PAPER-\d{4}", text)))
 

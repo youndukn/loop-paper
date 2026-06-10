@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 from index_references import build_graph
-from paperstack_common import load_paper, paper_paths, section_has_checked, validation_not_run
+from paperstack_common import load_paper, paper_paths, section_has_checked, validation_not_run, write_text_output
 
 
 def downstream_score(count: int) -> int:
@@ -75,8 +75,7 @@ def main() -> int:
     root = Path(args.root)
     result = score(root)
     output = Path(args.output) if args.output else root / "dashboard" / "impact-scores.json"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    write_text_output(output, json.dumps(result, indent=2))
     print(output)
     return 0
 

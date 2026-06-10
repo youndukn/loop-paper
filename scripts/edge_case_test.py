@@ -335,6 +335,25 @@ def main() -> int:
             ],
             "--slug must contain only ASCII letters, numbers, and single hyphens",
         )
+        prompt_output_dir = root / "inbox" / "prompt-output-dir"
+        prompt_output_dir.mkdir(parents=True)
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Directory Prompt Output Review",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+                "--prompt-out",
+                str(prompt_output_dir),
+            ],
+            f"Expected prompt output file, got directory: {prompt_output_dir}",
+        )
         run_fail(
             [
                 sys.executable,
@@ -786,6 +805,26 @@ def main() -> int:
             ],
             "Missing target paper ID for reference ranking: PAPER-9999",
         )
+        output_dir = root / "dashboard" / "output-dir"
+        output_dir.mkdir(parents=True)
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(root),
+                "--last",
+                "1",
+                "--output",
+                str(output_dir),
+            ],
+            f"Expected output file, got directory: {output_dir}",
+        )
+        for command in [
+            [sys.executable, script("index_references.py"), str(root), "--output", str(output_dir)],
+            [sys.executable, script("score_impact.py"), str(root), "--output", str(output_dir)],
+            [sys.executable, script("export_report.py"), str(root), "--output", str(output_dir)],
+        ]:
+            run_fail(command, f"Expected output file, got directory: {output_dir}")
         run_fail(
             [
                 sys.executable,

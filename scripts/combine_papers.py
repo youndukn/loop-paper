@@ -10,7 +10,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from check_paper import check_paths
-from paperstack_common import RELATION_LABELS, extract_relations, load_paper, paper_paths, relation_key
+from paperstack_common import RELATION_LABELS, extract_relations, load_paper, paper_paths, relation_key, write_text_output
 
 
 PAPER_ID_RE = re.compile(r"PAPER-(\d{1,4})", re.IGNORECASE)
@@ -460,8 +460,7 @@ def main() -> int:
         output = "\n".join(lines).rstrip() + "\n"
 
     if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(output, encoding="utf-8")
+        write_text_output(args.output, output)
         print(args.output)
     else:
         print(output, end="")

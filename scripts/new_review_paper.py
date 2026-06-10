@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 
 from check_paper import check_paths
-from paperstack_common import paper_paths
+from paperstack_common import paper_paths, write_text_output
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{1,4})$")
@@ -477,8 +477,7 @@ def main() -> int:
 
     if args.answers is None and args.prompt_out:
         prompt_text = RENDERERS[args.format](questions)
-        args.prompt_out.parent.mkdir(parents=True, exist_ok=True)
-        args.prompt_out.write_text(prompt_text, encoding="utf-8")
+        write_text_output(args.prompt_out, prompt_text, label="prompt output")
         print(args.prompt_out)
         return 0
 

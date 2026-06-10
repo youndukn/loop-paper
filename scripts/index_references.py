@@ -7,7 +7,7 @@ import argparse
 import json
 from pathlib import Path
 
-from paperstack_common import RELATION_LABELS, extract_relations, load_paper, paper_paths, relation_key
+from paperstack_common import RELATION_LABELS, extract_relations, load_paper, paper_paths, relation_key, write_text_output
 
 
 def build_graph(root: Path) -> dict:
@@ -44,8 +44,7 @@ def main() -> int:
     root = Path(args.root)
     graph = build_graph(root)
     output = Path(args.output) if args.output else root / "dashboard" / "references.json"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(graph, indent=2), encoding="utf-8")
+    write_text_output(output, json.dumps(graph, indent=2))
     print(output)
     return 0
 
