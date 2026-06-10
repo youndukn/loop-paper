@@ -19,6 +19,7 @@ PAPER_ID_RE = re.compile(r"^PAPER-(\d{1,4})$")
 FILENAME_PAPER_ID_RE = re.compile(r"^PAPER-(\d+)")
 MAX_PAPER_NUMBER = 9999
 UNSAFE_TITLE_CHARS = re.compile(r"[:\n\r]|---")
+SLUG_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")
 
 PER_TARGET_QUESTIONS: list[tuple[str, str, list[str]]] = [
     ("verdict", "Hypothesis verdict", ["Supported", "Failed", "Inconclusive", "Superseded"]),
@@ -46,6 +47,13 @@ def validate_title(title: str) -> str:
     if UNSAFE_TITLE_CHARS.search(cleaned):
         raise SystemExit("--title must not contain ':', newlines, or '---' (would break YAML frontmatter)")
     return cleaned
+
+
+def validate_slug(slug: str) -> str:
+    cleaned = slug.strip()
+    if not SLUG_RE.fullmatch(cleaned):
+        raise SystemExit("--slug must contain only ASCII letters, numbers, and single hyphens")
+    return cleaned.lower()
 
 
 def normalize_paper_id(value: str) -> str:
@@ -452,6 +460,7 @@ def main() -> int:
     validate_targets(args.root, targets)
 
     title = validate_title(args.title)
+    slug = validate_slug(args.slug) if args.slug else slugify(title)
     questions = build_questions(targets)
 
     if args.answers is None and args.prompt_out:
@@ -472,7 +481,6 @@ def main() -> int:
         answers = collect_cli(questions)
 
     paper_id = next_paper_id(papers_dir)
-    slug = args.slug or slugify(title)
     output = papers_dir / f"{paper_id}-{slug}.md"
     if output.exists():
         raise SystemExit(f"Refusing to overwrite existing paper: {output}")

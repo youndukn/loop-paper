@@ -259,6 +259,25 @@ def main() -> int:
                 ]
             ).stdout.strip()
         )
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Bad Slug Paper",
+                "--slug",
+                "bad/path",
+                "--hypothesis",
+                "Bad slug should fail",
+                "--finding",
+                "Unsafe custom slugs can break deterministic output paths",
+                "--reference",
+                "scripts/edge_case_test.py",
+            ],
+            "--slug must contain only ASCII letters, numbers, and single hyphens",
+        )
 
         run_fail(
             [
@@ -289,6 +308,23 @@ def main() -> int:
                 "json",
             ],
             "Expected PAPER-NNNN",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Bad Slug Review",
+                "--slug",
+                "../bad",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+            ],
+            "--slug must contain only ASCII letters, numbers, and single hyphens",
         )
         run_fail(
             [

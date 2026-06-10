@@ -13,6 +13,7 @@ from pathlib import Path
 PAPER_ID_RE = re.compile(r"^PAPER-(\d+)")
 MAX_PAPER_NUMBER = 9999
 UNSAFE_TITLE_CHARS = re.compile(r"[:\n\r]|---")
+SLUG_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")
 
 
 def slugify(value: str) -> str:
@@ -30,6 +31,13 @@ def validate_title(title: str) -> str:
             "--title must not contain ':', newlines, or '---' (would break YAML frontmatter)"
         )
     return cleaned
+
+
+def validate_slug(slug: str) -> str:
+    cleaned = slug.strip()
+    if not SLUG_RE.fullmatch(cleaned):
+        raise SystemExit("--slug must contain only ASCII letters, numbers, and single hyphens")
+    return cleaned.lower()
 
 
 def next_paper_id(papers_dir: Path) -> str:
@@ -251,7 +259,7 @@ def main() -> None:
     papers_dir.mkdir(parents=True, exist_ok=True)
     paper_id = next_paper_id(papers_dir)
     title = validate_title(args.title)
-    slug = args.slug or slugify(title)
+    slug = validate_slug(args.slug) if args.slug else slugify(title)
     path = papers_dir / f"{paper_id}-{slug}.md"
     if path.exists():
         raise SystemExit(f"Refusing to overwrite existing paper: {path}")
