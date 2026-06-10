@@ -24,6 +24,7 @@ COMPONENT_WEIGHTS = {
     "validation_strength_score": 0.33,
     "measured_outcome_score": 0.34,
 }
+POSITIVE_DOWNSTREAM_EDGE_TYPES = {"references", "depends_on", "extends"}
 MEASURED_OUTCOME_RE = re.compile(
     r"^-\s+Measured outcome:\s*(?P<value>.*?)\s*$",
     flags=re.MULTILINE,
@@ -43,6 +44,16 @@ def downstream_score(count: int) -> int:
     if count <= 3:
         return 6
     return 10
+
+
+def positive_downstream_counts(graph: dict) -> dict[str, int]:
+    counts = {node["id"]: 0 for node in graph.get("nodes", [])}
+    for edge in graph.get("edges", []):
+        if edge.get("type") in POSITIVE_DOWNSTREAM_EDGE_TYPES:
+            target = edge.get("target")
+            if isinstance(target, str):
+                counts[target] = counts.get(target, 0) + 1
+    return counts
 
 
 def validation_score(paper: dict) -> int:
@@ -90,7 +101,7 @@ def weighted_score(components: dict[str, int | float | str], *, require_complete
 
 def score(root: Path) -> dict:
     graph = build_graph(root)
-    inbound = graph["inbound_counts"]
+    inbound = positive_downstream_counts(graph)
     results = []
     for path in paper_paths(root):
         paper = load_paper(path)

@@ -1499,6 +1499,70 @@ def main() -> int:
             raise SystemExit("Impact scorer fabricated a full score with missing measured outcome")
         if script_title_score.get("deterministic_partial_score") != 0.99:
             raise SystemExit("Impact scorer did not use weighted partial formula")
+        relation_impact_root = project / "relation-impact-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(relation_impact_root),
+                "--project-name",
+                "Loop Paper Relation Impact Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        create_edge_paper(relation_impact_root, "Contradicted Impact Target")
+        contradicting_source = create_edge_paper(relation_impact_root, "Contradicting Impact Source")
+        contradicting_source.write_text(
+            contradicting_source.read_text(encoding="utf-8").replace(
+                "Contradicts: None",
+                "Contradicts: PAPER-0001",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_ok([sys.executable, script("score_impact.py"), str(relation_impact_root)])
+        relation_payload = json.loads(
+            (relation_impact_root / "dashboard" / "impact-scores.json").read_text(encoding="utf-8")
+        )
+        contradicted_score = next(
+            item for item in relation_payload["papers"] if item["paper_id"] == "PAPER-0001"
+        )
+        if contradicted_score["components"].get("downstream_reference_score") != 0:
+            raise SystemExit("Impact scorer treated Contradicts as positive downstream impact")
+        reference_impact_root = project / "reference-impact-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(reference_impact_root),
+                "--project-name",
+                "Loop Paper Reference Impact Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        create_edge_paper(reference_impact_root, "Referenced Impact Target")
+        referencing_source = create_edge_paper(reference_impact_root, "Referencing Impact Source")
+        referencing_source.write_text(
+            referencing_source.read_text(encoding="utf-8").replace(
+                "References: None",
+                "References: PAPER-0001",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_ok([sys.executable, script("score_impact.py"), str(reference_impact_root)])
+        reference_payload = json.loads(
+            (reference_impact_root / "dashboard" / "impact-scores.json").read_text(encoding="utf-8")
+        )
+        referenced_score = next(
+            item for item in reference_payload["papers"] if item["paper_id"] == "PAPER-0001"
+        )
+        if referenced_score["components"].get("downstream_reference_score") != 3:
+            raise SystemExit("Impact scorer did not count References as positive downstream impact")
         measured_score_root = project / "measured-score-stack"
         run_ok(
             [

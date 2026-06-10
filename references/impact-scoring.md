@@ -24,6 +24,10 @@ Downstream reference score:
 - 6: referenced by accepted papers
 - 10: foundational dependency for many accepted papers
 
+Only positive downstream edges count for this component: `References`,
+`Depends on`, and `Extends`. `Contradicts` and `Supersedes` remain graph
+relationships, but they do not raise the impact score.
+
 Validation strength score:
 
 - 0: no validation
