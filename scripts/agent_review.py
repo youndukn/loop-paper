@@ -9,6 +9,7 @@ from pathlib import Path
 
 from check_paper import check_file, check_paths
 from paperstack_common import (
+    STATUSES,
     load_paper,
     markdown_inline,
     paper_paths,
@@ -85,7 +86,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Record an agent review on a Paper Stack paper.")
     parser.add_argument("paper", help="Path to PAPER-*.md")
     parser.add_argument("--reviewer", default="Codex", help="Agent reviewer name")
-    parser.add_argument("--decision", default="Agent Reviewed", help="Agent review decision")
+    parser.add_argument(
+        "--decision",
+        choices=STATUSES,
+        default="AI Validated",
+        help="Agent review decision",
+    )
     parser.add_argument("--notes", default="Structure reviewed; paper remains on the autonomous loop.", help="Review notes")
     args = parser.parse_args()
 

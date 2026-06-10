@@ -389,6 +389,37 @@ def make_after_ready_with_missing_agent_reviewer(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def make_after_ready_with_invalid_agent_decision(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = normalize_agent_review_fields(text)
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+            "AI validation evidence recorded",
+            "Agent reviewed paper structure",
+            "Agent confirmed evidence backs the recorded verdict",
+            "Impact score is based on evidence, not agent guesswork",
+        ],
+    )
+    text = text.replace(
+        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
+        "- Supported: edge-case verdict recorded.",
+    )
+    text = text.replace("Decision: AI Validated", "Decision: Agent Reviewed", 1)
+    path.write_text(text, encoding="utf-8")
+
+
 def make_after_ready_with_empty_impact_basis(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
@@ -1297,6 +1328,18 @@ def main() -> int:
         run_ok([sys.executable, script("check_paper.py"), str(review_repair)])
         if "Agent reviewer: Codex" not in review_repair.read_text(encoding="utf-8"):
             raise SystemExit("Agent review did not repair missing Agent Review section")
+        if "Decision: AI Validated" not in review_repair.read_text(encoding="utf-8"):
+            raise SystemExit("Agent review default decision was not a valid status")
+        run_fail(
+            [
+                sys.executable,
+                script("agent_review.py"),
+                str(review_repair),
+                "--decision",
+                "Agent Reviewed",
+            ],
+            "invalid choice",
+        )
 
         review_injection = create_edge_paper(root, "Agent Review Injection Edge")
         run_ok(
@@ -1307,7 +1350,7 @@ def main() -> int:
                 "--reviewer",
                 "Codex\n## Agent Review",
                 "--decision",
-                "AI Validated\n## Impact Score",
+                "AI Validated",
                 "--notes",
                 "Looks good\n## Impact Score\ninjected",
             ]
@@ -1319,8 +1362,8 @@ def main() -> int:
             raise SystemExit("Agent review input injected an extra Impact Score heading")
         if "Codex ## Agent Review" not in review_text:
             raise SystemExit("Agent reviewer input was not collapsed to inline Markdown")
-        if "AI Validated ## Impact Score" not in review_text:
-            raise SystemExit("Agent decision input was not collapsed to inline Markdown")
+        if "Decision: AI Validated" not in review_text:
+            raise SystemExit("Agent decision was not recorded as a valid status")
         if "Looks good ## Impact Score injected" not in review_text:
             raise SystemExit("Agent review notes were not collapsed to inline Markdown")
         if f"updated: {date.today().isoformat()}" not in review_text:
@@ -1998,6 +2041,24 @@ def main() -> int:
         run_fail(
             [sys.executable, script("transition_paper.py"), str(missing_agent_reviewer_gate), "AI Validated"],
             "agent review missing Agent reviewer",
+        )
+        invalid_agent_decision_gate = create_edge_paper(root, "Invalid Agent Decision Edge")
+        make_after_ready_with_invalid_agent_decision(invalid_agent_decision_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(invalid_agent_decision_gate),
+                "--phase",
+                "after",
+            ],
+            "agent review invalid Decision",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(invalid_agent_decision_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(invalid_agent_decision_gate), "AI Validated"],
+            "agent review invalid Decision",
         )
         empty_impact_basis_gate = create_edge_paper(root, "Empty Impact Basis Edge")
         make_after_ready_with_empty_impact_basis(empty_impact_basis_gate)

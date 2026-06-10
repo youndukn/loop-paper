@@ -10,6 +10,7 @@ from pathlib import Path
 from check_paper import check_file, check_paths, result_details
 from paperstack_common import (
     REQUIRED_SECTIONS,
+    STATUSES,
     checked_count,
     paper_paths,
     paper_root_from_path,
@@ -148,6 +149,12 @@ def agent_review_errors(section_text: str) -> list[str]:
     for field in ["Agent reviewer", "Review date", "Decision"]:
         if not values.get(field):
             errors.append(f"agent review missing {field}")
+    decision = values.get("Decision")
+    if decision and decision not in STATUSES:
+        errors.append(
+            "agent review invalid Decision: "
+            f"{decision}; expected one of: {', '.join(STATUSES)}"
+        )
     review_date = values.get("Review date")
     if review_date:
         try:
