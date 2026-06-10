@@ -91,6 +91,14 @@ def write_text_output(path: Path, text: str, *, label: str = "output") -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def markdown_inline(value: object) -> str:
+    return re.sub(r"\s+", " ", str(value)).strip()
+
+
+def markdown_table_cell(value: object) -> str:
+    return markdown_inline(value).replace("|", "\\|")
+
+
 def find_ids(text: str) -> list[str]:
     return sorted(set(re.findall(r"PAPER-\d{4}", text)))
 

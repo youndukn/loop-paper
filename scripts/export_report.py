@@ -9,7 +9,14 @@ from collections import Counter
 from pathlib import Path
 
 from check_paper import require_valid_stack
-from paperstack_common import STATUSES, load_paper, paper_paths, unchecked_count, write_text_output
+from paperstack_common import (
+    STATUSES,
+    load_paper,
+    markdown_table_cell,
+    paper_paths,
+    unchecked_count,
+    write_text_output,
+)
 
 
 def load_json(path: Path, default: dict) -> dict:
@@ -37,7 +44,9 @@ def render_report(root: Path) -> str:
     for paper in papers:
         item = impact_by_id.get(paper["paper_id"], {})
         score = item.get("deterministic_partial_score", "TBD")
-        lines.append(f"| {paper['paper_id']} {paper['title']} | {paper['status']} | {unchecked_count(paper['text'])} | {score} |")
+        paper_label = markdown_table_cell(f"{paper['paper_id']} {paper['title']}")
+        status = markdown_table_cell(paper["status"])
+        lines.append(f"| {paper_label} | {status} | {unchecked_count(paper['text'])} | {score} |")
     lines.append("")
     return "\n".join(lines)
 

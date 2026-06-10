@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 
 from check_paper import check_paths
-from paperstack_common import paper_paths, validate_iso_date, write_text_output
+from paperstack_common import ensure_directory, paper_paths, validate_iso_date, write_text_output
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{1,4})$")
@@ -469,7 +469,7 @@ def main() -> int:
 
     targets = list(dict.fromkeys(args.target))
     papers_dir = args.root / "papers"
-    papers_dir.mkdir(parents=True, exist_ok=True)
+    ensure_directory(papers_dir, label="papers directory")
     validate_targets(args.root, targets)
 
     title = validate_title(args.title)
@@ -496,7 +496,8 @@ def main() -> int:
     output = papers_dir / f"{paper_id}-{slug}.md"
     if output.exists():
         raise SystemExit(f"Refusing to overwrite existing paper: {output}")
-    output.write_text(
+    write_text_output(
+        output,
         render_review_paper(
             paper_id=paper_id,
             title=title,
@@ -504,7 +505,7 @@ def main() -> int:
             targets=targets,
             answers=answers,
         ),
-        encoding="utf-8",
+        label="paper",
     )
     print(output)
     return 0

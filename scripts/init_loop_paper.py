@@ -11,7 +11,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from paperstack_common import validate_iso_date
+from paperstack_common import ensure_directory, validate_iso_date, write_text_output
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -43,10 +43,11 @@ def project_name_from_root(root: Path) -> str:
 
 
 def write_once(path: Path, text: str, overwrite: bool) -> bool:
+    if path.exists() and path.is_dir():
+        raise SystemExit(f"Expected generated file, got directory: {path}")
     if path.exists() and not overwrite:
         return False
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+    write_text_output(path, text, label="generated file")
     return True
 
 
@@ -118,12 +119,12 @@ def main() -> int:
 
     root = args.root
     args.project_name = args.project_name or project_name_from_root(root)
-    root.mkdir(parents=True, exist_ok=True)
+    ensure_directory(root, label="paper stack root")
 
     created_dirs = []
     for name in DIRECTORIES:
         path = root / name
-        path.mkdir(parents=True, exist_ok=True)
+        ensure_directory(path, label=f"{name} directory")
         created_dirs.append(str(path))
 
     structure_text = STRUCTURE_TEMPLATE.read_text(encoding="utf-8")

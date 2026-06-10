@@ -274,6 +274,21 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="loop-paper-edge-") as tmp:
         project = Path(tmp)
         root = project / ".paper-stack"
+        root_file = project / "paper-stack-file"
+        root_file.write_text("not a directory", encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(root_file),
+                "--project-name",
+                "Root File Stack",
+                "--date",
+                "2026-06-10",
+            ],
+            f"Expected paper stack root, got file: {root_file}",
+        )
         run_fail(
             [
                 sys.executable,
@@ -299,6 +314,58 @@ def main() -> int:
                 "2026-06-10",
             ]
         )
+        papers_file_root = project / "creator-papers-file-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(papers_file_root),
+                "--project-name",
+                "Loop Paper Creator Papers File Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        creator_papers_file = papers_file_root / "papers"
+        creator_papers_file.rmdir()
+        creator_papers_file.write_text("not a directory", encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(papers_file_root),
+                "--title",
+                "Papers File Paper",
+                "--hypothesis",
+                "Papers path should be a directory",
+                "--finding",
+                "Creation needs deterministic directory errors",
+                "--reference",
+                "scripts/edge_case_test.py",
+                "--date",
+                "2026-06-10",
+            ],
+            f"Expected papers directory, got file: {creator_papers_file}",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(papers_file_root),
+                "--title",
+                "Papers File Review",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+                "--date",
+                "2026-06-10",
+            ],
+            f"Expected papers directory, got file: {creator_papers_file}",
+        )
         created = Path(
             run_ok(
                 [
@@ -319,6 +386,46 @@ def main() -> int:
                 ]
             ).stdout.strip()
         )
+        escaped = Path(
+            run_ok(
+                [
+                    sys.executable,
+                    script("new_closed_loop_paper.py"),
+                    "--root",
+                    str(root),
+                    "--title",
+                    "Pipe | Title",
+                    "--hypothesis",
+                    "Pipe | claim\nwith newline",
+                    "--finding",
+                    "Finding | data\nsecond line",
+                    "--reference",
+                    "docs/reference | one\nsecond",
+                    "--date",
+                    "2026-06-10",
+                ]
+            ).stdout.strip()
+        )
+        escaped_text = escaped.read_text(encoding="utf-8")
+        if "| H1 | Pipe \\| claim with newline |" not in escaped_text:
+            raise SystemExit("Generated hypothesis table did not escape pipe/newline input")
+        if "| 2026-06-10 | Finding \\| data second line |" not in escaped_text:
+            raise SystemExit("Generated findings table did not escape pipe/newline input")
+        if "- docs/reference | one second" not in escaped_text:
+            raise SystemExit("Generated reference list did not collapse newline input")
+        report_output = root / "dashboard" / "pipe-report.md"
+        run_ok(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ]
+        )
+        report_text = report_output.read_text(encoding="utf-8")
+        if "Pipe \\| Title" not in report_text:
+            raise SystemExit("Exported report table did not escape title pipe")
         run_fail(
             [
                 sys.executable,

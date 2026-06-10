@@ -9,7 +9,13 @@ import unicodedata
 from datetime import date
 from pathlib import Path
 
-from paperstack_common import validate_iso_date
+from paperstack_common import (
+    ensure_directory,
+    markdown_inline,
+    markdown_table_cell,
+    validate_iso_date,
+    write_text_output,
+)
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d+)")
@@ -75,7 +81,7 @@ def render_paper(
         hypotheses,
         min_hypotheses,
         lambda index, value: (
-            f"| H{index} | {value or 'BEFORE_REQUIRED: falsifiable claim'} | "
+            f"| H{index} | {markdown_table_cell(value or 'BEFORE_REQUIRED: falsifiable claim')} | "
             "BEFORE_REQUIRED: baseline evidence | "
             "BEFORE_REQUIRED: validation method | Open |"
         ),
@@ -84,13 +90,13 @@ def render_paper(
         findings,
         1,
         lambda _index, value: (
-            f"| {today} | {value or 'BEFORE_REQUIRED: concrete prior finding'} | "
+            f"| {today} | {markdown_table_cell(value or 'BEFORE_REQUIRED: concrete prior finding')} | "
             "BEFORE_REQUIRED: evidence path or command | "
             "BEFORE_REQUIRED: implementation boundary |"
         ),
     )
     reference_lines = "\n".join(
-        f"- {reference}" for reference in references
+        f"- {markdown_inline(reference)}" for reference in references
     ) or "- BEFORE_REQUIRED: reference file, paper, artifact, or command output"
     return f"""---
 paper_id: {paper_id}
@@ -261,14 +267,15 @@ def main() -> None:
         raise SystemExit("--min-hypotheses must be greater than zero")
 
     papers_dir = args.root / "papers"
-    papers_dir.mkdir(parents=True, exist_ok=True)
+    ensure_directory(papers_dir, label="papers directory")
     paper_id = next_paper_id(papers_dir)
     title = validate_title(args.title)
     slug = validate_slug(args.slug) if args.slug else slugify(title)
     path = papers_dir / f"{paper_id}-{slug}.md"
     if path.exists():
         raise SystemExit(f"Refusing to overwrite existing paper: {path}")
-    path.write_text(
+    write_text_output(
+        path,
         render_paper(
             paper_id=paper_id,
             title=title,
@@ -278,7 +285,7 @@ def main() -> None:
             references=args.reference,
             min_hypotheses=args.min_hypotheses,
         ),
-        encoding="utf-8",
+        label="paper",
     )
     print(path)
 
