@@ -2657,6 +2657,40 @@ def main() -> int:
         if "paper_kind: closed_loop" not in missing_kind.read_text(encoding="utf-8"):
             raise SystemExit("Metadata sync did not repair missing paper_kind")
         run_ok([sys.executable, script("pipeline.py"), str(missing_kind_root), "--strict"])
+        missing_impact_metadata_root = project / "missing-impact-metadata-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(missing_impact_metadata_root),
+                "--project-name",
+                "Loop Paper Missing Impact Metadata Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        missing_impact_metadata = create_edge_paper(
+            missing_impact_metadata_root,
+            "Missing Impact Metadata Edge",
+        )
+        missing_impact_metadata.write_text(
+            missing_impact_metadata.read_text(encoding="utf-8").replace("impact_score: TBD\n", "", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(missing_impact_metadata)],
+            "Missing impact_score frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(missing_impact_metadata), "--check"],
+            "CHANGED PAPER-0001",
+        )
+        run_ok([sys.executable, script("update_paper_metadata.py"), str(missing_impact_metadata)])
+        run_ok([sys.executable, script("check_paper.py"), str(missing_impact_metadata)])
+        if "impact_score: TBD" not in missing_impact_metadata.read_text(encoding="utf-8"):
+            raise SystemExit("Metadata sync did not repair missing impact_score")
+        run_ok([sys.executable, script("pipeline.py"), str(missing_impact_metadata_root), "--strict"])
         missing_title_root = project / "missing-title-stack"
         run_ok(
             [

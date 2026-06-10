@@ -209,7 +209,9 @@ def check_file(path: Path) -> dict:
     if not metadata.get("title"):
         warnings.append("Missing title frontmatter")
     impact_score = metadata.get("impact_score")
-    if impact_score and not valid_impact_score(impact_score):
+    if not impact_score:
+        warnings.append("Missing impact_score frontmatter")
+    elif not valid_impact_score(impact_score):
         warnings.append(f"Invalid impact_score: {impact_score}; expected TBD or a number from 0 to 10")
     schema = metadata.get("closed_loop_schema")
     if not schema:

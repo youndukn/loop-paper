@@ -24,6 +24,7 @@ REPAIRABLE_WARNINGS = {
     "Missing status frontmatter",
     "Missing created frontmatter",
     "Missing updated frontmatter",
+    "Missing impact_score frontmatter",
     "Missing paper_kind frontmatter",
 }
 
