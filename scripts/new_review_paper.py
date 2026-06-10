@@ -12,7 +12,9 @@ from datetime import date
 from pathlib import Path
 
 
-PAPER_ID_RE = re.compile(r"^PAPER-(\d+)")
+PAPER_ID_RE = re.compile(r"^PAPER-(\d{1,4})$")
+FILENAME_PAPER_ID_RE = re.compile(r"^PAPER-(\d+)")
+MAX_PAPER_NUMBER = 9999
 UNSAFE_TITLE_CHARS = re.compile(r"[:\n\r]|---")
 
 PER_TARGET_QUESTIONS: list[tuple[str, str, list[str]]] = [
@@ -53,9 +55,11 @@ def normalize_paper_id(value: str) -> str:
 def next_paper_id(papers_dir: Path) -> str:
     max_id = 0
     for path in papers_dir.glob("PAPER-*.md"):
-        match = PAPER_ID_RE.match(path.name)
+        match = FILENAME_PAPER_ID_RE.match(path.name)
         if match:
             max_id = max(max_id, int(match.group(1)))
+    if max_id >= MAX_PAPER_NUMBER:
+        raise SystemExit("Cannot allocate next paper ID beyond PAPER-9999")
     return f"PAPER-{max_id + 1:04d}"
 
 

@@ -297,6 +297,21 @@ def main() -> int:
                 "--root",
                 str(root),
                 "--title",
+                "Oversized Target Review",
+                "--target",
+                "PAPER-10000",
+                "--format",
+                "json",
+            ],
+            "Expected PAPER-NNNN",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
                 "Bad: Title",
                 "--target",
                 "PAPER-0001",
@@ -537,6 +552,58 @@ def main() -> int:
                 "1",
             ],
             "No papers found under",
+        )
+        overflow_root = project / "overflow-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(overflow_root),
+                "--project-name",
+                "Loop Paper Overflow Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        overflow_papers = overflow_root / "papers"
+        overflow_papers.mkdir(parents=True, exist_ok=True)
+        (overflow_papers / "PAPER-0001-target.md").write_text("", encoding="utf-8")
+        (overflow_papers / "PAPER-9999-last.md").write_text("", encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(overflow_root),
+                "--title",
+                "Overflow Paper",
+                "--hypothesis",
+                "Overflow should fail",
+                "--finding",
+                "PAPER-NNNN has a finite range",
+                "--reference",
+                "scripts/edge_case_test.py",
+            ],
+            "Cannot allocate next paper ID beyond PAPER-9999",
+        )
+        overflow_answers = overflow_root / "inbox" / "answers.json"
+        overflow_answers.parent.mkdir(parents=True, exist_ok=True)
+        write_answers(overflow_answers)
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(overflow_root),
+                "--title",
+                "Overflow Review",
+                "--target",
+                "PAPER-0001",
+                "--answers",
+                str(overflow_answers),
+            ],
+            "Cannot allocate next paper ID beyond PAPER-9999",
         )
 
     print("OK loop-paper edge-case test")
