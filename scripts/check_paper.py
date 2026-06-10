@@ -128,8 +128,30 @@ def heading_warnings(text: str, expected_id: str | None, expected_title: str | N
 def relationship_line_warnings(text: str) -> list[str]:
     warnings: list[str] = []
     for label in RELATION_LABELS:
-        if not re.search(rf"^{re.escape(label)}:\s*", text, flags=re.MULTILINE):
+        matches = list(re.finditer(rf"^{re.escape(label)}:[ \t]*(.*)$", text, flags=re.MULTILINE))
+        if not matches:
             warnings.append(f"Missing relationship line: {label}")
+            continue
+        for match in matches:
+            value = match.group(1).strip()
+            if not value:
+                warnings.append(f"Empty relationship line: {label}")
+                continue
+            ids = find_ids(value)
+            invalid_targets = [
+                target
+                for target in PAPERISH_RE.findall(value)
+                if not valid_paper_id(target)
+            ]
+            for target in invalid_targets:
+                warnings.append(f"Invalid relationship target: {label} -> {target}")
+            has_none = bool(re.search(r"(?<![A-Za-z0-9_-])None(?![A-Za-z0-9_-])", value))
+            if value == "None":
+                continue
+            if has_none:
+                warnings.append(f"Relationship line mixes None with targets: {label}")
+            elif not ids and not invalid_targets:
+                warnings.append(f"Invalid relationship value: {label} -> {value}")
     return warnings
 
 
@@ -253,10 +275,7 @@ def check_paths(paths: list[Path], *, validate_relationships: bool = False) -> l
             result["warnings"].append(f"Duplicate paper_id in stack: {result['paper_id']}")
         text = path.read_text(encoding="utf-8")
         for label in RELATION_LABELS:
-            for match in re.finditer(rf"^{re.escape(label)}:\s*(.*)$", text, flags=re.MULTILINE):
-                for target in PAPERISH_RE.findall(match.group(1)):
-                    if not valid_paper_id(target):
-                        result["warnings"].append(f"Invalid relationship target: {label} -> {target}")
+            for match in re.finditer(rf"^{re.escape(label)}:[ \t]*(.*)$", text, flags=re.MULTILINE):
                 for target in find_ids(match.group(1)):
                     if target == result["paper_id"]:
                         result["warnings"].append(f"Self relationship target: {label} -> {target}")

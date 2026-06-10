@@ -2047,6 +2047,103 @@ def main() -> int:
             [sys.executable, script("render_dashboard.py"), str(missing_relationship_root)],
         ]:
             run_fail(command, "Missing relationship line: Extends")
+        empty_relationship_root = project / "empty-relationship-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(empty_relationship_root),
+                "--project-name",
+                "Loop Paper Empty Relationship Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        empty_relationship = create_edge_paper(empty_relationship_root, "Empty Relationship Edge")
+        empty_relationship.write_text(
+            empty_relationship.read_text(encoding="utf-8").replace(
+                "Extends: None",
+                "Extends:",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(empty_relationship)],
+            "Empty relationship line: Extends",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(empty_relationship_root), "--strict"],
+            "Empty relationship line: Extends",
+        )
+        placeholder_relationship_root = project / "placeholder-relationship-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(placeholder_relationship_root),
+                "--project-name",
+                "Loop Paper Placeholder Relationship Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        placeholder_relationship = create_edge_paper(
+            placeholder_relationship_root,
+            "Placeholder Relationship Edge",
+        )
+        placeholder_relationship.write_text(
+            placeholder_relationship.read_text(encoding="utf-8").replace(
+                "Extends: None",
+                "Extends: TBD",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(placeholder_relationship)],
+            "Invalid relationship value: Extends -> TBD",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(placeholder_relationship_root), "--last", "1"],
+            "Invalid relationship value: Extends -> TBD",
+        )
+        mixed_none_relationship_root = project / "mixed-none-relationship-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(mixed_none_relationship_root),
+                "--project-name",
+                "Loop Paper Mixed None Relationship Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        mixed_none_relationship = create_edge_paper(
+            mixed_none_relationship_root,
+            "Mixed None Relationship Source",
+        )
+        create_edge_paper(mixed_none_relationship_root, "Mixed None Relationship Target")
+        mixed_none_relationship.write_text(
+            mixed_none_relationship.read_text(encoding="utf-8").replace(
+                "References: None",
+                "References: None, PAPER-0002",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(mixed_none_relationship_root)],
+            "Relationship line mixes None with targets: References",
+        )
+        run_fail(
+            [sys.executable, script("index_references.py"), str(mixed_none_relationship_root)],
+            "Relationship line mixes None with targets: References",
+        )
         dangling_root = project / "dangling-stack"
         run_ok(
             [

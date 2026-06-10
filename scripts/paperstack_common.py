@@ -246,7 +246,7 @@ def extract_relations(text: str, paper_id: str = "") -> dict[str, list[str]]:
     relations: dict[str, list[str]] = {}
     for label in RELATION_LABELS:
         ids: list[str] = []
-        for match in re.finditer(rf"^{re.escape(label)}:\s*(.*)$", text, flags=re.MULTILINE):
+        for match in re.finditer(rf"^{re.escape(label)}:[ \t]*(.*)$", text, flags=re.MULTILINE):
             ids.extend(find_ids(match.group(1)))
         relations[relation_key(label)] = sorted({item for item in ids if item != paper_id})
     return relations
