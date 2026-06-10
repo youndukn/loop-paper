@@ -29,6 +29,7 @@ PRIOR_STATUS_RE = re.compile(r"^Prior Research Status:\s*(.+?)\s*$", flags=re.MU
 RISK_RE = re.compile(r"^Risk:\s*(.+?)\s*$", flags=re.MULTILINE)
 PRIOR_RESEARCH_STATUSES = {"Present", "Missing", "Retrospective"}
 RISK_LEVELS = {"Low", "Medium", "High"}
+HYPOTHESIS_VERDICTS = {"Supported", "Failed", "Inconclusive", "Superseded"}
 IMPLEMENTATION_PLAN_LABELS = ["TODO", "Risks", "Rollback/undo"]
 VALIDATION_PLAN_LABELS = [
     "Before-change evidence",
@@ -252,6 +253,22 @@ def hypothesis_ledger_errors(rows: list[str]) -> list[str]:
     return errors
 
 
+def hypothesis_ledger_verdict_errors(rows: list[str]) -> list[str]:
+    errors: list[str] = []
+    for index, row in enumerate(rows, start=1):
+        cells = table_cells(row)
+        if len(cells) < 5:
+            continue
+        verdict = cells[4]
+        if verdict not in HYPOTHESIS_VERDICTS:
+            errors.append(
+                f"hypothesis ledger row {index} has invalid after verdict: "
+                f"{verdict or '<empty>'}; expected one of: "
+                + ", ".join(sorted(HYPOTHESIS_VERDICTS))
+            )
+    return errors
+
+
 def prior_research_ledger_errors(rows: list[str]) -> list[str]:
     errors: list[str] = []
     required = [
@@ -370,6 +387,7 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         errors.extend(validation_section_errors(validation))
         if not VERDICT_BULLET_RE.search(validation):
             errors.append("after phase incomplete: no hypothesis verdict recorded")
+        errors.extend(hypothesis_ledger_verdict_errors(rows))
         if missing_checked_labels(validation, VALIDATION_CHECKBOXES):
             errors.append("after phase incomplete: validation evidence checkbox is not checked")
         execution_records = section(text, "Execution Records")

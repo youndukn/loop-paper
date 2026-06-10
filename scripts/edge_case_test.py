@@ -102,6 +102,17 @@ def normalize_agent_review_fields(text: str) -> str:
     )
 
 
+def resolve_hypothesis_ledger_verdicts(text: str) -> str:
+    return re.sub(r"(?m)^(\| H\d+ \|.*\| )Open( \|)$", r"\1Supported\2", text)
+
+
+RECORDED_VERDICT_INSTRUCTION = (
+    "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n"
+    "  Superseded in both the Hypothesis Ledger Verdict column and this block,\n"
+    "  with the evidence reason."
+)
+
+
 def make_before_ready_with_uppercase_checks(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
@@ -325,6 +336,7 @@ def make_after_ready_except_validation_evidence(path: Path) -> None:
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = normalize_agent_review_fields(text)
+    text = resolve_hypothesis_ledger_verdicts(text)
     text = mark_checkboxes(
         text,
         [
@@ -341,10 +353,14 @@ def make_after_ready_except_validation_evidence(path: Path) -> None:
             "Impact score is based on evidence, not agent guesswork",
         ],
     )
-    text = text.replace(
-        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
-        "- Supported: edge-case verdict recorded with evidence pending.",
-    )
+    text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded with evidence pending.")
+    path.write_text(text, encoding="utf-8")
+
+
+def make_after_ready(path: Path) -> None:
+    make_after_ready_except_validation_evidence(path)
+    text = path.read_text(encoding="utf-8")
+    text = mark_checkboxes(text, ["AI validation evidence recorded"])
     path.write_text(text, encoding="utf-8")
 
 
@@ -354,6 +370,7 @@ def make_after_ready_with_unrelated_agent_checks(path: Path) -> None:
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = normalize_agent_review_fields(text)
+    text = resolve_hypothesis_ledger_verdicts(text)
     text = mark_checkboxes(
         text,
         [
@@ -369,10 +386,7 @@ def make_after_ready_with_unrelated_agent_checks(path: Path) -> None:
             "Impact score is based on evidence, not agent guesswork",
         ],
     )
-    text = text.replace(
-        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
-        "- Supported: edge-case verdict recorded.",
-    )
+    text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = text.replace(
         "- [ ] Agent confirmed evidence backs the recorded verdict\n\n## Impact Score",
         "- [ ] Agent confirmed evidence backs the recorded verdict\n"
@@ -390,6 +404,7 @@ def make_after_ready_with_instruction_verdict(path: Path) -> None:
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = normalize_agent_review_fields(text)
+    text = resolve_hypothesis_ledger_verdicts(text)
     text = mark_checkboxes(
         text,
         [
@@ -416,6 +431,7 @@ def make_after_ready_with_empty_validation_after(path: Path) -> None:
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = normalize_agent_review_fields(text)
+    text = resolve_hypothesis_ledger_verdicts(text)
     text = mark_checkboxes(
         text,
         [
@@ -433,10 +449,7 @@ def make_after_ready_with_empty_validation_after(path: Path) -> None:
             "Impact score is based on evidence, not agent guesswork",
         ],
     )
-    text = text.replace(
-        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
-        "- Supported: edge-case verdict recorded.",
-    )
+    text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = re.sub(
         r"(?ms)^After:\n\n- .+?\n\nVerdict:",
         "After:\n\nVerdict:",
@@ -452,6 +465,7 @@ def make_after_ready_with_missing_agent_reviewer(path: Path) -> None:
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = normalize_agent_review_fields(text)
+    text = resolve_hypothesis_ledger_verdicts(text)
     text = mark_checkboxes(
         text,
         [
@@ -469,10 +483,7 @@ def make_after_ready_with_missing_agent_reviewer(path: Path) -> None:
             "Impact score is based on evidence, not agent guesswork",
         ],
     )
-    text = text.replace(
-        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
-        "- Supported: edge-case verdict recorded.",
-    )
+    text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = text.replace("Agent reviewer: edge-test", "Agent reviewer:", 1)
     path.write_text(text, encoding="utf-8")
 
@@ -483,6 +494,7 @@ def make_after_ready_with_invalid_agent_decision(path: Path) -> None:
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = normalize_agent_review_fields(text)
+    text = resolve_hypothesis_ledger_verdicts(text)
     text = mark_checkboxes(
         text,
         [
@@ -500,10 +512,7 @@ def make_after_ready_with_invalid_agent_decision(path: Path) -> None:
             "Impact score is based on evidence, not agent guesswork",
         ],
     )
-    text = text.replace(
-        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
-        "- Supported: edge-case verdict recorded.",
-    )
+    text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = text.replace("Decision: AI Validated", "Decision: Agent Reviewed", 1)
     path.write_text(text, encoding="utf-8")
 
@@ -514,6 +523,7 @@ def make_after_ready_with_duplicate_agent_decision(path: Path) -> None:
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = normalize_agent_review_fields(text)
+    text = resolve_hypothesis_ledger_verdicts(text)
     text = mark_checkboxes(
         text,
         [
@@ -531,10 +541,7 @@ def make_after_ready_with_duplicate_agent_decision(path: Path) -> None:
             "Impact score is based on evidence, not agent guesswork",
         ],
     )
-    text = text.replace(
-        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
-        "- Supported: edge-case verdict recorded.",
-    )
+    text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = text.replace("Decision: AI Validated", "Decision: AI Validated\nDecision: Accepted", 1)
     path.write_text(text, encoding="utf-8")
 
@@ -545,6 +552,7 @@ def make_after_ready_with_empty_impact_basis(path: Path) -> None:
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = normalize_agent_review_fields(text)
+    text = resolve_hypothesis_ledger_verdicts(text)
     text = mark_checkboxes(
         text,
         [
@@ -562,10 +570,7 @@ def make_after_ready_with_empty_impact_basis(path: Path) -> None:
             "Impact score is based on evidence, not agent guesswork",
         ],
     )
-    text = text.replace(
-        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
-        "- Supported: edge-case verdict recorded.",
-    )
+    text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = re.sub(
         r"^- Measured outcome: .+$",
         "- Measured outcome:",
@@ -582,6 +587,7 @@ def make_after_ready_with_duplicate_impact_fields(path: Path) -> None:
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = normalize_agent_review_fields(text)
+    text = resolve_hypothesis_ledger_verdicts(text)
     text = mark_checkboxes(
         text,
         [
@@ -599,10 +605,7 @@ def make_after_ready_with_duplicate_impact_fields(path: Path) -> None:
             "Impact score is based on evidence, not agent guesswork",
         ],
     )
-    text = text.replace(
-        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
-        "- Supported: edge-case verdict recorded.",
-    )
+    text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = text.replace("Impact score: TBD", "Impact score: TBD\nImpact score: 10", 1)
     text = text.replace(
         "- Validation strength: Recorded: TBD until validation runs",
@@ -618,6 +621,7 @@ def make_after_ready_with_invalid_impact_score(path: Path) -> None:
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = normalize_agent_review_fields(text)
+    text = resolve_hypothesis_ledger_verdicts(text)
     text = mark_checkboxes(
         text,
         [
@@ -635,10 +639,7 @@ def make_after_ready_with_invalid_impact_score(path: Path) -> None:
             "Impact score is based on evidence, not agent guesswork",
         ],
     )
-    text = text.replace(
-        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
-        "- Supported: edge-case verdict recorded.",
-    )
+    text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = text.replace("Impact score: TBD", "Impact score: significant", 1)
     path.write_text(text, encoding="utf-8")
 
@@ -649,6 +650,7 @@ def make_after_ready_with_empty_run_records(path: Path) -> None:
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
     text = normalize_agent_review_fields(text)
+    text = resolve_hypothesis_ledger_verdicts(text)
     text = mark_checkboxes(
         text,
         [
@@ -666,10 +668,7 @@ def make_after_ready_with_empty_run_records(path: Path) -> None:
             "Impact score is based on evidence, not agent guesswork",
         ],
     )
-    text = text.replace(
-        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
-        "- Supported: edge-case verdict recorded.",
-    )
+    text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = re.sub(
         r"(?ms)^Run records:\n\n- .+?\n\nFix records:",
         "Run records:\n\nFix records:",
@@ -2564,6 +2563,27 @@ def main() -> int:
         run_fail(
             [sys.executable, script("transition_paper.py"), str(empty_validation_after_gate), "AI Validated"],
             "validation After block has no concrete evidence",
+        )
+        open_hypothesis_verdict_gate = create_edge_paper(root, "Open Hypothesis Verdict Edge")
+        make_after_ready(open_hypothesis_verdict_gate)
+        text = open_hypothesis_verdict_gate.read_text(encoding="utf-8")
+        text = re.sub(r"(?m)^(\| H\d+ \|.*\| )Supported( \|)$", r"\1Open\2", text, count=1)
+        open_hypothesis_verdict_gate.write_text(text, encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(open_hypothesis_verdict_gate),
+                "--phase",
+                "after",
+            ],
+            "hypothesis ledger row 1 has invalid after verdict: Open",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(open_hypothesis_verdict_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(open_hypothesis_verdict_gate), "AI Validated"],
+            "hypothesis ledger row 1 has invalid after verdict: Open",
         )
         missing_agent_reviewer_gate = create_edge_paper(root, "Missing Agent Reviewer Edge")
         make_after_ready_with_missing_agent_reviewer(missing_agent_reviewer_gate)

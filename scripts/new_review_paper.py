@@ -38,6 +38,12 @@ CROSS_QUESTIONS: list[tuple[str, str, list[str]]] = [
     ("coherence", "Coherence across targets", ["Coherent", "Drift", "Contradictory", "Mixed"]),
     ("direction", "Next-paper direction", ["Continue same line", "New angle", "Pause", "Backtrack"]),
 ]
+COHERENCE_HYPOTHESIS_VERDICTS = {
+    "Coherent": "Supported",
+    "Drift": "Inconclusive",
+    "Mixed": "Inconclusive",
+    "Contradictory": "Failed",
+}
 
 
 def slugify(value: str) -> str:
@@ -304,6 +310,7 @@ def render_review_paper(
         )
     coherence = answers["coherence"]
     direction = answers["direction"]
+    hypothesis_verdict = COHERENCE_HYPOTHESIS_VERDICTS[coherence]
     per_target_block = "\n".join(per_target_sections).rstrip()
     return f"""---
 paper_id: {paper_id}
@@ -336,7 +343,7 @@ the review.
 
 | ID | Claim | Baseline Evidence | Validation Method | Verdict |
 | --- | --- | --- | --- | --- |
-| H1 | A structured review of {target_summary} produces a coherent next-step recommendation | Per-target dimensions enumerated below | Multiple-choice walk over each dimension | {coherence} |
+| H1 | A structured review of {target_summary} produces a coherent next-step recommendation | Per-target dimensions enumerated below | Multiple-choice walk over each dimension | {hypothesis_verdict} |
 
 - [x] Hypothesis is specific
 - [x] Hypothesis can be validated or rejected

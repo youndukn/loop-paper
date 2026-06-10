@@ -67,7 +67,7 @@ def complete_closed_loop_paper(path: Path, *, title: str) -> None:
         "[ ] BEFORE_REQUIRED: test/verifier/check to run": "[x] Run deterministic smoke verifier",
         "BEFORE_REQUIRED: exact baseline output or inspected evidence": "Baseline output captured",
         "AFTER_REQUIRED: exact post-change output or inspected evidence": "After output captured",
-        "AFTER_REQUIRED: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.": (
+        "AFTER_REQUIRED: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded in both the Hypothesis Ledger Verdict column and this block,\n  with the evidence reason.": (
             "Supported: deterministic smoke verifier completed."
         ),
         "[ ] AI validation evidence recorded": "[x] AI validation evidence recorded",
@@ -93,6 +93,7 @@ def complete_closed_loop_paper(path: Path, *, title: str) -> None:
         r".paper-stack/fixes/FIX-2026-06-10-\1-smoke.md",
         text,
     )
+    text = re.sub(r"(?m)^(\| H\d+ \|.*\| )Open( \|)$", r"\1Supported\2", text)
     text = text.replace("[ ] Hypothesis is specific", "[x] Hypothesis is specific")
     text = text.replace("[ ] Hypothesis can be validated or rejected", "[x] Hypothesis can be validated or rejected")
     text = text.replace("[ ] Baseline evidence is recorded before implementation", "[x] Baseline evidence is recorded before implementation")

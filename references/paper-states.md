@@ -54,6 +54,8 @@ Agent-actionable checks passed and evidence is recorded.
 Exit criteria:
 
 - Validation section contains command output summaries, file links, screenshots, metrics, or inspection notes.
+- Every Hypothesis Ledger row has a final verdict: `Supported`, `Failed`,
+  `Inconclusive`, or `Superseded`.
 - `check_closed_loop_paper.py --phase after` passes before advancing to this
   state or `Accepted`.
 

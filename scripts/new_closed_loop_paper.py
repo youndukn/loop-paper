@@ -208,7 +208,8 @@ After:
 Verdict:
 
 - AFTER_REQUIRED: mark each hypothesis Supported, Failed, Inconclusive, or
-  Superseded, with the evidence reason.
+  Superseded in both the Hypothesis Ledger Verdict column and this block,
+  with the evidence reason.
 
 AI validation evidence:
 
