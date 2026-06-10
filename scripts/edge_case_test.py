@@ -278,6 +278,15 @@ def main() -> int:
             ],
             "--slug must contain only ASCII letters, numbers, and single hyphens",
         )
+        missing_paper = root / "papers" / "PAPER-9999-missing.md"
+        for command in [
+            [sys.executable, script("check_paper.py"), str(missing_paper)],
+            [sys.executable, script("check_closed_loop_paper.py"), str(missing_paper), "--phase", "before"],
+            [sys.executable, script("transition_paper.py"), str(missing_paper), "Research Ready"],
+            [sys.executable, script("agent_review.py"), str(missing_paper)],
+            [sys.executable, script("update_paper_metadata.py"), str(missing_paper), "--check"],
+        ]:
+            run_fail(command, f"Missing paper file: {missing_paper}")
 
         run_fail(
             [

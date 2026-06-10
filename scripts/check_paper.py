@@ -17,6 +17,7 @@ from paperstack_common import (
     parse_frontmatter,
     paper_paths,
     relation_key,
+    require_paper_file,
     split_sections,
 )
 
@@ -30,6 +31,7 @@ def paper_id_from_filename(path: Path) -> str | None:
 
 
 def check_file(path: Path) -> dict:
+    require_paper_file(path)
     text = path.read_text(encoding="utf-8")
     sections = split_sections(text)
     metadata, _ = parse_frontmatter(text)

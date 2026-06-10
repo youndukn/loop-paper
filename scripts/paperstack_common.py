@@ -57,6 +57,13 @@ def paper_paths(root: Path) -> list[Path]:
     return sorted((root / "papers").glob("PAPER-*.md"))
 
 
+def require_paper_file(path: Path) -> None:
+    if not path.exists():
+        raise SystemExit(f"Missing paper file: {path}")
+    if not path.is_file():
+        raise SystemExit(f"Expected paper file, got directory: {path}")
+
+
 def find_ids(text: str) -> list[str]:
     return sorted(set(re.findall(r"PAPER-\d{4}", text)))
 
@@ -123,6 +130,7 @@ def paper_id_from_path(path: Path) -> str:
 
 
 def load_paper(path: Path) -> dict:
+    require_paper_file(path)
     text = path.read_text(encoding="utf-8")
     metadata, body = parse_frontmatter(text)
     sections = split_sections(text)

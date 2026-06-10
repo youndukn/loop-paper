@@ -7,7 +7,7 @@ import argparse
 import re
 from pathlib import Path
 
-from paperstack_common import REQUIRED_SECTIONS, checked_count, split_sections
+from paperstack_common import REQUIRED_SECTIONS, checked_count, require_paper_file, split_sections
 
 
 PLACEHOLDER_RE = re.compile(r"\b(BEFORE_REQUIRED|AFTER_REQUIRED)\b")
@@ -32,6 +32,7 @@ def table_data_rows(section_text: str) -> list[str]:
 
 
 def validate_paper(path: Path, phase: str) -> list[str]:
+    require_paper_file(path)
     text = path.read_text(encoding="utf-8")
     errors: list[str] = []
     if "closed_loop_schema: paper_closed_loop.v1" not in text:
