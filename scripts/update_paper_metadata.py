@@ -7,6 +7,7 @@ import argparse
 import re
 from pathlib import Path
 
+from check_paper import require_valid_file
 from paperstack_common import load_paper, paper_paths, replace_frontmatter, today
 
 
@@ -16,6 +17,7 @@ def title_from_heading(text: str, fallback: str) -> str:
 
 
 def sync_file(path: Path, write: bool) -> dict:
+    require_valid_file(path)
     paper = load_paper(path)
     original = dict(paper["metadata"])
     metadata = dict(original)

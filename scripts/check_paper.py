@@ -76,6 +76,20 @@ def check_file(path: Path) -> dict:
     }
 
 
+def result_details(result: dict) -> list[str]:
+    details: list[str] = []
+    for key in ("missing_sections", "empty_sections", "warnings"):
+        details.extend(result[key])
+    return details
+
+
+def require_valid_file(path: Path) -> dict:
+    result = check_file(path)
+    if not result["ok"]:
+        raise SystemExit("Paper structure check failed: " + "; ".join(result_details(result)))
+    return result
+
+
 def check_paths(paths: list[Path], *, validate_relationships: bool = False) -> list[dict]:
     results = [check_file(path) for path in paths]
     if not validate_relationships:

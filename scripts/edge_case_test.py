@@ -712,6 +712,14 @@ def main() -> int:
             "paper_id PAPER-9999 does not match filename PAPER-0001",
         )
         run_fail(
+            [sys.executable, script("agent_review.py"), str(mismatch)],
+            "paper_id PAPER-9999 does not match filename PAPER-0001",
+        )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(mismatch)],
+            "paper_id PAPER-9999 does not match filename PAPER-0001",
+        )
+        run_fail(
             [
                 sys.executable,
                 script("new_review_paper.py"),

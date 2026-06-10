@@ -7,6 +7,7 @@ import argparse
 import re
 from pathlib import Path
 
+from check_paper import require_valid_file
 from paperstack_common import load_paper, today
 
 
@@ -58,6 +59,7 @@ def main() -> int:
     args = parser.parse_args()
 
     path = Path(args.paper)
+    require_valid_file(path)
     paper = load_paper(path)
     updated = replace_section(paper["text"], args.reviewer, args.decision, args.notes)
     path.write_text(updated, encoding="utf-8")
