@@ -216,9 +216,17 @@ def collect_cli(questions: list[dict]) -> dict:
 
 
 def load_answers(path: Path, questions: list[dict]) -> dict:
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise SystemExit(f"answers JSON is invalid: {error.msg}") from error
     if isinstance(raw, list):
-        raw = {item["id"]: item["answer"] for item in raw}
+        normalized = {}
+        for item in raw:
+            if not isinstance(item, dict) or "id" not in item or "answer" not in item:
+                raise SystemExit("answers list items must be objects with id and answer")
+            normalized[item["id"]] = item["answer"]
+        raw = normalized
     if not isinstance(raw, dict):
         raise SystemExit("answers JSON must be an object or list of {id, answer}")
     answers: dict[str, str] = {}

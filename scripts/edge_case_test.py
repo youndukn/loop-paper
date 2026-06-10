@@ -359,6 +359,44 @@ def main() -> int:
 
         answers = root / "inbox" / "bad-answers.json"
         answers.parent.mkdir(parents=True, exist_ok=True)
+        invalid_json = root / "inbox" / "invalid-json-answers.json"
+        invalid_json.write_text("{", encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Invalid Json Review",
+                "--target",
+                "PAPER-0001",
+                "--answers",
+                str(invalid_json),
+                "--date",
+                "2026-06-10",
+            ],
+            "answers JSON is invalid",
+        )
+        malformed_list = root / "inbox" / "malformed-list-answers.json"
+        malformed_list.write_text(json.dumps([{"id": "verdict.PAPER-0001"}]), encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Malformed List Review",
+                "--target",
+                "PAPER-0001",
+                "--answers",
+                str(malformed_list),
+                "--date",
+                "2026-06-10",
+            ],
+            "answers list items must be objects with id and answer",
+        )
         write_answers(answers, evidence="Unsupported option")
         before_count = len(list((root / "papers").glob("PAPER-*.md")))
         run_fail(
