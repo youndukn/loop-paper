@@ -44,6 +44,8 @@ def check_file(path: Path) -> dict:
         warnings.append(f"Invalid status: {status}")
     filename_id = paper_id_from_filename(path)
     declared_id = metadata.get("paper_id")
+    if not filename_id:
+        warnings.append("Filename must contain canonical PAPER-NNNN ID")
     if not declared_id:
         warnings.append("Missing paper_id frontmatter")
     elif not PAPER_ID_RE.fullmatch(declared_id):

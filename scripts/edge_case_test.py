@@ -434,6 +434,30 @@ def main() -> int:
             [sys.executable, script("combine_papers.py"), str(identity_root), "--last", "1"],
             "Cannot combine invalid papers",
         )
+        filename_root = project / "filename-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(filename_root),
+                "--project-name",
+                "Loop Paper Filename Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        bad_filename = create_edge_paper(filename_root, "Bad Filename Edge")
+        renamed_bad_filename = bad_filename.with_name("PAPER-bad-filename.md")
+        bad_filename.rename(renamed_bad_filename)
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(renamed_bad_filename)],
+            "Filename must contain canonical PAPER-NNNN ID",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(filename_root), "--strict"],
+            "Filename must contain canonical PAPER-NNNN ID",
+        )
         run_fail(
             [
                 sys.executable,

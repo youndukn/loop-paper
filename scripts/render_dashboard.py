@@ -22,7 +22,8 @@ def summarize_paper(path: Path, root: Path) -> dict:
     text = path.read_text(encoding="utf-8")
     meta, _ = parse_frontmatter(text)
     sections = split_sections(text)
-    paper_id = meta.get("paper_id") or re.search(r"PAPER-\d{4}", path.name).group(0)
+    filename_match = re.search(r"PAPER-\d{4}", path.name)
+    paper_id = meta.get("paper_id") or (filename_match.group(0) if filename_match else path.stem)
     missing = [section for section in REQUIRED_SECTIONS if section not in sections]
     unchecked = len(re.findall(r"- \[ \]", text))
     checked = len(re.findall(r"- \[x\]", text, flags=re.IGNORECASE))
