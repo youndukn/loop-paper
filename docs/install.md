@@ -63,6 +63,5 @@ git clone https://github.com/youndukn/loop-paper.git ~/.pimo/skills/loop-paper
 
 ```bash
 python3 scripts/validate_skill_repo.py
-python3 scripts/init_loop_paper.py --root /tmp/loop-paper-smoke/.paper-stack --seed-paper
-python3 scripts/pipeline.py /tmp/loop-paper-smoke/.paper-stack --strict
+python3 scripts/smoke_test.py
 ```

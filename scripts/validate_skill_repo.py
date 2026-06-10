@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import py_compile
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
 EXPECTED_SKILL_NAME = "loop-paper"
+SKILL_RESOURCE_RE = re.compile(r"^- `([^`]+)`: ", flags=re.MULTILINE)
 
 
 def fail(message: str) -> None:
@@ -44,6 +46,22 @@ def validate_skill_md() -> None:
         fail("SKILL.md description is required")
 
 
+def validate_skill_resources() -> None:
+    text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    match = re.search(r"^## Resources\n(?P<body>.*?)(?:\n## |\Z)", text, flags=re.MULTILINE | re.DOTALL)
+    if not match:
+        fail("SKILL.md missing Resources section")
+
+    resources = SKILL_RESOURCE_RE.findall(match.group("body"))
+    if not resources:
+        fail("SKILL.md Resources section does not list any bundled resources")
+
+    for resource in resources:
+        path = ROOT / resource
+        if not path.exists():
+            fail(f"SKILL.md references missing resource: {resource}")
+
+
 def validate_openai_yaml() -> None:
     path = ROOT / "agents" / "openai.yaml"
     if not path.exists():
@@ -70,6 +88,89 @@ def validate_directories() -> None:
         fail("nested SKILL.md files are not allowed: " + ", ".join(str(path) for path in nested))
 
 
+def tracked_files() -> list[Path]:
+    completed = subprocess.run(
+        ["git", "ls-files"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode == 0:
+        return [ROOT / line for line in completed.stdout.splitlines() if line]
+
+    ignored_parts = {".git", "__pycache__", ".paper-stack"}
+    return sorted(
+        path
+        for path in ROOT.rglob("*")
+        if path.is_file() and not any(part in ignored_parts for part in path.relative_to(ROOT).parts)
+    )
+
+
+def validate_retired_review_gate_absent() -> None:
+    retired_paths = [
+        "scripts/" + "human" + "_review.py",
+        "scripts/" + "set_review" + "_password.py",
+        "scripts/" + "validate_human" + "_gate.py",
+        "scripts/" + "new_paper.py",
+        "assets/" + "paper-template.md",
+    ]
+    for retired_path in retired_paths:
+        if (ROOT / retired_path).exists():
+            fail(f"retired workflow file is present: {retired_path}")
+
+    retired_terms = [
+        "review" + "_required",
+        "Human Review" + " Required",
+        "human" + "_review",
+        "set_review" + "_password",
+        "validate_human" + "_gate",
+        "review" + "_secret",
+        "password-" + "verified",
+        "mark_" + "important",
+        "--" + "important",
+        "## " + "Human Review",
+        "has_explicit_" + "human_acceptance",
+        "verify_human_" + "review_password",
+        "PaperStack" + "ConfigError",
+        "DEFAULT_" + "REVIEW_REQUIRED",
+        "REVIEW_REQUIRED" + "_VALUES",
+        "ensure_" + "review" + "_secret",
+    ]
+    for path in tracked_files():
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        relative = path.relative_to(ROOT)
+        for term in retired_terms:
+            if term in text:
+                fail(f"retired review-gate term {term!r} found in {relative}")
+
+
+def validate_ci_runs_core_checks() -> None:
+    path = ROOT / ".github" / "workflows" / "ci.yml"
+    if not path.exists():
+        fail("missing .github/workflows/ci.yml")
+
+    text = path.read_text(encoding="utf-8")
+    required = [
+        "scripts/validate_skill_repo.py",
+        "scripts/smoke_test.py",
+        "scripts/install_skill.py --agent all",
+    ]
+    for item in required:
+        if item not in text:
+            fail(f"CI does not run required check: {item}")
+
+
+def validate_docs_reference_smoke_test() -> None:
+    path = ROOT / "docs" / "install.md"
+    text = path.read_text(encoding="utf-8")
+    if "scripts/smoke_test.py" not in text:
+        fail("docs/install.md must document scripts/smoke_test.py validation")
+
+
 def validate_python_scripts() -> None:
     for path in sorted((ROOT / "scripts").glob("*.py")):
         try:
@@ -80,8 +181,12 @@ def validate_python_scripts() -> None:
 
 def main() -> int:
     validate_skill_md()
+    validate_skill_resources()
     validate_openai_yaml()
     validate_directories()
+    validate_retired_review_gate_absent()
+    validate_ci_runs_core_checks()
+    validate_docs_reference_smoke_test()
     validate_python_scripts()
     print(f"OK {EXPECTED_SKILL_NAME} skill repository")
     return 0
