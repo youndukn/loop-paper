@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from check_closed_loop_paper import validate_paper
+from check_paper import check_file
 from paperstack_common import (
     ALLOWED_TRANSITIONS,
     REQUIRED_SECTIONS,
@@ -27,6 +28,12 @@ AFTER_PHASE_TARGETS = {"AI Validated", "Accepted"}
 def gate_errors(paper: dict, target: str) -> list[str]:
     sections = paper["sections"]
     errors = []
+    structural = check_file(Path(paper["path"]))
+    if not structural["ok"]:
+        details = []
+        for key in ("missing_sections", "empty_sections", "warnings"):
+            details.extend(structural[key])
+        errors.append("Paper structure check failed: " + "; ".join(details))
     missing = [section for section in REQUIRED_SECTIONS if section not in sections or not sections[section].strip()]
     if target not in {"Draft", "Rejected", "Superseded"} and missing:
         errors.append("Missing or empty required sections: " + ", ".join(missing))

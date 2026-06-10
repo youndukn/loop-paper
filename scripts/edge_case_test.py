@@ -449,6 +449,10 @@ def main() -> int:
             [sys.executable, script("combine_papers.py"), str(identity_root), "--last", "1"],
             "Cannot combine invalid papers",
         )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(mismatch), "Research Ready"],
+            "paper_id PAPER-9999 does not match filename PAPER-0001",
+        )
         filename_root = project / "filename-stack"
         run_ok(
             [
@@ -471,6 +475,10 @@ def main() -> int:
         )
         run_fail(
             [sys.executable, script("pipeline.py"), str(filename_root), "--strict"],
+            "Filename must contain canonical PAPER-NNNN ID",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(renamed_bad_filename), "Research Ready"],
             "Filename must contain canonical PAPER-NNNN ID",
         )
         run_fail(
