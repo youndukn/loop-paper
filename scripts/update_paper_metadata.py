@@ -26,6 +26,7 @@ REPAIRABLE_WARNINGS = {
     "Missing updated frontmatter",
     "Missing impact_score frontmatter",
     "Missing paper_kind frontmatter",
+    "Missing closed_loop_schema frontmatter",
 }
 REVIEW_SECTION_NAMES = {"Per-Target Verdicts", "Cross-Paper Findings"}
 
@@ -119,6 +120,7 @@ def sync_file(path: Path, write: bool) -> dict:
     metadata.setdefault("owners", "[]")
     metadata.setdefault("reviewers", "[]")
     metadata.setdefault("impact_score", "TBD")
+    metadata.setdefault("closed_loop_schema", "paper_closed_loop.v1")
     metadata["paper_kind"] = infer_paper_kind(metadata, paper["sections"])
     if metadata["paper_kind"] == "review" and not metadata.get("review_targets"):
         metadata["review_targets"] = infer_review_targets(paper["text"])

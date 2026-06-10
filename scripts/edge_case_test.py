@@ -3386,10 +3386,6 @@ def main() -> int:
             "Missing closed_loop_schema frontmatter",
         )
         run_fail(
-            [sys.executable, script("pipeline.py"), str(schema_root), "--strict"],
-            "Missing closed_loop_schema frontmatter",
-        )
-        run_fail(
             [sys.executable, script("combine_papers.py"), str(schema_root), "--last", "1"],
             "Cannot combine invalid papers",
         )
@@ -3397,6 +3393,16 @@ def main() -> int:
             [sys.executable, script("transition_paper.py"), str(missing_schema), "Research Ready"],
             "Missing closed_loop_schema frontmatter",
         )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(missing_schema), "--check"],
+            "CHANGED PAPER-0001",
+        )
+        run_ok([sys.executable, script("update_paper_metadata.py"), str(missing_schema)])
+        run_ok([sys.executable, script("check_paper.py"), str(missing_schema)])
+        if "closed_loop_schema: paper_closed_loop.v1" not in missing_schema.read_text(encoding="utf-8"):
+            raise SystemExit("Metadata sync did not repair missing closed_loop_schema")
+        run_ok([sys.executable, script("pipeline.py"), str(schema_root), "--strict"])
+        run_ok([sys.executable, script("combine_papers.py"), str(schema_root), "--last", "1"])
         invalid_schema_root = project / "invalid-schema-stack"
         run_ok(
             [
