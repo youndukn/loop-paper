@@ -288,6 +288,11 @@ def main() -> int:
             [sys.executable, script("check_closed_loop_paper.py"), str(prior_gate), "--phase", "before"],
             "prior research checkboxes are not all checked",
         )
+        run_ok([sys.executable, script("transition_paper.py"), str(prior_gate), "Research Ready"])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(prior_gate), "Plan Ready"],
+            "prior research checkboxes are not all checked",
+        )
         validation_plan_gate = create_edge_paper(root, "Validation Plan Gate Edge")
         make_before_ready_except_validation_plan(validation_plan_gate)
         run_fail(
@@ -298,6 +303,12 @@ def main() -> int:
         make_after_ready_except_validation_evidence(validation_evidence_gate)
         run_fail(
             [sys.executable, script("check_closed_loop_paper.py"), str(validation_evidence_gate), "--phase", "after"],
+            "validation evidence checkbox is not checked",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(validation_evidence_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(validation_evidence_gate), "AI Validated"],
             "validation evidence checkbox is not checked",
         )
         run_fail(

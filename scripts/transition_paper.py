@@ -7,6 +7,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from check_closed_loop_paper import validate_paper
 from paperstack_common import (
     ALLOWED_TRANSITIONS,
     REQUIRED_SECTIONS,
@@ -17,6 +18,10 @@ from paperstack_common import (
     today,
     validation_not_run,
 )
+
+
+BEFORE_PHASE_TARGETS = {"Plan Ready", "Implementing", "Implemented"}
+AFTER_PHASE_TARGETS = {"AI Validated", "Accepted"}
 
 
 def gate_errors(paper: dict, target: str) -> list[str]:
@@ -42,6 +47,10 @@ def gate_errors(paper: dict, target: str) -> list[str]:
             errors.append("Validation still says Not run")
         if not section_has_checked(sections.get("Validation", "")):
             errors.append("Validation has no checked evidence gate")
+    if target in BEFORE_PHASE_TARGETS:
+        errors.extend(validate_paper(Path(paper["path"]), "before"))
+    if target in AFTER_PHASE_TARGETS:
+        errors.extend(validate_paper(Path(paper["path"]), "after"))
     return errors
 
 
