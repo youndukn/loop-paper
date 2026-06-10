@@ -7,8 +7,15 @@ import argparse
 import re
 from pathlib import Path
 
-from check_paper import check_file, result_details
-from paperstack_common import load_paper, paper_paths, replace_frontmatter, today
+from check_paper import check_file, check_paths, result_details
+from paperstack_common import (
+    load_paper,
+    paper_paths,
+    paper_root_from_path,
+    replace_frontmatter,
+    require_paper_file,
+    today,
+)
 
 
 REPAIRABLE_WARNINGS = {
@@ -32,7 +39,15 @@ def is_repairable_warning(message: str) -> bool:
 
 
 def require_syncable_file(path: Path) -> None:
-    result = check_file(path)
+    require_paper_file(path)
+    if path.parent.name == "papers":
+        root = paper_root_from_path(path)
+        results = check_paths(paper_paths(root), validate_relationships=True)
+        result = next((item for item in results if Path(item["path"]) == path), None)
+        if result is None:
+            raise SystemExit(f"Paper is not under a recognized papers directory: {path}")
+    else:
+        result = check_file(path)
     blocking = [
         detail
         for detail in result_details(result)

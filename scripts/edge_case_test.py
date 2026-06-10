@@ -2074,6 +2074,10 @@ def main() -> int:
             "Dangling relationship target: References -> PAPER-9999",
         )
         run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(dangling)],
+            "Dangling relationship target: References -> PAPER-9999",
+        )
+        run_fail(
             [
                 sys.executable,
                 script("new_review_paper.py"),
