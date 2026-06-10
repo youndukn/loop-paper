@@ -1351,6 +1351,39 @@ def main() -> int:
             [sys.executable, script("combine_papers.py"), str(status_root), "--last", "1"],
             "Cannot combine invalid papers",
         )
+        lowercase_not_run_root = project / "lowercase-not-run-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(lowercase_not_run_root),
+                "--project-name",
+                "Loop Paper Lowercase Not Run Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        lowercase_not_run = create_edge_paper(
+            lowercase_not_run_root,
+            "Lowercase Not Run Edge",
+        )
+        set_status(lowercase_not_run, "AI Validated")
+        lowercase_not_run.write_text(
+            lowercase_not_run.read_text(encoding="utf-8").replace(
+                "Record actual evidence only after execution or inspection.",
+                "not run",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        for command in [
+            [sys.executable, script("check_paper.py"), str(lowercase_not_run)],
+            [sys.executable, script("check_paper.py"), str(lowercase_not_run_root)],
+            [sys.executable, script("pipeline.py"), str(lowercase_not_run_root), "--strict"],
+            [sys.executable, script("score_impact.py"), str(lowercase_not_run_root)],
+        ]:
+            run_fail(command, "Advanced status conflicts with validation evidence marked Not run.")
         missing_status_root = project / "missing-status-stack"
         run_ok(
             [

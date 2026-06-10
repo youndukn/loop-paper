@@ -22,6 +22,7 @@ from paperstack_common import (
     paper_root_from_path,
     split_sections,
     validate_iso_date,
+    validation_not_run,
 )
 
 
@@ -188,7 +189,7 @@ def check_file(path: Path) -> dict:
     warnings = frontmatter_warnings(text) + section_warnings(text) + relationship_line_warnings(text)
 
     validation = sections.get("Validation", "")
-    if "Not run" in validation and metadata.get("status") in {"AI Validated", "Accepted"}:
+    if validation_not_run(sections) and metadata.get("status") in {"AI Validated", "Accepted"}:
         warnings.append("Advanced status conflicts with validation evidence marked Not run.")
     status = metadata.get("status", "")
     if not status:
