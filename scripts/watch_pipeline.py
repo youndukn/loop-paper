@@ -42,6 +42,9 @@ def main() -> int:
     parser.add_argument("--once", action="store_true", help="Run once and exit")
     args = parser.parse_args()
 
+    if args.interval <= 0:
+        raise SystemExit("--interval must be greater than zero.")
+
     root = Path(args.root)
     previous = None
     while True:

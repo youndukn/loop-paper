@@ -562,6 +562,10 @@ def main() -> int:
             [sys.executable, script("watch_pipeline.py"), str(root), "--once"],
             "validation evidence checkbox is not checked",
         )
+        run_fail(
+            [sys.executable, script("watch_pipeline.py"), str(root), "--interval", "0", "--once"],
+            "--interval must be greater than zero",
+        )
         status_root = project / "status-stack"
         run_ok(
             [
