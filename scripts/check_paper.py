@@ -14,6 +14,7 @@ from paperstack_common import (
     REQUIRED_SECTIONS,
     STATUSES,
     find_ids,
+    frontmatter_bounds,
     parse_frontmatter,
     paper_paths,
     paper_id_from_path,
@@ -61,13 +62,14 @@ def parse_review_targets(value: str) -> tuple[list[str], list[str]]:
 def frontmatter_warnings(text: str) -> list[str]:
     if not text.startswith("---\n"):
         return ["Missing YAML frontmatter"]
-    end = text.find("\n---", 4)
-    if end == -1:
+    bounds = frontmatter_bounds(text)
+    if bounds is None:
         return ["Unterminated YAML frontmatter"]
+    start, end = bounds
 
     warnings: list[str] = []
     seen: set[str] = set()
-    for index, line in enumerate(text[4:end].splitlines(), start=1):
+    for index, line in enumerate(text[start:end].splitlines(), start=1):
         if not line.strip():
             continue
         if ":" not in line:

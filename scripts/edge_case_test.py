@@ -1283,6 +1283,36 @@ def main() -> int:
             [sys.executable, script("transition_paper.py"), str(malformed_frontmatter), "Research Ready"],
             "Malformed frontmatter line",
         )
+        malformed_close_root = project / "malformed-frontmatter-close-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(malformed_close_root),
+                "--project-name",
+                "Loop Paper Malformed Frontmatter Close Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        malformed_close = create_edge_paper(malformed_close_root, "Malformed Frontmatter Close Edge")
+        malformed_close.write_text(
+            malformed_close.read_text(encoding="utf-8").replace("\n---\n\n# PAPER-0001", "\n---bad\n\n# PAPER-0001", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(malformed_close)],
+            "Unterminated YAML frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(malformed_close_root), "--strict"],
+            "Unterminated YAML frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(malformed_close_root), "--last", "1"],
+            "Cannot combine invalid papers",
+        )
         duplicate_frontmatter_root = project / "duplicate-frontmatter-stack"
         run_ok(
             [

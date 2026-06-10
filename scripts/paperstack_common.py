@@ -119,18 +119,32 @@ def find_ids(text: str) -> list[str]:
     return sorted(set(re.findall(r"PAPER-\d{4}", text)))
 
 
-def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
+def frontmatter_bounds(text: str) -> tuple[int, int] | None:
     if not text.startswith("---\n"):
+        return None
+    offset = 4
+    for line in text[offset:].splitlines(keepends=True):
+        line_end = offset + len(line)
+        if line.strip() == "---":
+            return 4, offset
+        offset = line_end
+    return None
+
+
+def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
+    bounds = frontmatter_bounds(text)
+    if bounds is None:
         return {}, text
-    end = text.find("\n---", 4)
-    if end == -1:
-        return {}, text
+    start, end = bounds
     metadata: dict[str, str] = {}
-    for line in text[4:end].splitlines():
+    for line in text[start:end].splitlines():
         if ":" in line:
             key, value = line.split(":", 1)
             metadata[key.strip()] = value.strip()
-    return metadata, text[end + 4 :].lstrip("\n")
+    close_end = text.find("\n", end)
+    if close_end == -1:
+        return metadata, ""
+    return metadata, text[close_end + 1 :].lstrip("\n")
 
 
 def format_frontmatter(metadata: dict[str, str]) -> str:
