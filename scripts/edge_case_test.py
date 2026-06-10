@@ -1112,6 +1112,12 @@ def main() -> int:
         )
         if "paper_kind: closed_loop" not in created.read_text(encoding="utf-8"):
             raise SystemExit("Closed-loop paper did not declare paper_kind: closed_loop")
+        standalone = project / "PAPER-0001-standalone.md"
+        standalone.write_text(created.read_text(encoding="utf-8"), encoding="utf-8")
+        run_ok([sys.executable, script("check_paper.py"), str(standalone)])
+        run_ok([sys.executable, script("transition_paper.py"), str(standalone), "Rejected"])
+        if "status: Rejected" not in standalone.read_text(encoding="utf-8"):
+            raise SystemExit("Standalone transition did not update status frontmatter")
         escaped = Path(
             run_ok(
                 [

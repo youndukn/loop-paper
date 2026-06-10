@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from check_closed_loop_paper import prior_research_errors, validate_paper
-from check_paper import check_paths, result_details
+from check_paper import check_file, check_paths, result_details
 from paperstack_common import (
     ALLOWED_TRANSITIONS,
     REQUIRED_SECTIONS,
@@ -31,6 +31,12 @@ RESEARCH_READY_TARGETS = {"Research Ready", "Plan Ready", "Implementing", "Imple
 def structural_errors(paper: dict) -> list[str]:
     errors = []
     current_path = Path(paper["path"])
+    if current_path.parent.name != "papers":
+        structural = check_file(current_path)
+        if not structural["ok"]:
+            errors.append("Paper structure check failed: " + "; ".join(result_details(structural)))
+        return errors
+
     root = paper_root_from_path(current_path)
     stack_results = check_paths(paper_paths(root), validate_relationships=True)
     structural = next(
