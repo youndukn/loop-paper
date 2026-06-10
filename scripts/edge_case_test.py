@@ -31,6 +31,18 @@ def run_ok(command: list[str]) -> subprocess.CompletedProcess[str]:
     return completed
 
 
+def run_ok_cwd(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    completed = subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False)
+    if completed.returncode != 0:
+        print("$ " + " ".join(command), file=sys.stderr)
+        if completed.stdout:
+            print(completed.stdout, file=sys.stderr, end="")
+        if completed.stderr:
+            print(completed.stderr, file=sys.stderr, end="")
+        raise SystemExit(completed.returncode)
+    return completed
+
+
 def run_fail(command: list[str], expected: str) -> None:
     completed = subprocess.run(command, text=True, capture_output=True, check=False)
     output = completed.stdout + completed.stderr
@@ -429,6 +441,29 @@ def main() -> int:
             raise SystemExit(
                 "Initialized generated_outputs mismatch: "
                 + ", ".join(sorted(actual_generated_outputs))
+            )
+        relative_name_project = project / "relative-name-project"
+        relative_name_project.mkdir()
+        run_ok_cwd(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                ".paper-stack",
+                "--date",
+                "2026-06-10",
+            ],
+            cwd=relative_name_project,
+        )
+        relative_config = json.loads(
+            (relative_name_project / ".paper-stack" / "config" / "loop-paper.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        if relative_config.get("project_name") != "Relative Name Project":
+            raise SystemExit(
+                "Relative .paper-stack default project_name mismatch: "
+                + str(relative_config.get("project_name"))
             )
         empty_strict_root = project / "empty-strict-stack"
         run_ok(

@@ -37,8 +37,12 @@ def slugify(value: str) -> str:
 
 
 def project_name_from_root(root: Path) -> str:
-    if root.name == ".paper-stack" and root.parent.name:
-        return root.parent.name.replace("-", " ").replace("_", " ").title()
+    if root.name == ".paper-stack":
+        parent = root.parent
+        if str(parent) in {"", "."}:
+            parent = root.resolve().parent
+        if parent.name:
+            return parent.name.replace("-", " ").replace("_", " ").title()
     return root.name.replace("-", " ").replace("_", " ").title()
 
 
