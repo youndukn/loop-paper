@@ -28,6 +28,11 @@ RISK_RE = re.compile(r"^Risk:\s*(.+?)\s*$", flags=re.MULTILINE)
 PRIOR_RESEARCH_STATUSES = {"Present", "Missing", "Retrospective"}
 RISK_LEVELS = {"Low", "Medium", "High"}
 IMPLEMENTATION_PLAN_LABELS = ["TODO", "Risks", "Rollback/undo"]
+VALIDATION_PLAN_LABELS = [
+    "Before-change evidence",
+    "After-change evidence to collect",
+    "AI-actionable validation",
+]
 
 
 def section(text: str, name: str) -> str:
@@ -83,6 +88,22 @@ def implementation_plan_errors(section_text: str) -> list[str]:
         lines = content_lines(body) if label == "TODO" else non_checkbox_lines(body)
         if not lines:
             errors.append(f"implementation plan {label} block has no concrete content")
+    return errors
+
+
+def validation_plan_errors(section_text: str) -> list[str]:
+    errors: list[str] = []
+    before = labeled_block(
+        section_text,
+        "Before-change evidence",
+        VALIDATION_PLAN_LABELS[1:],
+    )
+    if not non_checkbox_lines(before):
+        errors.append("validation plan Before-change evidence block has no concrete content")
+
+    actionable = labeled_block(section_text, "AI-actionable validation", [])
+    if not content_lines(actionable):
+        errors.append("validation plan AI-actionable validation block has no concrete content")
     return errors
 
 
@@ -214,6 +235,7 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         if checked_count(plan) < 3:
             errors.append("before phase incomplete: implementation plan checkboxes are not all checked")
         validation_plan = section(text, "Validation Plan")
+        errors.extend(validation_plan_errors(validation_plan))
         if checked_count(validation_plan) < 1:
             errors.append("before phase incomplete: validation plan checkboxes are not all checked")
     if phase == "after":
