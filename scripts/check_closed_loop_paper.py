@@ -7,8 +7,15 @@ import argparse
 import re
 from pathlib import Path
 
-from check_paper import check_file, result_details
-from paperstack_common import REQUIRED_SECTIONS, checked_count, require_paper_file, split_sections
+from check_paper import check_file, check_paths, result_details
+from paperstack_common import (
+    REQUIRED_SECTIONS,
+    checked_count,
+    paper_paths,
+    paper_root_from_path,
+    require_paper_file,
+    split_sections,
+)
 
 
 PLACEHOLDER_RE = re.compile(r"\b(BEFORE_REQUIRED|AFTER_REQUIRED)\b")
@@ -32,9 +39,22 @@ def table_data_rows(section_text: str) -> list[str]:
     return rows
 
 
+def structural_result(path: Path) -> dict:
+    require_paper_file(path)
+    if path.parent.name != "papers":
+        return check_file(path)
+
+    root = paper_root_from_path(path)
+    results = check_paths(paper_paths(root), validate_relationships=True)
+    for result in results:
+        if Path(result["path"]) == path:
+            return result
+    raise SystemExit(f"Paper is not under a recognized papers directory: {path}")
+
+
 def validate_paper(path: Path, phase: str) -> list[str]:
     try:
-        structural = check_file(path)
+        structural = structural_result(path)
     except SystemExit as error:
         return [str(error)]
     structural_errors = result_details(structural)

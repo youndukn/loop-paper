@@ -2027,6 +2027,7 @@ def main() -> int:
             ]
         )
         dangling = create_edge_paper(dangling_root, "Dangling Reference Edge")
+        make_before_ready_with_uppercase_checks(dangling)
         dangling.write_text(
             dangling.read_text(encoding="utf-8").replace(
                 "References: None",
@@ -2041,6 +2042,16 @@ def main() -> int:
         )
         run_fail(
             [sys.executable, script("pipeline.py"), str(dangling_root), "--strict"],
+            "Dangling relationship target: References -> PAPER-9999",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(dangling),
+                "--phase",
+                "before",
+            ],
             "Dangling relationship target: References -> PAPER-9999",
         )
         run_fail(
