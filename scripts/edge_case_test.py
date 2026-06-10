@@ -1017,6 +1017,36 @@ def main() -> int:
             [sys.executable, script("pipeline.py"), str(root), "--strict"],
             "validation evidence checkbox is not checked",
         )
+        phase_output_root = project / "phase-output-gate-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(phase_output_root),
+                "--project-name",
+                "Loop Paper Phase Output Gate",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        phase_output_gate = create_edge_paper(phase_output_root, "Phase Output Gate Edge")
+        make_after_ready_except_validation_evidence(phase_output_gate)
+        set_status(phase_output_gate, "AI Validated")
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(phase_output_root), "--strict"],
+            "SKIP generated outputs",
+        )
+        blocked_outputs = [
+            phase_output_root / "dashboard" / "references.json",
+            phase_output_root / "dashboard" / "impact-scores.json",
+            phase_output_root / "dashboard" / "index.html",
+            phase_output_root / "dashboard" / "report.md",
+            phase_output_root / "dashboard" / "pipeline-summary.json",
+        ]
+        written = [str(path) for path in blocked_outputs if path.exists()]
+        if written:
+            raise SystemExit("Failed phase gate wrote generated outputs: " + ", ".join(written))
         run_fail(
             [sys.executable, script("watch_pipeline.py"), str(root), "--once"],
             "validation evidence checkbox is not checked",

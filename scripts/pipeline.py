@@ -68,19 +68,19 @@ def main() -> int:
         print(f"FAIL no papers found in {papers_dir}", file=sys.stderr)
         return 1
 
-    pre_steps = [
+    gate_steps = [
         ("metadata_synced", [sys.executable, str(METADATA), str(root)]),
-        ("references_indexed", [sys.executable, str(REFERENCES), str(root)]),
-        ("impact_scored", [sys.executable, str(IMPACT), str(root)]),
         ("check_passed", [sys.executable, str(CHECK), str(root), "--json"]),
     ]
-    post_steps = [
+    output_steps = [
+        ("references_indexed", [sys.executable, str(REFERENCES), str(root)]),
+        ("impact_scored", [sys.executable, str(IMPACT), str(root)]),
         ("dashboard_rendered", [sys.executable, str(RENDER), str(root)]),
         ("report_exported", [sys.executable, str(REPORT), str(root)]),
     ]
 
-    results = {}
-    for name, command in pre_steps:
+    results = {name: False for name, _command in [*gate_steps, *output_steps]}
+    for name, command in gate_steps:
         completed = run(command)
         results[name] = completed.returncode == 0
         if completed.stdout:
@@ -88,20 +88,28 @@ def main() -> int:
         if completed.stderr:
             print(completed.stderr.strip(), file=sys.stderr)
 
-    closed_loop_ok, closed_loop_stdout, closed_loop_stderr = check_closed_loop_phases(root)
-    results["closed_loop_checked"] = closed_loop_ok
-    if closed_loop_stdout:
-        print(closed_loop_stdout)
-    if closed_loop_stderr:
-        print(closed_loop_stderr, file=sys.stderr)
+    if all(results[name] for name, _command in gate_steps):
+        closed_loop_ok, closed_loop_stdout, closed_loop_stderr = check_closed_loop_phases(root)
+        results["closed_loop_checked"] = closed_loop_ok
+        if closed_loop_stdout:
+            print(closed_loop_stdout)
+        if closed_loop_stderr:
+            print(closed_loop_stderr, file=sys.stderr)
+    else:
+        results["closed_loop_checked"] = False
+        print("SKIP closed_loop_checked: structural gate failed", file=sys.stderr)
 
-    for name, command in post_steps:
-        completed = run(command)
-        results[name] = completed.returncode == 0
-        if completed.stdout:
-            print(completed.stdout.strip())
-        if completed.stderr:
-            print(completed.stderr.strip(), file=sys.stderr)
+    if results["closed_loop_checked"]:
+        for name, command in output_steps:
+            completed = run(command)
+            results[name] = completed.returncode == 0
+            if completed.stdout:
+                print(completed.stdout.strip())
+            if completed.stderr:
+                print(completed.stderr.strip(), file=sys.stderr)
+    else:
+        skipped = ", ".join(name for name, _command in output_steps)
+        print(f"SKIP generated outputs: {skipped}", file=sys.stderr)
 
     summary = {
         "root": str(root),
@@ -113,7 +121,7 @@ def main() -> int:
         "impact_scores": str(root / "dashboard" / "impact-scores.json"),
     }
     summary_path = root / "dashboard" / "pipeline-summary.json"
-    if summary_path.parent.exists():
+    if all(results.values()) and summary_path.parent.exists():
         write_text_output(summary_path, json.dumps(summary, indent=2), label="pipeline summary")
 
     print(json.dumps(summary, indent=2))
