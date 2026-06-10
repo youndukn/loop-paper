@@ -86,6 +86,22 @@ def normalize_prior_research_options(text: str) -> str:
     )
 
 
+def normalize_agent_review_fields(text: str) -> str:
+    return text.replace(
+        "Agent reviewer:",
+        "Agent reviewer: edge-test",
+        1,
+    ).replace(
+        "Review date:",
+        "Review date: 2026-06-10",
+        1,
+    ).replace(
+        "Decision: Recorded: Draft/Plan Ready/Implemented/AI Validated/Rejected",
+        "Decision: AI Validated",
+        1,
+    )
+
+
 def make_before_ready_with_uppercase_checks(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
@@ -256,6 +272,7 @@ def make_after_ready_except_validation_evidence(path: Path) -> None:
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = normalize_agent_review_fields(text)
     text = mark_checkboxes(
         text,
         [
@@ -284,6 +301,7 @@ def make_after_ready_with_instruction_verdict(path: Path) -> None:
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = normalize_agent_review_fields(text)
     text = mark_checkboxes(
         text,
         [
@@ -309,6 +327,7 @@ def make_after_ready_with_empty_validation_after(path: Path) -> None:
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
     text = normalize_prior_research_options(text)
     text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = normalize_agent_review_fields(text)
     text = mark_checkboxes(
         text,
         [
@@ -336,6 +355,37 @@ def make_after_ready_with_empty_validation_after(path: Path) -> None:
         text,
         count=1,
     )
+    path.write_text(text, encoding="utf-8")
+
+
+def make_after_ready_with_missing_agent_reviewer(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = normalize_agent_review_fields(text)
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+            "AI validation evidence recorded",
+            "Agent reviewed paper structure",
+            "Agent confirmed evidence backs the recorded verdict",
+            "Impact score is based on evidence, not agent guesswork",
+        ],
+    )
+    text = text.replace(
+        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
+        "- Supported: edge-case verdict recorded.",
+    )
+    text = text.replace("Agent reviewer: edge-test", "Agent reviewer:", 1)
     path.write_text(text, encoding="utf-8")
 
 
@@ -1826,6 +1876,24 @@ def main() -> int:
         run_fail(
             [sys.executable, script("transition_paper.py"), str(empty_validation_after_gate), "AI Validated"],
             "validation After block has no concrete evidence",
+        )
+        missing_agent_reviewer_gate = create_edge_paper(root, "Missing Agent Reviewer Edge")
+        make_after_ready_with_missing_agent_reviewer(missing_agent_reviewer_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(missing_agent_reviewer_gate),
+                "--phase",
+                "after",
+            ],
+            "agent review missing Agent reviewer",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(missing_agent_reviewer_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(missing_agent_reviewer_gate), "AI Validated"],
+            "agent review missing Agent reviewer",
         )
         verdict_gate = create_edge_paper(root, "Verdict Instruction Gate Edge")
         make_after_ready_with_instruction_verdict(verdict_gate)

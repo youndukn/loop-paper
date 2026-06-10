@@ -71,6 +71,8 @@ def complete_closed_loop_paper(path: Path, *, title: str) -> None:
             "Supported: deterministic smoke verifier completed."
         ),
         "[ ] AI validation evidence recorded": "[x] AI validation evidence recorded",
+        "Agent reviewer:": "Agent reviewer: smoke-test",
+        "Review date:": "Review date: 2026-06-10",
         "Decision: AFTER_REQUIRED: Draft/Plan Ready/Implemented/AI Validated/Rejected": "Decision: AI Validated",
         "AFTER_REQUIRED: agent review findings": "No agent findings",
         "[ ] Agent reviewed paper structure": "[x] Agent reviewed paper structure",

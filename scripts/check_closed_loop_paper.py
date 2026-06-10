@@ -15,6 +15,7 @@ from paperstack_common import (
     paper_root_from_path,
     require_paper_file,
     split_sections,
+    validate_iso_date,
 )
 
 
@@ -34,6 +35,10 @@ VALIDATION_PLAN_LABELS = [
     "AI-actionable validation",
 ]
 VALIDATION_SECTION_LABELS = ["Before", "After", "Verdict", "AI validation evidence"]
+AGENT_REVIEW_FIELD_RE = re.compile(
+    r"^(Agent reviewer|Review date|Decision):[ \t]*(.*?)[ \t]*$",
+    flags=re.MULTILINE,
+)
 
 
 def section(text: str, name: str) -> str:
@@ -115,6 +120,24 @@ def validation_section_errors(section_text: str) -> list[str]:
         body = labeled_block(section_text, label, VALIDATION_SECTION_LABELS[index + 1 :])
         if not non_checkbox_lines(body):
             errors.append(f"validation {label} block has no concrete evidence")
+    return errors
+
+
+def agent_review_errors(section_text: str) -> list[str]:
+    values = {
+        match.group(1): match.group(2).strip()
+        for match in AGENT_REVIEW_FIELD_RE.finditer(section_text)
+    }
+    errors: list[str] = []
+    for field in ["Agent reviewer", "Review date", "Decision"]:
+        if not values.get(field):
+            errors.append(f"agent review missing {field}")
+    review_date = values.get("Review date")
+    if review_date:
+        try:
+            validate_iso_date(review_date, label="Review date")
+        except SystemExit as error:
+            errors.append(str(error))
     return errors
 
 
@@ -262,6 +285,7 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         if checked_count(validation) < 1:
             errors.append("after phase incomplete: validation evidence checkbox is not checked")
         agent = section(text, "Agent Review")
+        errors.extend(agent_review_errors(agent))
         if checked_count(agent) < 2:
             errors.append("after phase incomplete: agent review checkboxes are not all checked")
         impact = section(text, "Impact Score")
