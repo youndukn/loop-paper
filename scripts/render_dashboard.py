@@ -11,13 +11,16 @@ from pathlib import Path
 
 from check_paper import require_valid_stack
 from paperstack_common import (
+    RELATION_LABELS,
     REQUIRED_SECTIONS,
     STATUSES,
     ensure_directory,
+    extract_relations,
     find_ids,
     paper_paths,
     paper_id_from_path,
     parse_frontmatter,
+    relation_key,
     require_paper_file,
     split_sections,
     write_text_output,
@@ -34,10 +37,8 @@ def summarize_paper(path: Path, root: Path) -> dict:
     unchecked = len(re.findall(r"- \[ \]", text))
     checked = len(re.findall(r"- \[x\]", text, flags=re.IGNORECASE))
     references = [paper for paper in find_ids(sections.get("References", "")) if paper != paper_id]
-    relations = {}
-    for name in ["References", "Depends on", "Supersedes", "Contradicts", "Extends"]:
-        match = re.search(rf"^{re.escape(name)}:\s*(.+)$", text, flags=re.MULTILINE)
-        relations[name.lower().replace(" ", "_")] = find_ids(match.group(1)) if match else []
+    extracted = extract_relations(text, paper_id)
+    relations = {relation_key(name): extracted[relation_key(name)] for name in RELATION_LABELS}
 
     return {
         "paper_id": paper_id,
