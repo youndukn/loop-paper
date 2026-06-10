@@ -75,6 +75,12 @@ def require_paper_file(path: Path) -> None:
         raise SystemExit(f"Expected paper file, got directory: {path}")
 
 
+def ensure_directory(path: Path, *, label: str = "directory") -> None:
+    if path.exists() and not path.is_dir():
+        raise SystemExit(f"Expected {label}, got file: {path}")
+    path.mkdir(parents=True, exist_ok=True)
+
+
 def write_text_output(path: Path, text: str, *, label: str = "output") -> None:
     if path.exists() and path.is_dir():
         raise SystemExit(f"Expected {label} file, got directory: {path}")

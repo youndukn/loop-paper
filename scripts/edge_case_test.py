@@ -1089,6 +1089,47 @@ def main() -> int:
             ],
             f"Expected parent directory for prompt output, got file: {output_parent_file}",
         )
+        dashboard_file_root = project / "dashboard-file-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(dashboard_file_root),
+                "--project-name",
+                "Loop Paper Dashboard File Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        create_edge_paper(dashboard_file_root, "Dashboard File Edge")
+        dashboard_file = dashboard_file_root / "dashboard"
+        dashboard_file.rmdir()
+        dashboard_file.write_text("not a directory", encoding="utf-8")
+        run_fail(
+            [sys.executable, script("render_dashboard.py"), str(dashboard_file_root)],
+            f"Expected dashboard directory, got file: {dashboard_file}",
+        )
+        papers_file_root = project / "papers-file-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(papers_file_root),
+                "--project-name",
+                "Loop Paper Papers File Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        papers_file = papers_file_root / "papers"
+        papers_file.rmdir()
+        papers_file.write_text("not a directory", encoding="utf-8")
+        run_fail(
+            [sys.executable, script("render_dashboard.py"), str(papers_file_root)],
+            f"Expected papers directory, got file: {papers_file}",
+        )
         run_fail(
             [
                 sys.executable,

@@ -12,18 +12,22 @@ from pathlib import Path
 from paperstack_common import (
     REQUIRED_SECTIONS,
     STATUSES,
+    ensure_directory,
     find_ids,
+    paper_id_from_path,
     parse_frontmatter,
+    require_paper_file,
     split_sections,
+    write_text_output,
 )
 
 
 def summarize_paper(path: Path, root: Path) -> dict:
+    require_paper_file(path)
     text = path.read_text(encoding="utf-8")
     meta, _ = parse_frontmatter(text)
     sections = split_sections(text)
-    filename_match = re.search(r"PAPER-\d{4}", path.name)
-    paper_id = meta.get("paper_id") or (filename_match.group(0) if filename_match else path.stem)
+    paper_id = meta.get("paper_id") or paper_id_from_path(path)
     missing = [section for section in REQUIRED_SECTIONS if section not in sections]
     unchecked = len(re.findall(r"- \[ \]", text))
     checked = len(re.findall(r"- \[x\]", text, flags=re.IGNORECASE))
@@ -51,8 +55,12 @@ def summarize_paper(path: Path, root: Path) -> dict:
 
 def write_dashboard(root: Path, papers: list[dict]) -> None:
     dashboard = root / "dashboard"
-    dashboard.mkdir(parents=True, exist_ok=True)
-    (dashboard / "data.json").write_text(json.dumps({"papers": papers, "statuses": STATUSES}, indent=2), encoding="utf-8")
+    ensure_directory(dashboard, label="dashboard directory")
+    write_text_output(
+        dashboard / "data.json",
+        json.dumps({"papers": papers, "statuses": STATUSES}, indent=2),
+        label="dashboard data",
+    )
 
     data = json.dumps({"papers": papers, "statuses": STATUSES})
     html_text = f"""<!doctype html>
@@ -227,7 +235,7 @@ render();
 </body>
 </html>
 """
-    (dashboard / "index.html").write_text(html_text, encoding="utf-8")
+    write_text_output(dashboard / "index.html", html_text, label="dashboard HTML")
 
 
 def main() -> int:
@@ -237,7 +245,7 @@ def main() -> int:
 
     root = Path(args.root)
     papers_dir = root / "papers"
-    papers_dir.mkdir(parents=True, exist_ok=True)
+    ensure_directory(papers_dir, label="papers directory")
     papers = [summarize_paper(path, root) for path in sorted(papers_dir.glob("PAPER-*.md"))]
     write_dashboard(root, papers)
     print(root / "dashboard" / "index.html")
