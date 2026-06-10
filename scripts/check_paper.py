@@ -84,6 +84,18 @@ def frontmatter_warnings(text: str) -> list[str]:
     return warnings
 
 
+def section_warnings(text: str) -> list[str]:
+    counts = Counter(
+        match.group(1).strip()
+        for match in re.finditer(r"^##\s+(.+?)\s*$", text, flags=re.MULTILINE)
+    )
+    return [
+        f"Duplicate section: {name}"
+        for name, count in sorted(counts.items())
+        if count > 1
+    ]
+
+
 def check_file(path: Path) -> dict:
     require_paper_file(path)
     text = path.read_text(encoding="utf-8")
@@ -95,7 +107,7 @@ def check_file(path: Path) -> dict:
         for section in REQUIRED_SECTIONS
         if section in sections and not sections[section].strip()
     ]
-    warnings = frontmatter_warnings(text)
+    warnings = frontmatter_warnings(text) + section_warnings(text)
 
     validation = sections.get("Validation", "")
     if "Not run" in validation and metadata.get("status") in {"AI Validated", "Accepted"}:

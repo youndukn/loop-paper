@@ -1087,6 +1087,44 @@ def main() -> int:
             [sys.executable, script("pipeline.py"), str(duplicate_frontmatter_root), "--strict"],
             "Duplicate frontmatter key: status",
         )
+        duplicate_section_root = project / "duplicate-section-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(duplicate_section_root),
+                "--project-name",
+                "Loop Paper Duplicate Section Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        duplicate_section = create_edge_paper(duplicate_section_root, "Duplicate Section Edge")
+        duplicate_section.write_text(
+            duplicate_section.read_text(encoding="utf-8").replace(
+                "## Validation\n",
+                "## Validation\n\nInjected duplicate section.\n\n## Validation\n",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(duplicate_section)],
+            "Duplicate section: Validation",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(duplicate_section_root), "--strict"],
+            "Duplicate section: Validation",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(duplicate_section_root), "--last", "1"],
+            "Cannot combine invalid papers",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(duplicate_section), "Research Ready"],
+            "Duplicate section: Validation",
+        )
         schema_root = project / "schema-stack"
         run_ok(
             [
