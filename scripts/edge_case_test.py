@@ -2202,6 +2202,10 @@ def main() -> int:
             "Dangling relationship target: References -> PAPER-9999",
         )
         run_fail(
+            [sys.executable, script("check_paper.py"), str(dangling)],
+            "Dangling relationship target: References -> PAPER-9999",
+        )
+        run_fail(
             [sys.executable, script("pipeline.py"), str(dangling_root), "--strict"],
             "Dangling relationship target: References -> PAPER-9999",
         )

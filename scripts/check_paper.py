@@ -19,6 +19,7 @@ from paperstack_common import (
     paper_paths,
     paper_id_from_path,
     require_paper_file,
+    paper_root_from_path,
     split_sections,
     validate_iso_date,
 )
@@ -308,13 +309,23 @@ def main() -> int:
 
     target = Path(args.target)
     if target.is_file() or target.suffix == ".md":
-        paths = [target]
-        validate_relationships = False
+        if target.exists() and target.parent.name == "papers":
+            target_resolved = target.resolve()
+            stack_results = check_paths(
+                paper_paths(paper_root_from_path(target)),
+                validate_relationships=True,
+            )
+            results = [
+                result
+                for result in stack_results
+                if Path(result["path"]).resolve() == target_resolved
+            ]
+            if not results:
+                raise SystemExit(f"Paper is not under a recognized papers directory: {target}")
+        else:
+            results = check_paths([target], validate_relationships=False)
     else:
-        paths = paper_paths(target)
-        validate_relationships = True
-
-    results = check_paths(paths, validate_relationships=validate_relationships)
+        results = check_paths(paper_paths(target), validate_relationships=True)
     if args.json:
         print(json.dumps(results, indent=2))
     else:
