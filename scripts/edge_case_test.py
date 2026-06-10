@@ -2375,7 +2375,7 @@ def main() -> int:
         missing_root = project / "missing-root"
         run_fail(
             [sys.executable, script("check_paper.py"), str(missing_root)],
-            f"Missing paper file: {missing_root}",
+            f"Missing papers directory: {missing_root / 'papers'}",
         )
         for command in [
             [sys.executable, script("index_references.py"), str(missing_root)],

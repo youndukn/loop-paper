@@ -266,17 +266,17 @@ def check_paths(paths: list[Path], *, validate_relationships: bool = False) -> l
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check Paper Stack papers.")
-    parser.add_argument("target", nargs="?", default=".paper-stack", help="Paper file or Paper Stack root")
+    parser.add_argument("target", nargs="?", default=".paper-stack", help="Paper .md file or Paper Stack root")
     parser.add_argument("--json", action="store_true", help="Print JSON")
     args = parser.parse_args()
 
     target = Path(args.target)
-    if target.is_dir():
-        paths = paper_paths(target)
-        validate_relationships = True
-    else:
+    if target.is_file() or target.suffix == ".md":
         paths = [target]
         validate_relationships = False
+    else:
+        paths = paper_paths(target)
+        validate_relationships = True
 
     results = check_paths(paths, validate_relationships=validate_relationships)
     if args.json:
