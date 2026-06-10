@@ -7,10 +7,12 @@ import argparse
 import json
 from pathlib import Path
 
+from check_paper import require_valid_stack
 from paperstack_common import RELATION_LABELS, extract_relations, load_paper, paper_paths, relation_key, write_text_output
 
 
 def build_graph(root: Path) -> dict:
+    require_valid_stack(root)
     papers = [load_paper(path) for path in paper_paths(root)]
     nodes = [
         {

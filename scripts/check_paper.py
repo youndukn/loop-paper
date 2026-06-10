@@ -90,6 +90,17 @@ def require_valid_file(path: Path) -> dict:
     return result
 
 
+def require_valid_stack(root: Path) -> list[dict]:
+    results = check_paths(paper_paths(root), validate_relationships=True)
+    failures = []
+    for result in results:
+        if not result["ok"]:
+            failures.append(f"{result['paper_id']} {result['path']}: {'; '.join(result_details(result))}")
+    if failures:
+        raise SystemExit("Paper stack check failed:\n" + "\n".join(failures))
+    return results
+
+
 def check_paths(paths: list[Path], *, validate_relationships: bool = False) -> list[dict]:
     results = [check_file(path) for path in paths]
     if not validate_relationships:

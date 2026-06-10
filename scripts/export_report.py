@@ -8,6 +8,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from check_paper import require_valid_stack
 from paperstack_common import STATUSES, load_paper, paper_paths, unchecked_count, write_text_output
 
 
@@ -16,6 +17,7 @@ def load_json(path: Path, default: dict) -> dict:
 
 
 def render_report(root: Path) -> str:
+    require_valid_stack(root)
     papers = [load_paper(path) for path in paper_paths(root)]
     counts = Counter(paper["status"] for paper in papers)
     impact = load_json(root / "dashboard" / "impact-scores.json", {"papers": []})

@@ -890,6 +890,12 @@ def main() -> int:
             [sys.executable, script("combine_papers.py"), str(dangling_root), "--last", "1"],
             "Dangling relationship target: References -> PAPER-9999",
         )
+        for command in [
+            [sys.executable, script("index_references.py"), str(dangling_root)],
+            [sys.executable, script("score_impact.py"), str(dangling_root)],
+            [sys.executable, script("export_report.py"), str(dangling_root)],
+        ]:
+            run_fail(command, "Dangling relationship target: References -> PAPER-9999")
         run_fail(
             [sys.executable, script("transition_paper.py"), str(dangling), "Research Ready"],
             "Dangling relationship target: References -> PAPER-9999",
