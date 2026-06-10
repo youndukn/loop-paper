@@ -15,6 +15,7 @@ from paperstack_common import (
     STATUSES,
     ensure_directory,
     find_ids,
+    paper_paths,
     paper_id_from_path,
     parse_frontmatter,
     require_paper_file,
@@ -245,10 +246,8 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(args.root)
-    papers_dir = root / "papers"
-    ensure_directory(papers_dir, label="papers directory")
     require_valid_stack(root)
-    papers = [summarize_paper(path, root) for path in sorted(papers_dir.glob("PAPER-*.md"))]
+    papers = [summarize_paper(path, root) for path in paper_paths(root)]
     write_dashboard(root, papers)
     print(root / "dashboard" / "index.html")
     return 0

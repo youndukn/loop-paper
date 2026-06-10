@@ -2340,16 +2340,23 @@ def main() -> int:
             [sys.executable, script("combine_papers.py"), str(stray_markdown_root), "--last", "1"],
         ]:
             run_fail(command, "Unexpected markdown file in papers directory: notes.md")
+        missing_root = project / "missing-root"
         run_fail(
-            [
-                sys.executable,
-                script("combine_papers.py"),
-                str(project / "missing-root"),
-                "--last",
-                "1",
-            ],
-            "No papers found under",
+            [sys.executable, script("check_paper.py"), str(missing_root)],
+            f"Missing paper file: {missing_root}",
         )
+        for command in [
+            [sys.executable, script("index_references.py"), str(missing_root)],
+            [sys.executable, script("score_impact.py"), str(missing_root)],
+            [sys.executable, script("export_report.py"), str(missing_root)],
+            [sys.executable, script("render_dashboard.py"), str(missing_root)],
+            [sys.executable, script("pipeline.py"), str(missing_root), "--strict"],
+            [sys.executable, script("watch_pipeline.py"), str(missing_root), "--once"],
+            [sys.executable, script("combine_papers.py"), str(missing_root), "--last", "1"],
+        ]:
+            run_fail(command, f"Missing papers directory: {missing_root / 'papers'}")
+        if missing_root.exists():
+            raise SystemExit("Stack reader created a missing root unexpectedly")
         overflow_root = project / "overflow-stack"
         run_ok(
             [

@@ -67,6 +67,8 @@ def validate_iso_date(value: str, *, label: str = "--date") -> str:
 
 def paper_paths(root: Path) -> list[Path]:
     papers_dir = root / "papers"
+    if not papers_dir.exists():
+        raise SystemExit(f"Missing papers directory: {papers_dir}")
     if papers_dir.exists() and not papers_dir.is_dir():
         raise SystemExit(f"Expected papers directory, got file: {papers_dir}")
     unexpected = [
