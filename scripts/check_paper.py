@@ -15,6 +15,7 @@ from paperstack_common import (
     STATUSES,
     find_ids,
     frontmatter_bounds,
+    markdown_heading_matches,
     parse_frontmatter,
     paper_paths,
     paper_id_from_path,
@@ -106,8 +107,8 @@ def frontmatter_warnings(text: str) -> list[str]:
 
 def section_warnings(text: str) -> list[str]:
     counts = Counter(
-        match.group(1).strip()
-        for match in re.finditer(r"^##\s+(.+?)\s*$", text, flags=re.MULTILINE)
+        name
+        for name, _start, _end in markdown_heading_matches(text, 2)
     )
     return [
         f"Duplicate section: {name}"
@@ -118,8 +119,8 @@ def section_warnings(text: str) -> list[str]:
 
 def heading_warnings(text: str, expected_id: str | None, expected_title: str | None) -> list[str]:
     headings = [
-        match.group(1).strip()
-        for match in re.finditer(r"^#\s+(.+?)\s*$", text, flags=re.MULTILINE)
+        name
+        for name, _start, _end in markdown_heading_matches(text, 1)
     ]
     if not headings:
         return ["Missing top-level paper heading"]

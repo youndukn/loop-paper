@@ -1447,6 +1447,21 @@ def main() -> int:
             raise SystemExit("Generated findings table did not escape pipe/newline input")
         if "- docs/reference | one second" not in escaped_text:
             raise SystemExit("Generated reference list did not collapse newline input")
+        fenced_heading = create_edge_paper(root, "Fenced Heading Edge")
+        fenced_heading.write_text(
+            fenced_heading.read_text(encoding="utf-8").replace(
+                "Record actual evidence only after execution or inspection.",
+                "Record actual evidence only after execution or inspection.\n\n"
+                "```md\n"
+                "## Impact Score\n"
+                "# PAPER-9999 Not A Real Heading\n"
+                "```\n",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_ok([sys.executable, script("check_paper.py"), str(fenced_heading)])
+        run_ok([sys.executable, script("check_paper.py"), str(root)])
         script_title = Path(
             run_ok(
                 [

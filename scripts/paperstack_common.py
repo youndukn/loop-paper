@@ -199,13 +199,44 @@ def replace_frontmatter(text: str, metadata: dict[str, str]) -> str:
     return format_frontmatter(metadata) + body
 
 
+def markdown_heading_matches(text: str, level: int) -> list[tuple[str, int, int]]:
+    matches: list[tuple[str, int, int]] = []
+    in_fence = False
+    fence_char = ""
+    fence_len = 0
+    offset = 0
+    heading = "#" * level
+    for line in text.splitlines(keepends=True):
+        line_text = line.rstrip("\r\n")
+        fence_match = re.match(r"^[ \t]*(```+|~~~+)", line_text)
+        if fence_match:
+            marker = fence_match.group(1)
+            if not in_fence:
+                in_fence = True
+                fence_char = marker[0]
+                fence_len = len(marker)
+            elif marker[0] == fence_char and len(marker) >= fence_len:
+                in_fence = False
+            offset += len(line)
+            continue
+        if not in_fence:
+            match = re.match(rf"^{re.escape(heading)}\s+(.+?)\s*$", line_text)
+            if match:
+                matches.append(
+                    (match.group(1).strip(), offset + match.start(), offset + match.end())
+                )
+        offset += len(line)
+    return matches
+
+
 def split_sections(text: str) -> dict[str, str]:
-    matches = list(re.finditer(r"^##\s+(.+?)\s*$", text, flags=re.MULTILINE))
+    matches = markdown_heading_matches(text, 2)
     sections: dict[str, str] = {}
     for index, match in enumerate(matches):
-        start = match.end()
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
-        sections[match.group(1).strip()] = text[start:end].strip()
+        name, _heading_start, heading_end = match
+        start = heading_end
+        end = matches[index + 1][1] if index + 1 < len(matches) else len(text)
+        sections[name] = text[start:end].strip()
     return sections
 
 
