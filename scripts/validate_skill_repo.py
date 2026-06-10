@@ -233,6 +233,18 @@ def validate_docs_describe_pipeline_gates() -> None:
                 fail(f"{path.relative_to(ROOT)} must document pipeline gates with {phrase!r}")
 
 
+def validate_docs_describe_combine_boundaries() -> None:
+    required = [
+        (ROOT / "SKILL.md", ["explicit `--from`/`--to`", "must both exist in the stack"]),
+        (ROOT / "README.md", ["Explicit `--from`/`--to` boundaries", "must both exist in the stack"]),
+    ]
+    for path, phrases in required:
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            if phrase not in text:
+                fail(f"{path.relative_to(ROOT)} must document combine interval boundaries with {phrase!r}")
+
+
 def validate_python_scripts() -> None:
     for path in sorted((ROOT / "scripts").glob("*.py")):
         try:
@@ -250,6 +262,7 @@ def main() -> int:
     validate_ci_runs_core_checks()
     validate_docs_reference_smoke_test()
     validate_docs_describe_pipeline_gates()
+    validate_docs_describe_combine_boundaries()
     validate_python_scripts()
     print(f"OK {EXPECTED_SKILL_NAME} skill repository")
     return 0

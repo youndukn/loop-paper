@@ -127,10 +127,11 @@ python3 ~/.codex/skills/loop-paper/scripts/combine_papers.py .paper-stack \
   --output .paper-stack/dashboard/combined-PAPER-0030-PAPER-0045.md
 ```
 
-Selection is stable by numeric paper ID. Reference ranking is deterministic and
-uses status, inbound references, explicit relation edges, target-paper distance,
-and term overlap. When `--target-paper` is supplied, that paper must exist in
-the stack.
+Selection is stable by numeric paper ID. Explicit `--from`/`--to` boundaries
+must both exist in the stack, so a mistyped endpoint cannot silently produce a
+partial interval. Reference ranking is deterministic and uses status, inbound
+references, explicit relation edges, target-paper distance, and term overlap.
+When `--target-paper` is supplied, that paper must exist in the stack.
 
 ## Repository Structure
 

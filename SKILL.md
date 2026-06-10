@@ -192,7 +192,8 @@ python3 scripts/combine_papers.py .paper-stack \
   --output .paper-stack/dashboard/combined-PAPER-0030-PAPER-0045.md
 ```
 
-Selection is stable by numeric paper ID. Summary chunks are stable by
+Selection is stable by numeric paper ID, and explicit `--from`/`--to`
+interval boundaries must both exist in the stack. Summary chunks are stable by
 `--interval-size`. Reference candidates are ranked without model judgment using
 status, inbound graph references, explicit relationship edges, paper-ID
 distance to the target, and deterministic text-term overlap.
