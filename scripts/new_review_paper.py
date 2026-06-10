@@ -17,6 +17,7 @@ from paperstack_common import (
     next_paper_id,
     paper_id_from_path,
     paper_paths,
+    refuse_papers_directory_output,
     validate_iso_date,
     write_text_output,
 )
@@ -491,6 +492,7 @@ def main() -> int:
 
     if args.answers is None and args.prompt_out:
         prompt_text = RENDERERS[args.format](questions)
+        refuse_papers_directory_output(args.root, args.prompt_out, label="prompt output")
         write_text_output(args.prompt_out, prompt_text, label="prompt output")
         print(args.prompt_out)
         return 0

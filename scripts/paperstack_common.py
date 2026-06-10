@@ -120,6 +120,13 @@ def write_text_output(path: Path, text: str, *, label: str = "output") -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def refuse_papers_directory_output(root: Path, path: Path, *, label: str = "output") -> None:
+    destination = path.expanduser().resolve(strict=False)
+    papers_dir = (root / "papers").expanduser().resolve(strict=False)
+    if destination == papers_dir or destination.is_relative_to(papers_dir):
+        raise SystemExit(f"Refusing to write {label} inside papers directory: {path}")
+
+
 def markdown_inline(value: object) -> str:
     return re.sub(r"\s+", " ", str(value)).strip()
 

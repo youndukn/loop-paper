@@ -3991,6 +3991,45 @@ def main() -> int:
             [sys.executable, script("export_report.py"), str(root), "--output", str(output_dir)],
         ]:
             run_fail(command, f"Expected output file, got directory: {output_dir}")
+        papers_output = root / "papers" / "PAPER-9998-generated-output.md"
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(root),
+                "--last",
+                "1",
+                "--output",
+                str(papers_output),
+            ],
+            f"Refusing to write output inside papers directory: {papers_output}",
+        )
+        for command in [
+            [sys.executable, script("index_references.py"), str(root), "--output", str(papers_output)],
+            [sys.executable, script("score_impact.py"), str(root), "--output", str(papers_output)],
+            [sys.executable, script("export_report.py"), str(root), "--output", str(papers_output)],
+        ]:
+            run_fail(command, f"Refusing to write output inside papers directory: {papers_output}")
+        prompt_papers_output = root / "papers" / "PAPER-9999-review-prompts.md"
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Papers Directory Prompt Output Review",
+                "--target",
+                "PAPER-0001",
+                "--format",
+                "json",
+                "--prompt-out",
+                str(prompt_papers_output),
+            ],
+            f"Refusing to write prompt output inside papers directory: {prompt_papers_output}",
+        )
+        if papers_output.exists() or prompt_papers_output.exists():
+            raise SystemExit("Generated output guard wrote into papers directory unexpectedly")
         output_parent_file = root / "dashboard" / "output-parent-file"
         output_parent_file.write_text("file parent", encoding="utf-8")
         run_fail(

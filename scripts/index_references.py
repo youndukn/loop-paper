@@ -8,7 +8,15 @@ import json
 from pathlib import Path
 
 from check_paper import require_valid_stack
-from paperstack_common import RELATION_LABELS, extract_relations, load_paper, paper_paths, relation_key, write_text_output
+from paperstack_common import (
+    RELATION_LABELS,
+    extract_relations,
+    load_paper,
+    paper_paths,
+    refuse_papers_directory_output,
+    relation_key,
+    write_text_output,
+)
 
 
 def build_graph(root: Path) -> dict:
@@ -46,6 +54,7 @@ def main() -> int:
     root = Path(args.root)
     graph = build_graph(root)
     output = Path(args.output) if args.output else root / "dashboard" / "references.json"
+    refuse_papers_directory_output(root, output, label="output")
     write_text_output(output, json.dumps(graph, indent=2))
     print(output)
     return 0

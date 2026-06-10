@@ -9,7 +9,14 @@ import re
 from pathlib import Path
 
 from index_references import build_graph
-from paperstack_common import load_paper, paper_paths, section_has_checked, validation_not_run, write_text_output
+from paperstack_common import (
+    load_paper,
+    paper_paths,
+    refuse_papers_directory_output,
+    section_has_checked,
+    validation_not_run,
+    write_text_output,
+)
 
 
 COMPONENT_WEIGHTS = {
@@ -88,6 +95,7 @@ def main() -> int:
     root = Path(args.root)
     result = score(root)
     output = Path(args.output) if args.output else root / "dashboard" / "impact-scores.json"
+    refuse_papers_directory_output(root, output, label="output")
     write_text_output(output, json.dumps(result, indent=2))
     print(output)
     return 0

@@ -10,7 +10,15 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from check_paper import check_paths
-from paperstack_common import RELATION_LABELS, extract_relations, load_paper, paper_paths, relation_key, write_text_output
+from paperstack_common import (
+    RELATION_LABELS,
+    extract_relations,
+    load_paper,
+    paper_paths,
+    refuse_papers_directory_output,
+    relation_key,
+    write_text_output,
+)
 
 
 PAPER_ID_RE = re.compile(r"PAPER-(\d{4})", re.IGNORECASE)
@@ -503,6 +511,7 @@ def main() -> int:
         output = "\n".join(lines).rstrip() + "\n"
 
     if args.output:
+        refuse_papers_directory_output(root, args.output, label="output")
         write_text_output(args.output, output)
         print(args.output)
     else:

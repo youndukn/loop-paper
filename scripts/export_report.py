@@ -14,6 +14,7 @@ from paperstack_common import (
     load_paper,
     markdown_table_cell,
     paper_paths,
+    refuse_papers_directory_output,
     unchecked_count,
     write_text_output,
 )
@@ -115,6 +116,7 @@ def main() -> int:
 
     root = Path(args.root)
     output = Path(args.output) if args.output else root / "dashboard" / "report.md"
+    refuse_papers_directory_output(root, output, label="output")
     write_text_output(output, render_report(root))
     print(output)
     return 0
