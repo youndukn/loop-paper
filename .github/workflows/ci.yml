@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Validate skill repository
+        run: python3 scripts/validate_skill_repo.py
+      - name: Smoke initialize and pipeline
+        run: |
+          python3 scripts/init_loop_paper.py \
+            --root /tmp/loop-paper-ci/.paper-stack \
+            --project-name "Loop Paper CI" \
+            --seed-paper
+          python3 scripts/pipeline.py /tmp/loop-paper-ci/.paper-stack --strict
+          python3 scripts/combine_papers.py /tmp/loop-paper-ci/.paper-stack \
+            --from PAPER-0001 \
+            --to PAPER-0001 \
+            --mode both \
+            --json
