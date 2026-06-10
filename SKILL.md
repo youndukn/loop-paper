@@ -258,8 +258,12 @@ Each paper must contain these top-level sections:
 - `scripts/index_references.py`: Build `dashboard/references.json`.
 - `scripts/score_impact.py`: Calculate deterministic impact components.
 - `scripts/transition_paper.py`: Enforce allowed status transitions.
+- `scripts/update_paper_metadata.py`: Synchronize paper frontmatter with deterministic paper contents.
+- `scripts/agent_review.py`: Record or refresh the `Agent Review` section on a paper.
 - `scripts/render_dashboard.py`: Build `dashboard/data.json` and dashboard HTML.
 - `scripts/export_report.py`: Generate `dashboard/report.md`.
+- `scripts/watch_pipeline.py`: Poll papers and rerun the deterministic pipeline on changes.
+- `scripts/paperstack_common.py`: Shared deterministic helpers for bundled scripts.
 - `scripts/install_skill.py`: Install the portable skill payload into supported agent skill directories.
 - `scripts/validate_skill_repo.py`: Validate the public skill repository contract.
 - `scripts/smoke_test.py`: Run the end-to-end happy-path workflow smoke test.

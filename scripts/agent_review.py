@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Record an agent review without satisfying human-only Paper Stack gates."""
+"""Record or refresh the Agent Review section on a Paper Stack paper."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ def main() -> int:
     parser.add_argument("paper", help="Path to PAPER-*.md")
     parser.add_argument("--reviewer", default="Codex", help="Agent reviewer name")
     parser.add_argument("--decision", default="Agent Reviewed", help="Agent review decision")
-    parser.add_argument("--notes", default="Structure reviewed; human-only gates remain open.", help="Review notes")
+    parser.add_argument("--notes", default="Structure reviewed; paper remains on the autonomous loop.", help="Review notes")
     args = parser.parse_args()
 
     path = Path(args.paper)

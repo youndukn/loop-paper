@@ -1,4 +1,4 @@
 interface:
   display_name: "Loop Paper"
   short_description: "Initialize, validate, combine, and close research-paper work loops."
-  default_prompt: "Use Loop Paper to initialize a project-local paper structure, create or update a hypothesis-first paper loop, record prior research and validation evidence, run deterministic paper checks, combine paper intervals, and select reference papers without marking human-only gates complete."
+  default_prompt: "Use Loop Paper to initialize a project-local paper structure, create or update a hypothesis-first paper loop, record prior research and validation evidence, create review papers, run deterministic paper checks, combine paper intervals, and select reference papers."

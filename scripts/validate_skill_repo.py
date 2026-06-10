@@ -74,6 +74,15 @@ def validate_skill_resources() -> None:
         if not path.exists():
             fail(f"SKILL.md references missing resource: {resource}")
 
+    resource_set = set(resources)
+    missing_scripts = [
+        str(path.relative_to(ROOT))
+        for path in sorted((ROOT / "scripts").glob("*.py"))
+        if str(path.relative_to(ROOT)) not in resource_set
+    ]
+    if missing_scripts:
+        fail("SKILL.md Resources missing shipped scripts: " + ", ".join(missing_scripts))
+
 
 def validate_openai_yaml() -> None:
     path = ROOT / "agents" / "openai.yaml"
@@ -147,6 +156,7 @@ def validate_retired_review_gate_absent() -> None:
         "validate_human" + "_gate",
         "review" + "_secret",
         "password-" + "verified",
+        "human-" + "only",
         "mark_" + "important",
         "--" + "important",
         "## " + "Human Review",
