@@ -22,7 +22,12 @@ from paperstack_common import (
 )
 
 
-PAPER_ID_RE = re.compile(r"^PAPER-\d{4}$")
+PAPER_ID_RE = re.compile(r"^PAPER-(\d{4})$")
+
+
+def valid_paper_id(value: str) -> bool:
+    match = PAPER_ID_RE.fullmatch(value)
+    return bool(match and int(match.group(1)) > 0)
 
 
 def paper_id_from_filename(path: Path) -> str | None:
@@ -55,7 +60,7 @@ def check_file(path: Path) -> dict:
         warnings.append("Filename must contain canonical PAPER-NNNN ID")
     if not declared_id:
         warnings.append("Missing paper_id frontmatter")
-    elif not PAPER_ID_RE.fullmatch(declared_id):
+    elif not valid_paper_id(declared_id):
         warnings.append(f"Invalid paper_id: {declared_id}")
     elif filename_id and declared_id != filename_id:
         warnings.append(f"paper_id {declared_id} does not match filename {filename_id}")
@@ -80,12 +85,12 @@ def check_paths(paths: list[Path], *, validate_relationships: bool = False) -> l
     known_ids = {
         result["paper_id"]
         for result in results
-        if PAPER_ID_RE.fullmatch(result["paper_id"])
+        if valid_paper_id(result["paper_id"])
     }
     counts = Counter(
         result["paper_id"]
         for result in results
-        if PAPER_ID_RE.fullmatch(result["paper_id"])
+        if valid_paper_id(result["paper_id"])
     )
     by_path = {result["path"]: result for result in results}
     for path in paths:

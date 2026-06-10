@@ -607,6 +607,54 @@ def main() -> int:
             ],
             "paper_id PAPER-9999 does not match filename PAPER-0001",
         )
+        zero_root = project / "zero-id-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(zero_root),
+                "--project-name",
+                "Loop Paper Zero ID Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        zero_id = create_edge_paper(zero_root, "Zero ID Edge")
+        set_paper_id(zero_id, "PAPER-0000")
+        zero_path = zero_id.with_name("PAPER-0000-zero-id-edge.md")
+        zero_id.rename(zero_path)
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(zero_path)],
+            "Invalid paper_id: PAPER-0000",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(zero_root), "--strict"],
+            "Invalid paper_id: PAPER-0000",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(zero_root), "--last", "1"],
+            "Invalid paper_id: PAPER-0000",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(zero_path), "Research Ready"],
+            "Invalid paper_id: PAPER-0000",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Zero Target Review",
+                "--target",
+                "PAPER-0000",
+                "--format",
+                "json",
+            ],
+            "Expected PAPER-NNNN",
+        )
         filename_root = project / "filename-stack"
         run_ok(
             [
@@ -750,6 +798,18 @@ def main() -> int:
         run_fail(
             [sys.executable, script("combine_papers.py"), str(root), "--from", "PAPER-0001"],
             "Interval selection requires both --from and --to",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(root),
+                "--from",
+                "PAPER-0000",
+                "--to",
+                "PAPER-0001",
+            ],
+            "Expected PAPER-NNNN",
         )
         run_fail(
             [
