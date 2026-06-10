@@ -436,8 +436,24 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def validate_mode_options(args: argparse.Namespace) -> None:
+    if args.mode != "summary":
+        return
+    ignored = []
+    if args.target_paper:
+        ignored.append("--target-paper")
+    if args.query:
+        ignored.append("--query")
+    if ignored:
+        raise SystemExit(
+            "Reference ranking options require --mode references or --mode both: "
+            + ", ".join(ignored)
+        )
+
+
 def main() -> int:
     args = parse_args()
+    validate_mode_options(args)
     if args.max_references < 1:
         raise SystemExit("--max-references must be greater than zero.")
 

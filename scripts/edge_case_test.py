@@ -2577,6 +2577,23 @@ def main() -> int:
             ],
             "Missing target paper ID for reference ranking: PAPER-9999",
         )
+        for extra_args in [
+            ["--target-paper", "PAPER-0001"],
+            ["--query", "ignored reference terms"],
+        ]:
+            run_fail(
+                [
+                    sys.executable,
+                    script("combine_papers.py"),
+                    str(root),
+                    "--last",
+                    "1",
+                    "--mode",
+                    "summary",
+                    *extra_args,
+                ],
+                "Reference ranking options require --mode references or --mode both",
+            )
         output_dir = root / "dashboard" / "output-dir"
         output_dir.mkdir(parents=True)
         run_fail(
