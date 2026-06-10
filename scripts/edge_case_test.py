@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -127,6 +128,32 @@ def make_before_ready_except_validation_plan(path: Path) -> None:
             "Dependencies are named",
             "Risks are named",
         ],
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def make_before_ready_with_empty_hypothesis_claim(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+        ],
+    )
+    text = re.sub(
+        r"^\| H1 \| [^|]+ \|",
+        "| H1 |  |",
+        text,
+        count=1,
+        flags=re.MULTILINE,
     )
     path.write_text(text, encoding="utf-8")
 
@@ -1543,6 +1570,18 @@ def main() -> int:
         make_before_ready_with_uppercase_checks(uppercase_gate)
         run_ok(
             [sys.executable, script("check_closed_loop_paper.py"), str(uppercase_gate), "--phase", "before"]
+        )
+        empty_hypothesis_claim_gate = create_edge_paper(root, "Empty Hypothesis Claim Edge")
+        make_before_ready_with_empty_hypothesis_claim(empty_hypothesis_claim_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(empty_hypothesis_claim_gate),
+                "--phase",
+                "before",
+            ],
+            "hypothesis ledger row 1 has empty required cells: Claim",
         )
         validation_plan_gate = create_edge_paper(root, "Validation Plan Gate Edge")
         make_before_ready_except_validation_plan(validation_plan_gate)

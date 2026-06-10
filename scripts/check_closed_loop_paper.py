@@ -43,6 +43,31 @@ def table_data_rows(section_text: str) -> list[str]:
     return rows
 
 
+def table_cells(row: str) -> list[str]:
+    return [cell.strip() for cell in row.strip().strip("|").split("|")]
+
+
+def hypothesis_ledger_errors(rows: list[str]) -> list[str]:
+    errors: list[str] = []
+    required = [
+        ("Claim", 1),
+        ("Baseline Evidence", 2),
+        ("Validation Method", 3),
+    ]
+    for index, row in enumerate(rows, start=1):
+        cells = table_cells(row)
+        if len(cells) < 5:
+            errors.append(f"hypothesis ledger row {index} must have 5 columns")
+            continue
+        missing = [label for label, cell_index in required if not cells[cell_index]]
+        if missing:
+            errors.append(
+                f"hypothesis ledger row {index} has empty required cells: "
+                + ", ".join(missing)
+            )
+    return errors
+
+
 def prior_research_errors(sections: dict[str, str]) -> list[str]:
     prior = sections.get("Prior Research", "")
     refs = sections.get("References", "")
@@ -87,6 +112,8 @@ def validate_paper(path: Path, phase: str) -> list[str]:
     rows = table_data_rows(hypothesis)
     if len(rows) < 1:
         errors.append("hypothesis ledger has no data rows")
+    else:
+        errors.extend(hypothesis_ledger_errors(rows))
     if phase in {"before", "after"}:
         before_placeholders = re.findall(r"\bBEFORE_REQUIRED\b", text)
         if before_placeholders:
