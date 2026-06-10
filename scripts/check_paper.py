@@ -16,6 +16,7 @@ from paperstack_common import (
     extract_relations,
     parse_frontmatter,
     paper_paths,
+    paper_id_from_path,
     relation_key,
     require_paper_file,
     split_sections,
@@ -23,17 +24,14 @@ from paperstack_common import (
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{4})$")
-PAPER_FILENAME_RE = re.compile(r"^(PAPER-\d{4})(?:-[A-Za-z0-9][A-Za-z0-9-]*)?\.md$")
-
-
 def valid_paper_id(value: str) -> bool:
     match = PAPER_ID_RE.fullmatch(value)
     return bool(match and int(match.group(1)) > 0)
 
 
 def paper_id_from_filename(path: Path) -> str | None:
-    match = PAPER_FILENAME_RE.fullmatch(path.name)
-    return match.group(1) if match else None
+    value = paper_id_from_path(path)
+    return value if valid_paper_id(value) else None
 
 
 def check_file(path: Path) -> dict:

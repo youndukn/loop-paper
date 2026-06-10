@@ -47,6 +47,7 @@ REQUIRED_SECTIONS = [
 ]
 
 RELATION_LABELS = ["References", "Depends on", "Supersedes", "Contradicts", "Extends"]
+PAPER_FILENAME_RE = re.compile(r"^(PAPER-\d{4})(?:-[A-Za-z0-9][A-Za-z0-9-]*)?\.md$")
 
 
 def today() -> str:
@@ -135,8 +136,8 @@ def split_sections(text: str) -> dict[str, str]:
 
 
 def paper_id_from_path(path: Path) -> str:
-    match = re.search(r"PAPER-\d{4}", path.name)
-    return match.group(0) if match else path.stem
+    match = PAPER_FILENAME_RE.fullmatch(path.name)
+    return match.group(1) if match else path.stem
 
 
 def load_paper(path: Path) -> dict:
