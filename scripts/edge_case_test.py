@@ -1019,6 +1019,74 @@ def main() -> int:
             [sys.executable, script("combine_papers.py"), str(date_root), "--last", "1"],
             "Cannot combine invalid papers",
         )
+        frontmatter_root = project / "frontmatter-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(frontmatter_root),
+                "--project-name",
+                "Loop Paper Frontmatter Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        malformed_frontmatter = create_edge_paper(frontmatter_root, "Malformed Frontmatter Edge")
+        malformed_frontmatter.write_text(
+            malformed_frontmatter.read_text(encoding="utf-8").replace(
+                "status: Draft",
+                "status Draft",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(malformed_frontmatter)],
+            "Malformed frontmatter line",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(frontmatter_root), "--strict"],
+            "Malformed frontmatter line",
+        )
+        run_fail(
+            [sys.executable, script("combine_papers.py"), str(frontmatter_root), "--last", "1"],
+            "Cannot combine invalid papers",
+        )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(malformed_frontmatter), "Research Ready"],
+            "Malformed frontmatter line",
+        )
+        duplicate_frontmatter_root = project / "duplicate-frontmatter-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(duplicate_frontmatter_root),
+                "--project-name",
+                "Loop Paper Duplicate Frontmatter Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        duplicate_frontmatter = create_edge_paper(duplicate_frontmatter_root, "Duplicate Frontmatter Edge")
+        duplicate_frontmatter.write_text(
+            duplicate_frontmatter.read_text(encoding="utf-8").replace(
+                "status: Draft",
+                "status: Draft\nstatus: Accepted",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(duplicate_frontmatter)],
+            "Duplicate frontmatter key: status",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(duplicate_frontmatter_root), "--strict"],
+            "Duplicate frontmatter key: status",
+        )
         schema_root = project / "schema-stack"
         run_ok(
             [

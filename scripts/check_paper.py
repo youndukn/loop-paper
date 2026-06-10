@@ -58,6 +58,32 @@ def parse_review_targets(value: str) -> tuple[list[str], list[str]]:
     return normalized, errors
 
 
+def frontmatter_warnings(text: str) -> list[str]:
+    if not text.startswith("---\n"):
+        return ["Missing YAML frontmatter"]
+    end = text.find("\n---", 4)
+    if end == -1:
+        return ["Unterminated YAML frontmatter"]
+
+    warnings: list[str] = []
+    seen: set[str] = set()
+    for index, line in enumerate(text[4:end].splitlines(), start=1):
+        if not line.strip():
+            continue
+        if ":" not in line:
+            warnings.append(f"Malformed frontmatter line {index}: missing ':'")
+            continue
+        key, _value = line.split(":", 1)
+        key = key.strip()
+        if not key:
+            warnings.append(f"Malformed frontmatter line {index}: empty key")
+            continue
+        if key in seen:
+            warnings.append(f"Duplicate frontmatter key: {key}")
+        seen.add(key)
+    return warnings
+
+
 def check_file(path: Path) -> dict:
     require_paper_file(path)
     text = path.read_text(encoding="utf-8")
@@ -69,7 +95,7 @@ def check_file(path: Path) -> dict:
         for section in REQUIRED_SECTIONS
         if section in sections and not sections[section].strip()
     ]
-    warnings = []
+    warnings = frontmatter_warnings(text)
 
     validation = sections.get("Validation", "")
     if "Not run" in validation and metadata.get("status") in {"AI Validated", "Accepted"}:
