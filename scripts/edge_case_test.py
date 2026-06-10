@@ -368,6 +368,43 @@ def main() -> int:
 
         answers = root / "inbox" / "bad-answers.json"
         answers.parent.mkdir(parents=True, exist_ok=True)
+        missing_answers = root / "inbox" / "missing-answers.json"
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Missing Answers Review",
+                "--target",
+                "PAPER-0001",
+                "--answers",
+                str(missing_answers),
+                "--date",
+                "2026-06-10",
+            ],
+            f"Missing answers JSON file: {missing_answers}",
+        )
+        answers_directory = root / "inbox" / "answers-directory.json"
+        answers_directory.mkdir()
+        run_fail(
+            [
+                sys.executable,
+                script("new_review_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Directory Answers Review",
+                "--target",
+                "PAPER-0001",
+                "--answers",
+                str(answers_directory),
+                "--date",
+                "2026-06-10",
+            ],
+            f"Expected answers JSON file, got directory: {answers_directory}",
+        )
         invalid_json = root / "inbox" / "invalid-json-answers.json"
         invalid_json.write_text("{", encoding="utf-8")
         run_fail(

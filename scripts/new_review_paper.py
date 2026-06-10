@@ -216,6 +216,10 @@ def collect_cli(questions: list[dict]) -> dict:
 
 
 def load_answers(path: Path, questions: list[dict]) -> dict:
+    if not path.exists():
+        raise SystemExit(f"Missing answers JSON file: {path}")
+    if not path.is_file():
+        raise SystemExit(f"Expected answers JSON file, got directory: {path}")
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
