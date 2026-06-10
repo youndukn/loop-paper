@@ -483,6 +483,42 @@ def main() -> int:
             ],
             "impact score paper item 1 missing paper_id",
         )
+        impact_scores.write_text(json.dumps({"papers": [{"paper_id": "PAPER-1"}]}), encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            "impact score paper item 1 has invalid paper_id: PAPER-1",
+        )
+        impact_scores.write_text(json.dumps({"papers": [{"paper_id": "PAPER-9999"}]}), encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            "impact score references unknown paper_id: PAPER-9999",
+        )
+        impact_scores.write_text(
+            json.dumps({"papers": [{"paper_id": "PAPER-0001"}, {"paper_id": "PAPER-0001"}]}),
+            encoding="utf-8",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("export_report.py"),
+                str(root),
+                "--output",
+                str(report_output),
+            ],
+            "duplicate impact score paper_id: PAPER-0001",
+        )
         impact_scores.write_text(
             json.dumps(
                 {

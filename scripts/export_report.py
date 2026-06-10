@@ -8,7 +8,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from check_paper import require_valid_stack
+from check_paper import require_valid_stack, valid_paper_id
 from paperstack_common import (
     STATUSES,
     load_paper,
@@ -19,7 +19,7 @@ from paperstack_common import (
 )
 
 
-def load_impact_scores(path: Path) -> dict[str, dict]:
+def load_impact_scores(path: Path, known_ids: set[str]) -> dict[str, dict]:
     if not path.exists():
         return {}
     if not path.is_file():
@@ -41,6 +41,12 @@ def load_impact_scores(path: Path) -> dict[str, dict]:
         paper_id = item.get("paper_id")
         if not isinstance(paper_id, str) or not paper_id:
             raise SystemExit(f"impact score paper item {index} missing paper_id")
+        if not valid_paper_id(paper_id):
+            raise SystemExit(f"impact score paper item {index} has invalid paper_id: {paper_id}")
+        if paper_id not in known_ids:
+            raise SystemExit(f"impact score references unknown paper_id: {paper_id}")
+        if paper_id in impact_by_id:
+            raise SystemExit(f"duplicate impact score paper_id: {paper_id}")
         impact_by_id[paper_id] = item
     return impact_by_id
 
@@ -49,7 +55,8 @@ def render_report(root: Path) -> str:
     require_valid_stack(root)
     papers = [load_paper(path) for path in paper_paths(root)]
     counts = Counter(paper["status"] for paper in papers)
-    impact_by_id = load_impact_scores(root / "dashboard" / "impact-scores.json")
+    known_ids = {paper["paper_id"] for paper in papers}
+    impact_by_id = load_impact_scores(root / "dashboard" / "impact-scores.json", known_ids)
 
     lines = ["# Paper Stack Report", ""]
     lines.append("## Summary")
