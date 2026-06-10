@@ -2907,6 +2907,20 @@ def main() -> int:
                 ],
                 "Reference ranking options require --mode references or --mode both",
             )
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(root),
+                "--last",
+                "1",
+                "--mode",
+                "references",
+                "--interval-size",
+                "1",
+            ],
+            "Summary interval options require --mode summary or --mode both: --interval-size",
+        )
         output_dir = root / "dashboard" / "output-dir"
         output_dir.mkdir(parents=True)
         run_fail(

@@ -437,19 +437,22 @@ def parse_args() -> argparse.Namespace:
 
 
 def validate_mode_options(args: argparse.Namespace) -> None:
-    if args.mode != "summary":
-        return
-    ignored = []
-    if args.target_paper:
-        ignored.append("--target-paper")
-    if args.query:
-        ignored.append("--query")
-    if args.max_references is not None:
-        ignored.append("--max-references")
-    if ignored:
+    if args.mode == "summary":
+        ignored = []
+        if args.target_paper:
+            ignored.append("--target-paper")
+        if args.query:
+            ignored.append("--query")
+        if args.max_references is not None:
+            ignored.append("--max-references")
+        if ignored:
+            raise SystemExit(
+                "Reference ranking options require --mode references or --mode both: "
+                + ", ".join(ignored)
+            )
+    if args.mode == "references" and args.interval_size != 0:
         raise SystemExit(
-            "Reference ranking options require --mode references or --mode both: "
-            + ", ".join(ignored)
+            "Summary interval options require --mode summary or --mode both: --interval-size"
         )
 
 
