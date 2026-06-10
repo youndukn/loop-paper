@@ -167,6 +167,13 @@ def relationship_line_warnings(text: str) -> list[str]:
     return warnings
 
 
+def relationship_targets(text: str, label: str) -> list[str]:
+    targets: list[str] = []
+    for match in re.finditer(rf"^{re.escape(label)}:[ \t]*(.*)$", text, flags=re.MULTILINE):
+        targets.extend(find_ids(match.group(1)))
+    return sorted(set(targets))
+
+
 def check_file(path: Path) -> dict:
     require_paper_file(path)
     text = path.read_text(encoding="utf-8")
@@ -202,6 +209,13 @@ def check_file(path: Path) -> dict:
     elif paper_kind == "review":
         review_targets, target_errors = parse_review_targets(metadata.get("review_targets", ""))
         warnings.extend(target_errors)
+        reference_targets = relationship_targets(text, "References")
+        if not target_errors and reference_targets != sorted(review_targets):
+            warnings.append(
+                "review_targets must match References relationship targets: "
+                f"review_targets={', '.join(sorted(review_targets)) or 'None'}; "
+                f"References={', '.join(reference_targets) or 'None'}"
+            )
     elif metadata.get("review_targets"):
         warnings.append("review_targets requires paper_kind: review")
     for date_key in ("created", "updated"):

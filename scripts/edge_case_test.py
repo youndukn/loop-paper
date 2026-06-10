@@ -1196,6 +1196,26 @@ def main() -> int:
             f"Review paper cannot target itself: {review_id}",
         )
         review_paper.write_text(review_text, encoding="utf-8")
+        review_paper.write_text(
+            review_text.replace("References: PAPER-0001", "References: None", 1),
+            encoding="utf-8",
+        )
+        for command in [
+            [sys.executable, script("check_paper.py"), str(review_meta_root)],
+            [sys.executable, script("pipeline.py"), str(review_meta_root), "--strict"],
+            [sys.executable, script("render_dashboard.py"), str(review_meta_root)],
+            [sys.executable, script("index_references.py"), str(review_meta_root)],
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(review_meta_root),
+                "--ids",
+                "PAPER-0001",
+                review_id,
+            ],
+        ]:
+            run_fail(command, "review_targets must match References relationship targets")
+        review_paper.write_text(review_text, encoding="utf-8")
         closed_loop_with_targets = review_meta_root / "papers" / "PAPER-0001-review-metadata-target.md"
         closed_loop_text = closed_loop_with_targets.read_text(encoding="utf-8")
         closed_loop_with_targets.write_text(
