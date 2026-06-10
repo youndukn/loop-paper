@@ -47,6 +47,27 @@ IMPACT_BASIS_RE = re.compile(
     flags=re.MULTILINE,
 )
 IMPACT_BASIS_FIELDS = ["Downstream references", "Validation strength", "Measured outcome"]
+HYPOTHESIS_CHECKBOXES = [
+    "Hypothesis is specific",
+    "Hypothesis can be validated or rejected",
+    "Baseline evidence is recorded before implementation",
+]
+PRIOR_RESEARCH_CHECKBOXES = [
+    "Prior work is cited, or missing prior work is explicitly acknowledged",
+]
+IMPLEMENTATION_PLAN_CHECKBOXES = [
+    "Implementation plan is concrete",
+    "Dependencies are named",
+    "Risks are named",
+]
+VALIDATION_CHECKBOXES = ["AI validation evidence recorded"]
+AGENT_REVIEW_CHECKBOXES = [
+    "Agent reviewed paper structure",
+    "Agent confirmed evidence backs the recorded verdict",
+]
+IMPACT_SCORE_CHECKBOXES = [
+    "Impact score is based on evidence, not agent guesswork",
+]
 
 
 def section(text: str, name: str) -> str:
@@ -85,6 +106,15 @@ def non_checkbox_lines(text: str) -> list[str]:
 
 def content_lines(text: str) -> list[str]:
     return [line.strip() for line in text.splitlines() if line.strip()]
+
+
+def missing_checked_labels(section_text: str, labels: list[str]) -> list[str]:
+    missing: list[str] = []
+    for label in labels:
+        pattern = rf"^\s*-\s+\[[xX]\]\s+{re.escape(label)}\s*$"
+        if not re.search(pattern, section_text, flags=re.MULTILINE):
+            missing.append(label)
+    return missing
 
 
 def labeled_block(section_text: str, label: str, following_labels: list[str]) -> str:
@@ -311,7 +341,7 @@ def validate_paper(path: Path, phase: str) -> list[str]:
             errors.append(
                 f"before phase incomplete: {len(before_placeholders)} BEFORE_REQUIRED slots remain"
             )
-        if checked_count(hypothesis) < 3:
+        if missing_checked_labels(hypothesis, HYPOTHESIS_CHECKBOXES):
             errors.append("before phase incomplete: hypothesis checkboxes are not all checked")
         prior = section(text, "Prior Research")
         errors.extend(prior_research_errors(split_sections(text)))
@@ -320,11 +350,11 @@ def validate_paper(path: Path, phase: str) -> list[str]:
             errors.append("prior research ledger has no data rows")
         else:
             errors.extend(prior_research_ledger_errors(prior_rows))
-        if checked_count(prior) < 1:
+        if missing_checked_labels(prior, PRIOR_RESEARCH_CHECKBOXES):
             errors.append("before phase incomplete: prior research checkboxes are not all checked")
         plan = section(text, "Implementation Plan")
         errors.extend(implementation_plan_errors(plan))
-        if checked_count(plan) < 3:
+        if missing_checked_labels(plan, IMPLEMENTATION_PLAN_CHECKBOXES):
             errors.append("before phase incomplete: implementation plan checkboxes are not all checked")
         validation_plan = section(text, "Validation Plan")
         errors.extend(validation_plan_errors(validation_plan))
@@ -340,17 +370,17 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         errors.extend(validation_section_errors(validation))
         if not VERDICT_BULLET_RE.search(validation):
             errors.append("after phase incomplete: no hypothesis verdict recorded")
-        if checked_count(validation) < 1:
+        if missing_checked_labels(validation, VALIDATION_CHECKBOXES):
             errors.append("after phase incomplete: validation evidence checkbox is not checked")
         execution_records = section(text, "Execution Records")
         errors.extend(execution_record_errors(execution_records))
         agent = section(text, "Agent Review")
         errors.extend(agent_review_errors(agent))
-        if checked_count(agent) < 2:
+        if missing_checked_labels(agent, AGENT_REVIEW_CHECKBOXES):
             errors.append("after phase incomplete: agent review checkboxes are not all checked")
         impact = section(text, "Impact Score")
         errors.extend(impact_score_errors(impact))
-        if checked_count(impact) < 1:
+        if missing_checked_labels(impact, IMPACT_SCORE_CHECKBOXES):
             errors.append("after phase incomplete: impact evidence checkbox is not checked")
     if phase == "draft" and not PLACEHOLDER_RE.search(text):
         errors.append("draft check expected fillable required slots, but none were found")

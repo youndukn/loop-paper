@@ -267,6 +267,32 @@ def make_before_ready_with_empty_validation_baseline(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def make_before_ready_with_unrelated_hypothesis_checks(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = mark_checkboxes(
+        text,
+        [
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+        ],
+    )
+    text = text.replace(
+        "- [ ] Baseline evidence is recorded before implementation\n\n## Prior Research",
+        "- [ ] Baseline evidence is recorded before implementation\n"
+        "- [x] unrelated hypothesis checkbox one\n"
+        "- [x] unrelated hypothesis checkbox two\n"
+        "- [x] unrelated hypothesis checkbox three\n\n"
+        "## Prior Research",
+        1,
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def make_after_ready_except_validation_evidence(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.replace("BEFORE_REQUIRED:", "Recorded:")
@@ -292,6 +318,42 @@ def make_after_ready_except_validation_evidence(path: Path) -> None:
     text = text.replace(
         "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
         "- Supported: edge-case verdict recorded with evidence pending.",
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def make_after_ready_with_unrelated_agent_checks(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = normalize_prior_research_options(text)
+    text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = normalize_agent_review_fields(text)
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+            "AI validation evidence recorded",
+            "Impact score is based on evidence, not agent guesswork",
+        ],
+    )
+    text = text.replace(
+        "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded, with the evidence reason.",
+        "- Supported: edge-case verdict recorded.",
+    )
+    text = text.replace(
+        "- [ ] Agent confirmed evidence backs the recorded verdict\n\n## Impact Score",
+        "- [ ] Agent confirmed evidence backs the recorded verdict\n"
+        "- [x] unrelated agent checkbox one\n"
+        "- [x] unrelated agent checkbox two\n\n"
+        "## Impact Score",
+        1,
     )
     path.write_text(text, encoding="utf-8")
 
@@ -1997,6 +2059,24 @@ def main() -> int:
         run_ok(
             [sys.executable, script("check_closed_loop_paper.py"), str(uppercase_gate), "--phase", "before"]
         )
+        unrelated_hypothesis_checks_gate = create_edge_paper(root, "Unrelated Hypothesis Checks Edge")
+        make_before_ready_with_unrelated_hypothesis_checks(unrelated_hypothesis_checks_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(unrelated_hypothesis_checks_gate),
+                "--phase",
+                "before",
+            ],
+            "hypothesis checkboxes are not all checked",
+        )
+        for status in ["Research Ready"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(unrelated_hypothesis_checks_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(unrelated_hypothesis_checks_gate), "Plan Ready"],
+            "hypothesis checkboxes are not all checked",
+        )
         empty_hypothesis_claim_gate = create_edge_paper(root, "Empty Hypothesis Claim Edge")
         make_before_ready_with_empty_hypothesis_claim(empty_hypothesis_claim_gate)
         run_fail(
@@ -2108,6 +2188,24 @@ def main() -> int:
         run_fail(
             [sys.executable, script("transition_paper.py"), str(missing_agent_reviewer_gate), "AI Validated"],
             "agent review missing Agent reviewer",
+        )
+        unrelated_agent_checks_gate = create_edge_paper(root, "Unrelated Agent Checks Edge")
+        make_after_ready_with_unrelated_agent_checks(unrelated_agent_checks_gate)
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(unrelated_agent_checks_gate),
+                "--phase",
+                "after",
+            ],
+            "agent review checkboxes are not all checked",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(unrelated_agent_checks_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(unrelated_agent_checks_gate), "AI Validated"],
+            "agent review checkboxes are not all checked",
         )
         invalid_agent_decision_gate = create_edge_paper(root, "Invalid Agent Decision Edge")
         make_after_ready_with_invalid_agent_decision(invalid_agent_decision_gate)
