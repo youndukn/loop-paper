@@ -2145,6 +2145,41 @@ def main() -> int:
         stale_summary = stale_output_root / "dashboard" / "pipeline-summary.json"
         if not stale_summary.exists():
             raise SystemExit("Failed stale-output gate did not write pipeline summary")
+        partial_output_root = project / "partial-output-gate-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(partial_output_root),
+                "--project-name",
+                "Loop Paper Partial Output Gate",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        create_edge_paper(partial_output_root, "Partial Output Gate Edge")
+        partial_report_collision = partial_output_root / "dashboard" / "report.md"
+        partial_report_collision.mkdir(parents=True)
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(partial_output_root), "--strict"],
+            "Expected output file, got directory",
+        )
+        partial_outputs = [
+            partial_output_root / "dashboard" / "data.json",
+            partial_output_root / "dashboard" / "references.json",
+            partial_output_root / "dashboard" / "impact-scores.json",
+            partial_output_root / "dashboard" / "index.html",
+        ]
+        partial_remaining = [str(path) for path in partial_outputs if path.exists()]
+        if partial_remaining:
+            raise SystemExit("Failed output step left partial generated outputs: " + ", ".join(partial_remaining))
+        partial_summary = partial_output_root / "dashboard" / "pipeline-summary.json"
+        if not partial_summary.exists():
+            raise SystemExit("Failed partial-output gate did not write pipeline summary")
+        partial_summary_payload = json.loads(partial_summary.read_text(encoding="utf-8"))
+        if partial_summary_payload.get("report_exported") is not False:
+            raise SystemExit("Failed partial-output summary did not record report_exported=false")
         run_fail(
             [sys.executable, script("watch_pipeline.py"), str(root), "--once"],
             "validation evidence checkbox is not checked",

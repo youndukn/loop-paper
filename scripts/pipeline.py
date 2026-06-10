@@ -145,6 +145,8 @@ def main() -> int:
                 print(completed.stdout.strip())
             if completed.stderr:
                 print(completed.stderr.strip(), file=sys.stderr)
+        if not all(results[name] for name, _command in output_steps):
+            remove_generated_outputs(root)
     else:
         remove_generated_outputs(root)
         skipped = ", ".join(name for name, _command in output_steps)
