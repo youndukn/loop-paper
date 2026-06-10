@@ -220,9 +220,37 @@ def ensure_installed_payload_validates() -> None:
         run_ok([sys.executable, str(destination / "scripts" / "smoke_test.py")])
 
 
+def ensure_installer_rejects_recursive_destinations() -> None:
+    run_fail(
+        [
+            sys.executable,
+            script("install_skill.py"),
+            "--agent",
+            "codex",
+            "--dest",
+            str(ROOT / "scripts" / "nested-install"),
+        ],
+        "Refusing to install inside the source checkout",
+    )
+    run_fail(
+        [
+            sys.executable,
+            script("install_skill.py"),
+            "--agent",
+            "codex",
+            "--dest",
+            str(ROOT.parent),
+            "--force",
+            "--dry-run",
+        ],
+        "Refusing to install over a parent of the source checkout",
+    )
+
+
 def main() -> int:
     ensure_validator_ignores_local_paper_stack()
     ensure_installed_payload_validates()
+    ensure_installer_rejects_recursive_destinations()
 
     with tempfile.TemporaryDirectory(prefix="loop-paper-edge-") as tmp:
         project = Path(tmp)

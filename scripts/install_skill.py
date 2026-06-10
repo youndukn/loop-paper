@@ -93,10 +93,18 @@ def install_targets(
 def copy_payload(destination: Path, *, force: bool, mode: str, dry_run: bool) -> str:
     source = ROOT
     destination = destination.expanduser()
+    source_resolved = source.resolve()
+    destination_resolved = destination.resolve(strict=False)
+
+    if destination_resolved != source_resolved:
+        if destination_resolved.is_relative_to(source_resolved):
+            raise SystemExit(f"Refusing to install inside the source checkout: {destination}")
+        if source_resolved.is_relative_to(destination_resolved):
+            raise SystemExit(f"Refusing to install over a parent of the source checkout: {destination}")
 
     if destination.exists() or destination.is_symlink():
         try:
-            if destination.resolve() == source.resolve():
+            if destination.resolve() == source_resolved:
                 return "already-installed-source"
         except FileNotFoundError:
             pass
