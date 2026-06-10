@@ -19,6 +19,10 @@ from paperstack_common import (
 
 
 PLACEHOLDER_RE = re.compile(r"\b(BEFORE_REQUIRED|AFTER_REQUIRED)\b")
+VERDICT_BULLET_RE = re.compile(
+    r"^\s*-\s+(Supported|Failed|Inconclusive|Superseded)\s*:",
+    flags=re.MULTILINE,
+)
 
 
 def section(text: str, name: str) -> str:
@@ -96,7 +100,7 @@ def validate_paper(path: Path, phase: str) -> list[str]:
                 f"after phase incomplete: {len(after_placeholders)} AFTER_REQUIRED slots remain"
             )
         validation = section(text, "Validation")
-        if not re.search(r"\b(Supported|Failed|Inconclusive|Superseded)\b", validation):
+        if not VERDICT_BULLET_RE.search(validation):
             errors.append("after phase incomplete: no hypothesis verdict recorded")
         if checked_count(validation) < 1:
             errors.append("after phase incomplete: validation evidence checkbox is not checked")

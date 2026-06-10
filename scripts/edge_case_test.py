@@ -146,6 +146,30 @@ def make_after_ready_except_validation_evidence(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def make_after_ready_with_instruction_verdict(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    text = text.replace("AFTER_REQUIRED:", "Recorded:")
+    text = mark_checkboxes(
+        text,
+        [
+            "Hypothesis is specific",
+            "Hypothesis can be validated or rejected",
+            "Baseline evidence is recorded before implementation",
+            "Prior work is cited, or missing prior work is explicitly acknowledged",
+            "Implementation plan is concrete",
+            "Dependencies are named",
+            "Risks are named",
+            "Recorded: test/verifier/check to run",
+            "AI validation evidence recorded",
+            "Agent reviewed paper structure",
+            "Agent confirmed evidence backs the recorded verdict",
+            "Impact score is based on evidence, not agent guesswork",
+        ],
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def set_status(path: Path, status: str) -> None:
     text = path.read_text(encoding="utf-8")
     if "status: Draft" not in text:
@@ -1315,6 +1339,18 @@ def main() -> int:
         run_fail(
             [sys.executable, script("transition_paper.py"), str(validation_evidence_gate), "AI Validated"],
             "validation evidence checkbox is not checked",
+        )
+        verdict_gate = create_edge_paper(root, "Verdict Instruction Gate Edge")
+        make_after_ready_with_instruction_verdict(verdict_gate)
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(verdict_gate), "--phase", "after"],
+            "no hypothesis verdict recorded",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(verdict_gate), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(verdict_gate), "AI Validated"],
+            "no hypothesis verdict recorded",
         )
         pipeline_gate = create_edge_paper(root, "Pipeline Gate Edge")
         make_after_ready_except_validation_evidence(pipeline_gate)
