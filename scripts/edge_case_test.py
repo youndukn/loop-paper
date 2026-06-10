@@ -716,6 +716,23 @@ def main() -> int:
         ]:
             run_fail(command, f"Missing paper file: {missing_paper}")
 
+        review_repair = create_edge_paper(root, "Agent Review Repair Edge")
+        repair_text = review_repair.read_text(encoding="utf-8")
+        review_start = repair_text.index("\n## Agent Review\n")
+        impact_start = repair_text.index("\n## Impact Score\n")
+        review_repair.write_text(
+            repair_text[:review_start] + repair_text[impact_start:],
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(review_repair)],
+            "Agent Review",
+        )
+        run_ok([sys.executable, script("agent_review.py"), str(review_repair)])
+        run_ok([sys.executable, script("check_paper.py"), str(review_repair)])
+        if "Agent reviewer: Codex" not in review_repair.read_text(encoding="utf-8"):
+            raise SystemExit("Agent review did not repair missing Agent Review section")
+
         review_injection = create_edge_paper(root, "Agent Review Injection Edge")
         run_ok(
             [

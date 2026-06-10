@@ -7,7 +7,7 @@ import argparse
 import re
 from pathlib import Path
 
-from check_paper import require_valid_file
+from check_paper import check_file
 from paperstack_common import load_paper, markdown_inline, replace_frontmatter, today
 
 
@@ -53,6 +53,18 @@ Notes: {notes}
     return re.sub(pattern, section, text, count=1, flags=re.MULTILINE | re.DOTALL)
 
 
+def require_reviewable_file(path: Path) -> None:
+    result = check_file(path)
+    blocking = []
+    for key in ("missing_sections", "empty_sections", "warnings"):
+        for detail in result[key]:
+            if key in {"missing_sections", "empty_sections"} and detail == "Agent Review":
+                continue
+            blocking.append(detail)
+    if blocking:
+        raise SystemExit("Paper structure check failed: " + "; ".join(blocking))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Record an agent review on a Paper Stack paper.")
     parser.add_argument("paper", help="Path to PAPER-*.md")
@@ -62,7 +74,7 @@ def main() -> int:
     args = parser.parse_args()
 
     path = Path(args.paper)
-    require_valid_file(path)
+    require_reviewable_file(path)
     paper = load_paper(path)
     updated = replace_section(paper["text"], args.reviewer, args.decision, args.notes)
     metadata = dict(paper["metadata"])
