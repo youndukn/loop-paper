@@ -964,6 +964,64 @@ def main() -> int:
             ],
             "--date must be a valid calendar date",
         )
+        bad_project_name_root = project / "bad-project-name-stack"
+        run_fail(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(bad_project_name_root),
+                "--project-name",
+                "Bad\nName",
+                "--date",
+                "2026-06-10",
+            ],
+            "--project-name must not contain newlines or '---'",
+        )
+        if bad_project_name_root.exists():
+            raise SystemExit("Invalid project name created a partial paper stack root")
+        bad_seed_title_root = project / "bad-seed-title-stack"
+        run_fail(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(bad_seed_title_root),
+                "--project-name",
+                "Bad Seed Title Stack",
+                "--seed-paper",
+                "--seed-title",
+                "Bad: Title",
+                "--date",
+                "2026-06-10",
+            ],
+            "--seed-title must not contain ':', newlines, or '---'",
+        )
+        if bad_seed_title_root.exists():
+            raise SystemExit("Invalid seed title created a partial paper stack root")
+        colon_seed_root = project / "colon-seed-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(colon_seed_root),
+                "--project-name",
+                "Colon: Name",
+                "--seed-paper",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        colon_seed_papers = sorted((colon_seed_root / "papers").glob("PAPER-*.md"))
+        if len(colon_seed_papers) != 1:
+            raise SystemExit("Colon project seed initialization did not create exactly one paper")
+        colon_seed_text = colon_seed_papers[0].read_text(encoding="utf-8")
+        if "title: Initialize Colon - Name Loop Paper" not in colon_seed_text:
+            raise SystemExit("Colon project seed title was not sanitized in frontmatter")
+        if "# PAPER-0001 Initialize Colon - Name Loop Paper" not in colon_seed_text:
+            raise SystemExit("Colon project seed title was not sanitized in heading")
+        run_ok([sys.executable, script("check_paper.py"), str(colon_seed_root)])
         run_ok(
             [
                 sys.executable,

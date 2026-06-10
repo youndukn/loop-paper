@@ -29,6 +29,8 @@ DIRECTORIES = [
     "config",
     "archive",
 ]
+UNSAFE_PROJECT_NAME_CHARS = re.compile(r"[\n\r]|---")
+UNSAFE_SEED_TITLE_CHARS = re.compile(r"[:\n\r]|---")
 
 
 def slugify(value: str) -> str:
@@ -44,6 +46,31 @@ def project_name_from_root(root: Path) -> str:
         if parent.name:
             return parent.name.replace("-", " ").replace("_", " ").title()
     return root.name.replace("-", " ").replace("_", " ").title()
+
+
+def validate_project_name(project_name: str) -> str:
+    cleaned = project_name.strip()
+    if not cleaned:
+        raise SystemExit("--project-name must not be empty")
+    if UNSAFE_PROJECT_NAME_CHARS.search(cleaned):
+        raise SystemExit("--project-name must not contain newlines or '---'")
+    return cleaned
+
+
+def validate_seed_title(seed_title: str) -> str:
+    cleaned = seed_title.strip()
+    if not cleaned:
+        raise SystemExit("--seed-title must not be empty")
+    if UNSAFE_SEED_TITLE_CHARS.search(cleaned):
+        raise SystemExit(
+            "--seed-title must not contain ':', newlines, or '---' (would break YAML frontmatter)"
+        )
+    return cleaned
+
+
+def seed_title_from_project_name(project_name: str) -> str:
+    safe_name = re.sub(r"\s+", " ", project_name.replace(":", " - ")).strip()
+    return validate_seed_title(f"Initialize {safe_name} Loop Paper")
 
 
 def write_once(path: Path, text: str, overwrite: bool) -> bool:
@@ -98,7 +125,7 @@ def create_seed_paper(args: argparse.Namespace, root: Path) -> str | None:
         "--root",
         str(root),
         "--title",
-        args.seed_title or f"Initialize {args.project_name} Loop Paper",
+        args.seed_title or seed_title_from_project_name(args.project_name),
         "--hypothesis",
         args.seed_hypothesis or "A project-local paper structure will make work loops auditable and reusable.",
         "--finding",
@@ -129,7 +156,9 @@ def main() -> int:
     args.date = validate_iso_date(args.date)
 
     root = args.root
-    args.project_name = args.project_name or project_name_from_root(root)
+    args.project_name = validate_project_name(args.project_name or project_name_from_root(root))
+    if args.seed_title is not None:
+        args.seed_title = validate_seed_title(args.seed_title)
     ensure_directory(root, label="paper stack root")
 
     created_dirs = []
