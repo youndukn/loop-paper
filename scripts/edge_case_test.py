@@ -2843,6 +2843,40 @@ def main() -> int:
         run_ok([sys.executable, script("check_paper.py"), str(title_heading)])
         run_ok([sys.executable, script("pipeline.py"), str(title_heading_root), "--strict"])
         run_ok([sys.executable, script("combine_papers.py"), str(title_heading_root), "--last", "1"])
+        titleless_heading_root = project / "titleless-heading-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(titleless_heading_root),
+                "--project-name",
+                "Loop Paper Titleless Heading Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        titleless_heading = create_edge_paper(titleless_heading_root, "Titleless Heading Edge")
+        titleless_heading.write_text(
+            titleless_heading.read_text(encoding="utf-8").replace(
+                "# PAPER-0001 Titleless Heading Edge",
+                "# PAPER-0001",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_paper.py"), str(titleless_heading)],
+            "heading title '' does not match title frontmatter",
+        )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(titleless_heading), "--check"],
+            "Top-level paper heading is missing a visible title",
+        )
+        run_fail(
+            [sys.executable, script("update_paper_metadata.py"), str(titleless_heading)],
+            "Top-level paper heading is missing a visible title",
+        )
         duplicate_heading_root = project / "duplicate-heading-stack"
         run_ok(
             [

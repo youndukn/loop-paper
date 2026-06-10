@@ -28,8 +28,17 @@ REPAIRABLE_WARNINGS = {
 
 
 def title_from_heading(text: str, fallback: str) -> str:
-    match = re.search(r"^#\s+(PAPER-\d{4}\s+)?(.+?)\s*$", text, flags=re.MULTILINE)
-    return match.group(2).strip() if match else fallback
+    match = re.search(r"^#\s+(.+?)\s*$", text, flags=re.MULTILINE)
+    if not match:
+        return fallback
+    heading = match.group(1).strip()
+    paper_match = re.match(r"^PAPER-\d{4}(?:\s+|$)", heading)
+    if not paper_match:
+        return heading
+    title = heading[paper_match.end() :].strip()
+    if not title:
+        raise SystemExit("Top-level paper heading is missing a visible title")
+    return title
 
 
 def is_repairable_warning(message: str) -> bool:
