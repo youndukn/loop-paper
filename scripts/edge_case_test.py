@@ -289,6 +289,21 @@ def main() -> int:
             ],
             f"Expected paper stack root, got file: {root_file}",
         )
+        root_parent_file = project / "root-parent-file"
+        root_parent_file.write_text("not a directory", encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(root_parent_file / "nested-stack"),
+                "--project-name",
+                "Nested Root File Stack",
+                "--date",
+                "2026-06-10",
+            ],
+            f"Expected parent directory for paper stack root, got file: {root_parent_file}",
+        )
         run_fail(
             [
                 sys.executable,
@@ -1852,6 +1867,20 @@ def main() -> int:
                 str(output_parent_file / "prompts.json"),
             ],
             f"Expected parent directory for prompt output, got file: {output_parent_file}",
+        )
+        output_ancestor_file = root / "dashboard" / "output-ancestor-file"
+        output_ancestor_file.write_text("file ancestor", encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("combine_papers.py"),
+                str(root),
+                "--last",
+                "1",
+                "--output",
+                str(output_ancestor_file / "nested" / "combined.md"),
+            ],
+            f"Expected parent directory for output, got file: {output_ancestor_file}",
         )
         dashboard_file_root = project / "dashboard-file-stack"
         run_ok(

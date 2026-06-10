@@ -78,9 +78,19 @@ def require_paper_file(path: Path) -> None:
         raise SystemExit(f"Expected paper file, got directory: {path}")
 
 
+def file_ancestor(path: Path) -> Path | None:
+    for parent in reversed(path.parents):
+        if parent.exists() and not parent.is_dir():
+            return parent
+    return None
+
+
 def ensure_directory(path: Path, *, label: str = "directory") -> None:
     if path.exists() and not path.is_dir():
         raise SystemExit(f"Expected {label}, got file: {path}")
+    blocked = file_ancestor(path)
+    if blocked:
+        raise SystemExit(f"Expected parent directory for {label}, got file: {blocked}")
     path.mkdir(parents=True, exist_ok=True)
 
 
@@ -90,6 +100,9 @@ def write_text_output(path: Path, text: str, *, label: str = "output") -> None:
     parent = path.parent
     if parent.exists() and not parent.is_dir():
         raise SystemExit(f"Expected parent directory for {label}, got file: {parent}")
+    blocked = file_ancestor(parent)
+    if blocked:
+        raise SystemExit(f"Expected parent directory for {label}, got file: {blocked}")
     parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
 
