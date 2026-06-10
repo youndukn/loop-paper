@@ -1978,6 +1978,10 @@ def main() -> int:
             [sys.executable, script("check_closed_loop_paper.py"), str(created), "--phase", "before"],
             "BEFORE_REQUIRED slots remain",
         )
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(created), "Research Ready"],
+            "Research Ready requires Prior Research and References placeholders to be resolved",
+        )
         prior_gate = create_edge_paper(root, "Prior Gate Edge")
         make_before_ready_except_prior_research(prior_gate)
         run_fail(

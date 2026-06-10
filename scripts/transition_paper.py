@@ -7,7 +7,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from check_closed_loop_paper import validate_paper
+from check_closed_loop_paper import prior_research_errors, validate_paper
 from check_paper import check_paths, result_details
 from paperstack_common import (
     ALLOWED_TRANSITIONS,
@@ -25,6 +25,7 @@ from paperstack_common import (
 
 BEFORE_PHASE_TARGETS = {"Plan Ready", "Implementing", "Implemented"}
 AFTER_PHASE_TARGETS = {"AI Validated", "Accepted"}
+RESEARCH_READY_TARGETS = {"Research Ready", "Plan Ready", "Implementing", "Implemented", "AI Validated", "Accepted"}
 
 
 def structural_errors(paper: dict) -> list[str]:
@@ -50,9 +51,12 @@ def gate_errors(paper: dict, target: str) -> list[str]:
     missing = [section for section in REQUIRED_SECTIONS if section not in sections or not sections[section].strip()]
     if target not in {"Draft", "Rejected", "Superseded"} and missing:
         errors.append("Missing or empty required sections: " + ", ".join(missing))
-    if target in {"Research Ready", "Plan Ready", "Implementing", "Implemented", "AI Validated", "Accepted"}:
+    if target in RESEARCH_READY_TARGETS:
         prior = sections.get("Prior Research", "")
         refs = sections.get("References", "")
+        errors.extend(prior_research_errors(sections))
+        if "BEFORE_REQUIRED" in prior or "BEFORE_REQUIRED" in refs:
+            errors.append("Research Ready requires Prior Research and References placeholders to be resolved")
         if "Prior Research Status: Missing" in prior and "Risk: High" not in prior:
             errors.append("Missing prior research must explicitly mark Risk: High")
         if "- TBD" in refs and "Prior Research Status: Missing" not in prior:
