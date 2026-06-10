@@ -7,6 +7,7 @@ import json
 import subprocess
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 
 
@@ -740,6 +741,8 @@ def main() -> int:
             raise SystemExit("Agent decision input was not collapsed to inline Markdown")
         if "Looks good ## Impact Score injected" not in review_text:
             raise SystemExit("Agent review notes were not collapsed to inline Markdown")
+        if f"updated: {date.today().isoformat()}" not in review_text:
+            raise SystemExit("Agent review did not refresh updated frontmatter")
         run_ok([sys.executable, script("check_paper.py"), str(review_injection)])
 
         run_fail(

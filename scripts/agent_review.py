@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from check_paper import require_valid_file
-from paperstack_common import load_paper, markdown_inline, today
+from paperstack_common import load_paper, markdown_inline, replace_frontmatter, today
 
 
 DEFAULT_SECTION = """## Agent Review
@@ -65,7 +65,9 @@ def main() -> int:
     require_valid_file(path)
     paper = load_paper(path)
     updated = replace_section(paper["text"], args.reviewer, args.decision, args.notes)
-    path.write_text(updated, encoding="utf-8")
+    metadata = dict(paper["metadata"])
+    metadata["updated"] = today()
+    path.write_text(replace_frontmatter(updated, metadata), encoding="utf-8")
     print(f"{paper['paper_id']} agent review recorded by {args.reviewer}")
     return 0
 
