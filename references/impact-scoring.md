@@ -34,4 +34,7 @@ Validation strength score:
 Measured outcome score:
 
 - Must come from metrics, observed user behavior, revenue, cost, quality, safety, or another concrete outcome.
+- To make the deterministic scorer use the component, include an explicit
+  0-10 score in the `Measured outcome:` basis line, for example
+  `Measured outcome: score=8/10; latency dropped from 400ms to 250ms`.
 - Leave `TBD` when missing.

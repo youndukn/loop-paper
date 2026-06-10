@@ -1344,6 +1344,41 @@ def main() -> int:
             raise SystemExit("Impact scorer fabricated a full score with missing measured outcome")
         if first_score.get("deterministic_partial_score") != 0.99:
             raise SystemExit("Impact scorer did not use weighted partial formula")
+        measured_score_root = project / "measured-score-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(measured_score_root),
+                "--project-name",
+                "Loop Paper Measured Score Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        measured_score_paper = create_edge_paper(measured_score_root, "Measured Score Edge")
+        measured_score_paper.write_text(
+            measured_score_paper.read_text(encoding="utf-8").replace(
+                "- Measured outcome: AFTER_REQUIRED: before/after delta or failed result",
+                "- Measured outcome: score=8/10; latency dropped from 400ms to 250ms",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_ok([sys.executable, script("score_impact.py"), str(measured_score_root)])
+        measured_payload = json.loads(
+            (measured_score_root / "dashboard" / "impact-scores.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        measured_item = measured_payload["papers"][0]
+        if measured_item["components"].get("measured_outcome_score") != 8:
+            raise SystemExit("Impact scorer did not parse explicit measured outcome score")
+        if measured_item.get("deterministic_score") != 3.71:
+            raise SystemExit("Impact scorer did not complete weighted measured outcome formula")
+        if "explicit 0-10" not in measured_item.get("reason", ""):
+            raise SystemExit("Impact scorer did not explain explicit measured outcome parsing")
         run_ok(
             [
                 sys.executable,
