@@ -11,7 +11,13 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from paperstack_common import ensure_directory, validate_iso_date, write_text_output
+from paperstack_common import (
+    PAPER_FILENAME_RE,
+    ensure_directory,
+    paper_paths,
+    validate_iso_date,
+    write_text_output,
+)
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -119,6 +125,14 @@ def render_gitignore() -> str:
 def create_seed_paper(args: argparse.Namespace, root: Path) -> str | None:
     if not args.seed_paper:
         return None
+    existing_papers = paper_paths(root)
+    noncanonical = [
+        path.name for path in existing_papers if not PAPER_FILENAME_RE.fullmatch(path.name)
+    ]
+    if noncanonical:
+        raise SystemExit(f"Existing paper filename is not canonical: {noncanonical[0]}")
+    if existing_papers:
+        return None
     command = [
         sys.executable,
         str(NEW_CLOSED_LOOP),
@@ -180,6 +194,7 @@ def main() -> int:
         "gitignore": write_once(root / ".gitignore", render_gitignore(), args.overwrite),
     }
     seed_path = create_seed_paper(args, root)
+    seed_skipped = bool(args.seed_paper and seed_path is None)
 
     summary = {
         "root": str(root),
@@ -187,6 +202,7 @@ def main() -> int:
         "directories": created_dirs,
         "written": wrote,
         "seed_paper": seed_path,
+        "seed_paper_skipped": seed_skipped,
         "next_steps": [
             f"python3 {NEW_CLOSED_LOOP} --root {root} --title 'Short Work Unit Title' --hypothesis 'Falsifiable claim'",
             f"python3 {SCRIPT_DIR / 'pipeline.py'} {root}",

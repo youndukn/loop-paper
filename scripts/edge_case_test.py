@@ -1022,6 +1022,46 @@ def main() -> int:
         if "# PAPER-0001 Initialize Colon - Name Loop Paper" not in colon_seed_text:
             raise SystemExit("Colon project seed title was not sanitized in heading")
         run_ok([sys.executable, script("check_paper.py"), str(colon_seed_root)])
+        seed_idempotent_root = project / "seed-idempotent-stack"
+        first_seed = run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(seed_idempotent_root),
+                "--project-name",
+                "Seed Idempotent Stack",
+                "--seed-paper",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        first_seed_summary = json.loads(first_seed.stdout)
+        if first_seed_summary.get("seed_paper_skipped"):
+            raise SystemExit("First seed initialization was incorrectly skipped")
+        second_seed = run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(seed_idempotent_root),
+                "--project-name",
+                "Seed Idempotent Stack",
+                "--seed-paper",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        second_seed_summary = json.loads(second_seed.stdout)
+        if second_seed_summary.get("seed_paper") is not None:
+            raise SystemExit("Repeated seed initialization created a duplicate paper")
+        if second_seed_summary.get("seed_paper_skipped") is not True:
+            raise SystemExit("Repeated seed initialization did not report skipped seed paper")
+        seed_idempotent_papers = sorted((seed_idempotent_root / "papers").glob("PAPER-*.md"))
+        if [path.name for path in seed_idempotent_papers] != [
+            "PAPER-0001-initialize-seed-idempotent-stack-loop-paper.md"
+        ]:
+            raise SystemExit("Repeated seed initialization changed the paper set")
         run_ok(
             [
                 sys.executable,
