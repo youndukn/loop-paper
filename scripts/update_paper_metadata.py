@@ -70,6 +70,7 @@ def sync_file(path: Path, write: bool) -> dict:
     metadata.setdefault("owners", "[]")
     metadata.setdefault("reviewers", "[]")
     metadata.setdefault("impact_score", "TBD")
+    metadata.setdefault("paper_kind", "closed_loop")
 
     def without_updated(data: dict) -> dict:
         return {key: value for key, value in data.items() if key != "updated"}

@@ -95,6 +95,7 @@ updated: {today}
 owners: []
 reviewers: []
 impact_score: TBD
+paper_kind: closed_loop
 closed_loop_schema: paper_closed_loop.v1
 ---
 

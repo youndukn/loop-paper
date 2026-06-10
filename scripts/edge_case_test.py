@@ -544,6 +544,8 @@ def main() -> int:
                 ]
             ).stdout.strip()
         )
+        if "paper_kind: closed_loop" not in created.read_text(encoding="utf-8"):
+            raise SystemExit("Closed-loop paper did not declare paper_kind: closed_loop")
         escaped = Path(
             run_ok(
                 [
@@ -1509,6 +1511,8 @@ def main() -> int:
         )
         run_ok([sys.executable, script("update_paper_metadata.py"), str(missing_status)])
         run_ok([sys.executable, script("check_paper.py"), str(missing_status)])
+        if "paper_kind: closed_loop" not in missing_status.read_text(encoding="utf-8"):
+            raise SystemExit("Metadata sync did not backfill closed-loop paper_kind")
         run_ok([sys.executable, script("pipeline.py"), str(missing_status_root), "--strict"])
         run_ok([sys.executable, script("combine_papers.py"), str(missing_status_root), "--last", "1"])
         missing_title_root = project / "missing-title-stack"
