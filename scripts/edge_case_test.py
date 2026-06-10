@@ -3179,6 +3179,58 @@ def main() -> int:
             [sys.executable, script("score_impact.py"), str(lowercase_not_run_root)],
         ]:
             run_fail(command, "Advanced status conflicts with validation evidence marked Not run.")
+        hyphen_not_run_root = project / "hyphen-not-run-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(hyphen_not_run_root),
+                "--project-name",
+                "Loop Paper Hyphen Not Run Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        hyphen_not_run = create_edge_paper(
+            hyphen_not_run_root,
+            "Hyphen Not Run Edge",
+        )
+        hyphen_not_run.write_text(
+            hyphen_not_run.read_text(encoding="utf-8").replace(
+                "Record actual evidence only after execution or inspection.",
+                "Not-run",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        set_status(hyphen_not_run, "AI Validated")
+        for command in [
+            [sys.executable, script("check_paper.py"), str(hyphen_not_run)],
+            [sys.executable, script("check_paper.py"), str(hyphen_not_run_root)],
+            [sys.executable, script("pipeline.py"), str(hyphen_not_run_root), "--strict"],
+            [sys.executable, script("score_impact.py"), str(hyphen_not_run_root)],
+        ]:
+            run_fail(command, "Advanced status conflicts with validation evidence marked Not run.")
+        transition_hyphen_not_run = create_edge_paper(
+            hyphen_not_run_root,
+            "Hyphen Not Run Transition Edge",
+        )
+        make_after_ready(transition_hyphen_not_run)
+        transition_hyphen_not_run.write_text(
+            transition_hyphen_not_run.read_text(encoding="utf-8").replace(
+                "Record actual evidence only after execution or inspection.",
+                "Not-run",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        for status in ["Research Ready", "Plan Ready", "Implementing", "Implemented"]:
+            run_ok([sys.executable, script("transition_paper.py"), str(transition_hyphen_not_run), status])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(transition_hyphen_not_run), "AI Validated"],
+            "Validation still says Not run",
+        )
         missing_status_root = project / "missing-status-stack"
         run_ok(
             [

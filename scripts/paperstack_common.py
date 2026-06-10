@@ -282,4 +282,10 @@ def paper_root_from_path(path: Path) -> Path:
 
 
 def validation_not_run(sections: dict[str, str]) -> bool:
-    return "not run" in sections.get("Validation", "").lower()
+    return bool(
+        re.search(
+            r"\bnot[-\s]+run\b",
+            sections.get("Validation", ""),
+            flags=re.IGNORECASE,
+        )
+    )
