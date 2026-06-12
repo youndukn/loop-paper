@@ -24,7 +24,9 @@ from paperstack_common import (
 SCRIPT_DIR = Path(__file__).resolve().parent
 SKILL_DIR = SCRIPT_DIR.parent
 STRUCTURE_TEMPLATE = SKILL_DIR / "assets" / "structure-template.md"
+GUARD_HOOK_TEMPLATE = SKILL_DIR / "assets" / "guard_paper_loop.py"
 NEW_CLOSED_LOOP = SCRIPT_DIR / "new_closed_loop_paper.py"
+GUARD_HOOK_MARKER = "guard_paper_loop.py"
 
 DIRECTORIES = [
     "papers",
@@ -77,7 +79,7 @@ def write_once(path: Path, text: str, overwrite: bool) -> bool:
     return True
 
 
-def render_config(root: Path, project_name: str, today: str) -> str:
+def render_config(root: Path, project_name: str, today: str, *, seed_paper: bool = False) -> str:
     payload = {
         "schema": "loop_paper.project.v1",
         "project_name": project_name,
@@ -88,6 +90,7 @@ def render_config(root: Path, project_name: str, today: str) -> str:
         "run_id_format": "RUN-YYYY-MM-DD-PAPER-NNNN-short-name",
         "fix_id_format": "FIX-YYYY-MM-DD-PAPER-NNNN-short-name",
         "relationship_empty_value": "None",
+        "proposal_gate": {"required_from": "PAPER-0002" if seed_paper else "PAPER-0001"},
         "generated_outputs": [
             "dashboard/data.json",
             "dashboard/index.html",
@@ -109,6 +112,48 @@ def render_gitignore() -> str:
             "",
         ]
     )
+
+
+def install_guard_hook(root: Path, overwrite: bool) -> dict:
+    hook_path = root / "hooks" / "guard_paper_loop.py"
+    ensure_directory(root / "hooks", label="hooks directory")
+    wrote_script = write_once(hook_path, GUARD_HOOK_TEMPLATE.read_text(encoding="utf-8"), overwrite)
+
+    project_dir = root.parent
+    settings_path = project_dir / ".claude" / "settings.json"
+    command = f'python3 "$CLAUDE_PROJECT_DIR/{root.name}/hooks/guard_paper_loop.py"'
+
+    settings: dict = {}
+    if settings_path.is_file():
+        try:
+            settings = json.loads(settings_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            raise SystemExit(f"Cannot merge hook into invalid JSON: {settings_path}")
+        if not isinstance(settings, dict):
+            raise SystemExit(f"Expected a JSON object in {settings_path}")
+    hooks = settings.setdefault("hooks", {})
+    pre_tool_use = hooks.setdefault("PreToolUse", [])
+    already = any(
+        GUARD_HOOK_MARKER in hook.get("command", "")
+        for entry in pre_tool_use
+        for hook in entry.get("hooks", [])
+        if isinstance(hook, dict)
+    )
+    if not already:
+        pre_tool_use.append(
+            {
+                "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+                "hooks": [{"type": "command", "command": command}],
+            }
+        )
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+        settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+    return {
+        "script": str(hook_path),
+        "script_written": wrote_script,
+        "settings": str(settings_path),
+        "registered": not already,
+    }
 
 
 def create_seed_paper(args: argparse.Namespace, root: Path) -> str | None:
@@ -156,6 +201,11 @@ def main() -> int:
     parser.add_argument("--seed-paper", action="store_true", help="Create the first closed-loop paper")
     parser.add_argument("--seed-title", help="Title for the optional seed paper")
     parser.add_argument("--seed-hypothesis", help="Hypothesis for the optional seed paper")
+    parser.add_argument(
+        "--no-claude-hook",
+        action="store_true",
+        help="Skip installing the Claude Code PreToolUse guard hook",
+    )
     parser.add_argument("--date", default=date.today().isoformat())
     args = parser.parse_args()
     args.date = validate_iso_date(args.date)
@@ -181,9 +231,10 @@ def main() -> int:
 
     wrote = {
         "structure": write_once(root / "structure.md", structure_text, args.overwrite),
-        "config": write_once(root / "config" / "loop-paper.json", render_config(root, args.project_name, args.date), args.overwrite),
+        "config": write_once(root / "config" / "loop-paper.json", render_config(root, args.project_name, args.date, seed_paper=args.seed_paper), args.overwrite),
         "gitignore": write_once(root / ".gitignore", render_gitignore(), args.overwrite),
     }
+    guard_hook = None if args.no_claude_hook else install_guard_hook(root, args.overwrite)
     seed_path = create_seed_paper(args, root)
     seed_skipped = bool(args.seed_paper and seed_path is None)
 
@@ -194,6 +245,7 @@ def main() -> int:
         "written": wrote,
         "seed_paper": seed_path,
         "seed_paper_skipped": seed_skipped,
+        "claude_hook": guard_hook,
         "next_steps": [
             f"python3 {NEW_CLOSED_LOOP} --root {root} --title 'Short Work Unit Title' --hypothesis 'Falsifiable claim'",
             f"python3 {SCRIPT_DIR / 'pipeline.py'} {root}",

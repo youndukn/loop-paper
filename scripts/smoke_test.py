@@ -258,6 +258,12 @@ def main() -> int:
             ]
         )
 
+        gate_config = root / "config" / "loop-paper.json"
+        gate_payload = json.loads(gate_config.read_text(encoding="utf-8"))
+        if gate_payload.pop("proposal_gate", None) is None:
+            raise SystemExit("init_loop_paper.py did not enable the proposal gate by default")
+        gate_config.write_text(json.dumps(gate_payload, indent=2) + "\n", encoding="utf-8")
+
         papers = []
         for index in [1, 2]:
             created = run(

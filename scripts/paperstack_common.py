@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import re
 import unicodedata
 from pathlib import Path
@@ -345,6 +346,34 @@ def paper_root_from_path(path: Path) -> Path:
     if path.parent.name == "papers":
         return path.parent.parent
     return path.parent
+
+
+def project_config(root: Path) -> dict:
+    path = root / "config" / "loop-paper.json"
+    if not path.is_file():
+        return {}
+    try:
+        config = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    return config if isinstance(config, dict) else {}
+
+
+def paper_number(paper_id: str) -> int | None:
+    match = re.fullmatch(r"PAPER-(\d{4})", paper_id)
+    return int(match.group(1)) if match else None
+
+
+def proposal_gate_start(root: Path) -> int | None:
+    gate = project_config(root).get("proposal_gate")
+    required_from = gate.get("required_from") if isinstance(gate, dict) else None
+    return paper_number(str(required_from)) if required_from else None
+
+
+def proposal_gate_applies(root: Path, paper_id: str) -> bool:
+    start = proposal_gate_start(root)
+    number = paper_number(paper_id)
+    return start is not None and number is not None and number >= start
 
 
 def validation_not_run(sections: dict[str, str]) -> bool:

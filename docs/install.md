@@ -4,6 +4,16 @@ Loop Paper is a single-skill repository. Install the directory that contains
 `SKILL.md`; bundled `scripts/`, `assets/`, `references/`, and
 `agents/openai.yaml` should travel with it.
 
+## One Command
+
+```bash
+npx skills add youndukn/loop-paper
+```
+
+The [vercel-labs/skills](https://github.com/vercel-labs/skills) CLI copies the
+full payload, auto-detects the running agent, and supports 70+ agents
+(`-g` for user scope, `--list` to preview).
+
 ## Universal Installer
 
 From a cloned checkout:

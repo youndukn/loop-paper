@@ -528,7 +528,17 @@ def set_paper_id(path: Path, paper_id: str) -> None:
     path.write_text(text.replace(f"paper_id: {filename_id}", f"paper_id: {paper_id}", 1), encoding="utf-8")
 
 
+def disable_proposal_gate(root: Path) -> None:
+    config = root / "config" / "loop-paper.json"
+    if not config.is_file():
+        return
+    payload = json.loads(config.read_text(encoding="utf-8"))
+    if payload.pop("proposal_gate", None) is not None:
+        config.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
 def create_edge_paper(root: Path, title: str) -> Path:
+    disable_proposal_gate(root)
     return Path(
         run_ok(
             [
@@ -846,6 +856,151 @@ def ensure_installer_force_copy_replaces_source_symlink() -> None:
         if not (destination / "SKILL.md").exists():
             raise SystemExit("Installer copy replacement did not include SKILL.md")
         run_ok([sys.executable, str(destination / "scripts" / "validate_skill_repo.py")])
+
+
+def ensure_proposal_gate_enforcement() -> None:
+    with tempfile.TemporaryDirectory(prefix="loop-paper-gate-") as tmp:
+        project = Path(tmp)
+        root = project / ".paper-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(root),
+                "--project-name",
+                "Proposal Gate Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        config = json.loads((root / "config" / "loop-paper.json").read_text(encoding="utf-8"))
+        if config.get("proposal_gate") != {"required_from": "PAPER-0001"}:
+            raise SystemExit("init did not enable the proposal gate from PAPER-0001 by default")
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Ungated Paper",
+                "--hypothesis",
+                "a",
+                "--hypothesis",
+                "b",
+                "--finding",
+                "f",
+                "--date",
+                "2026-06-10",
+            ],
+            "requires a human-gated proposal",
+        )
+        # A paper written around the creator must still fail the checker.
+        paper = create_edge_paper(root, "Bypass Paper")  # disables the gate to create
+        gate_config = root / "config" / "loop-paper.json"
+        payload = json.loads(gate_config.read_text(encoding="utf-8"))
+        payload["proposal_gate"] = {"required_from": "PAPER-0001"}
+        gate_config.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(paper),
+                "--phase",
+                "structural",
+            ],
+            "missing proposal_record",
+        )
+        # Seeded stacks exempt only the seed paper.
+        seeded_root = project / "seeded" / ".paper-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(seeded_root),
+                "--project-name",
+                "Seeded Gate Edge",
+                "--seed-paper",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        seeded_config = json.loads(
+            (seeded_root / "config" / "loop-paper.json").read_text(encoding="utf-8")
+        )
+        if seeded_config.get("proposal_gate") != {"required_from": "PAPER-0002"}:
+            raise SystemExit("seeded init did not gate from PAPER-0002")
+
+
+def ensure_guard_hook() -> None:
+    with tempfile.TemporaryDirectory(prefix="loop-paper-hook-") as tmp:
+        project = Path(tmp)
+        root = project / ".paper-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(root),
+                "--project-name",
+                "Guard Hook Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        hook = root / "hooks" / "guard_paper_loop.py"
+        if not hook.is_file():
+            raise SystemExit("init did not install the guard hook script")
+        settings = json.loads((project / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        commands = [
+            entry["command"]
+            for matcher in settings.get("hooks", {}).get("PreToolUse", [])
+            for entry in matcher.get("hooks", [])
+        ]
+        if not any("guard_paper_loop.py" in command for command in commands):
+            raise SystemExit("init did not register the guard hook in .claude/settings.json")
+
+        def guard(file_path: Path) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                [sys.executable, str(hook)],
+                input=json.dumps({"tool_input": {"file_path": str(file_path)}}),
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        blocked = guard(project / "src" / "app.py")
+        if blocked.returncode != 2 or "Blocked by loop-paper" not in blocked.stderr:
+            raise SystemExit("guard hook did not block edits without an open paper")
+        if guard(root / "papers" / "PAPER-0001-x.html").returncode != 0:
+            raise SystemExit("guard hook blocked an edit inside the paper stack")
+        disable_proposal_gate(root)
+        create_edge_paper(root, "Open Paper")
+        if guard(project / "src" / "app.py").returncode != 0:
+            raise SystemExit("guard hook blocked edits while a paper is open")
+        # Re-running init must not duplicate the hook registration.
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(root),
+                "--project-name",
+                "Guard Hook Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        settings = json.loads((project / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        commands = [
+            entry["command"]
+            for matcher in settings.get("hooks", {}).get("PreToolUse", [])
+            for entry in matcher.get("hooks", [])
+        ]
+        if sum("guard_paper_loop.py" in command for command in commands) != 1:
+            raise SystemExit("re-running init duplicated the guard hook registration")
 
 
 def ensure_propose_paper_rejections() -> None:
@@ -1272,6 +1427,8 @@ def ensure_interaction_review_gate() -> None:
 
 
 def main() -> int:
+    ensure_proposal_gate_enforcement()
+    ensure_guard_hook()
     ensure_propose_paper_rejections()
     ensure_interaction_review_gate()
     ensure_attestation_gates()
@@ -1606,6 +1763,7 @@ def main() -> int:
         )
         if missing_closed_loop_root.exists():
             raise SystemExit("Closed-loop paper creation initialized a missing root unexpectedly")
+        disable_proposal_gate(root)
         created = Path(
             run_ok(
                 [

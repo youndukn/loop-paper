@@ -35,6 +35,17 @@ of truth. One blocking human gate, at proposal time:
 5. `Implement now` creates the paper and persists the selection in
    `proposals/`. The checker rejects later drift.
 
+The gate is enforced by scripts, not by convention. Stack config declares
+`proposal_gate.required_from` (init defaults to `PAPER-0001`; `PAPER-0002`
+with `--seed-paper`): from that id on, `new_closed_loop_paper.py` refuses
+direct creation and the checker fails any closed-loop paper without a valid
+proposal record — so always create papers through `propose_paper.py`. Init
+also installs a Claude Code PreToolUse hook
+(`<stack>/hooks/guard_paper_loop.py`, registered in the project's
+`.claude/settings.json`, opt out with `--no-claude-hook`) that blocks file
+edits while no paper is in an open status. If the hook blocks you, do not
+work around it: research findings, then run `propose_paper.py`.
+
 After selection the loop is autonomous:
 `Draft -> Research Ready -> Plan Ready -> Implementing -> Implemented ->
 AI Validated -> Accepted`.

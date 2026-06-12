@@ -16,9 +16,11 @@ from paperstack_common import (
     checked_count,
     unchecked_count,
     markdown_table_cell,
+    paper_id_from_path,
     paper_paths,
     paper_root_from_path,
     parse_frontmatter,
+    proposal_gate_applies,
     read_paper_text,
     require_paper_file,
     split_sections,
@@ -372,6 +374,13 @@ def proposal_errors(path: Path, text: str, rows: list[str]) -> list[str]:
     metadata, _ = parse_frontmatter(text)
     record_value = metadata.get("proposal_record")
     if not record_value:
+        if metadata.get("paper_kind", "closed_loop") == "closed_loop" and proposal_gate_applies(
+            paper_root_from_path(path), paper_id_from_path(path)
+        ):
+            return [
+                "missing proposal_record: this stack requires human-gated proposals; "
+                "create papers via propose_paper.py, not directly"
+            ]
         return []
     errors: list[str] = []
     if metadata.get("abstract_provenance") != "human_selected":

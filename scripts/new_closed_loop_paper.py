@@ -18,6 +18,7 @@ from paperstack_common import (
     next_paper_id,
     paper_paths,
     paper_id_from_path,
+    proposal_gate_applies,
     slugify,
     validate_iso_date,
     validate_slug,
@@ -286,6 +287,11 @@ def create_paper(
             "then record the answer with ack_interaction.py --status reviewed|waived."
         )
     paper_id = next_paper_id(papers_dir)
+    if not proposal_record and proposal_gate_applies(root, paper_id):
+        raise SystemExit(
+            f"{paper_id} requires a human-gated proposal in this stack; "
+            "create it via propose_paper.py instead of new_closed_loop_paper.py"
+        )
     title = validate_title(title)
     slug = validate_slug(slug) if slug else slugify(title, fallback="closed-loop-paper")
     known_ids = {paper_id_from_path(path) for path in existing_paths}
