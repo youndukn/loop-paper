@@ -260,7 +260,7 @@ def validate_readme_seed_numbering() -> None:
     required = [
         "`--seed-paper` creates `PAPER-0001`",
         "`\"seed_paper_skipped\": true`",
-        "PAPER-0002-short-work-unit-title.md",
+        "PAPER-0002-short-work-unit-title.html",
     ]
     for phrase in required:
         if phrase not in text:

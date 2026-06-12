@@ -17,6 +17,7 @@ from paperstack_common import (
     replace_frontmatter,
     require_paper_file,
     today,
+    write_paper_text,
 )
 
 
@@ -101,7 +102,7 @@ def main() -> int:
     updated = replace_section(paper["text"], args.reviewer, args.decision, args.notes)
     metadata = dict(paper["metadata"])
     metadata["updated"] = today()
-    path.write_text(replace_frontmatter(updated, metadata), encoding="utf-8")
+    write_paper_text(path, replace_frontmatter(updated, metadata))
     print(f"{paper['paper_id']} agent review recorded by {args.reviewer}")
     return 0
 

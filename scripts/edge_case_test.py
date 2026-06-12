@@ -106,6 +106,73 @@ def resolve_hypothesis_ledger_verdicts(text: str) -> str:
     return re.sub(r"(?m)^(\| H\d+ \|.*\| )Open( \|)$", r"\1Supported\2", text)
 
 
+BEFORE_READY_CHECKBOXES = [
+    "Hypothesis is specific",
+    "Hypothesis can be validated or rejected",
+    "Baseline evidence is recorded before implementation",
+    "Prior work is cited, or missing prior work is explicitly acknowledged",
+    "Implementation plan is concrete",
+    "Dependencies are named",
+    "Risks are named",
+    "Recorded: test/verifier/check to run",
+]
+AFTER_READY_CHECKBOXES = BEFORE_READY_CHECKBOXES + [
+    "AI validation evidence recorded",
+    "Agent reviewed paper structure",
+    "Agent confirmed evidence backs the recorded verdict",
+    "Impact score is based on evidence, not agent guesswork",
+]
+
+
+def before_ready_text(path: Path) -> str:
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
+    return normalize_prior_research_options(text)
+
+
+def attested_edge_record(path: Path) -> str:
+    paper_id = re.match(r"(PAPER-\d{4})", path.name).group(1)
+    root = path.parent.parent
+    name = f"RUN-2026-06-10-{paper_id}-edge"
+    if not (root / "runs" / f"{name}.md").exists():
+        run_ok(
+            [
+                sys.executable,
+                script("execute_run.py"),
+                "--root",
+                str(root),
+                "--paper",
+                paper_id,
+                "--label",
+                "edge",
+                "--date",
+                "2026-06-10",
+                "--",
+                sys.executable,
+                "-c",
+                "print('edge ok')",
+            ]
+        )
+    return name
+
+
+def after_ready_text(path: Path) -> str:
+    record_name = attested_edge_record(path)
+    text = before_ready_text(path).replace("AFTER_REQUIRED:", "Recorded:")
+    text = re.sub(
+        r"(?m)^- \[ \] (Recorded: (?:first|second) implementation step)",
+        r"- [x] \1",
+        text,
+    )
+    text = text.replace(
+        "- Recorded: exact post-change output or inspected evidence",
+        f"- 2026-06-10 Attested evidence: {record_name}",
+        1,
+    )
+    text = normalize_agent_review_fields(text)
+    return resolve_hypothesis_ledger_verdicts(text)
+
+
 RECORDED_VERDICT_INSTRUCTION = (
     "- Recorded: mark each hypothesis Supported, Failed, Inconclusive, or\n"
     "  Superseded in both the Hypothesis Ledger Verdict column and this block,\n"
@@ -114,30 +181,17 @@ RECORDED_VERDICT_INSTRUCTION = (
 
 
 def make_before_ready_with_uppercase_checks(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
+    text = before_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-        ],
+        BEFORE_READY_CHECKBOXES,
     )
     text = text.replace("- [x]", "- [X]")
     path.write_text(text, encoding="utf-8")
 
 
 def make_before_ready_except_prior_research(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
+    text = before_ready_text(path)
     text = mark_checkboxes(
         text,
         [
@@ -154,9 +208,7 @@ def make_before_ready_except_prior_research(path: Path) -> None:
 
 
 def make_before_ready_except_validation_plan(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
+    text = before_ready_text(path)
     text = mark_checkboxes(
         text,
         [
@@ -173,9 +225,7 @@ def make_before_ready_except_validation_plan(path: Path) -> None:
 
 
 def make_before_ready_with_unrelated_validation_plan_check(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
+    text = before_ready_text(path)
     text = mark_checkboxes(
         text,
         [
@@ -199,21 +249,10 @@ def make_before_ready_with_unrelated_validation_plan_check(path: Path) -> None:
 
 
 def make_before_ready_with_empty_hypothesis_claim(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
+    text = before_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-        ],
+        BEFORE_READY_CHECKBOXES,
     )
     text = re.sub(
         r"^\| H1 \| [^|]+ \|",
@@ -226,21 +265,10 @@ def make_before_ready_with_empty_hypothesis_claim(path: Path) -> None:
 
 
 def make_before_ready_with_empty_prior_finding(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
+    text = before_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-        ],
+        BEFORE_READY_CHECKBOXES,
     )
     text = re.sub(
         r"^(\| \d{4}-\d{2}-\d{2} \| )[^|]+(\|)",
@@ -253,21 +281,10 @@ def make_before_ready_with_empty_prior_finding(path: Path) -> None:
 
 
 def make_before_ready_with_empty_implementation_risks(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
+    text = before_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-        ],
+        BEFORE_READY_CHECKBOXES,
     )
     text = re.sub(
         r"(?ms)^Risks:\n\n- .+?\n\nRollback/undo:",
@@ -279,21 +296,10 @@ def make_before_ready_with_empty_implementation_risks(path: Path) -> None:
 
 
 def make_before_ready_with_empty_validation_baseline(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
+    text = before_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-        ],
+        BEFORE_READY_CHECKBOXES,
     )
     text = re.sub(
         r"(?ms)^Before-change evidence:\n\n- .+?\n\nAfter-change evidence to collect:",
@@ -305,9 +311,7 @@ def make_before_ready_with_empty_validation_baseline(path: Path) -> None:
 
 
 def make_before_ready_with_unrelated_hypothesis_checks(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
+    text = before_ready_text(path)
     text = mark_checkboxes(
         text,
         [
@@ -331,12 +335,7 @@ def make_before_ready_with_unrelated_hypothesis_checks(path: Path) -> None:
 
 
 def make_after_ready_except_validation_evidence(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
-    text = text.replace("AFTER_REQUIRED:", "Recorded:")
-    text = normalize_agent_review_fields(text)
-    text = resolve_hypothesis_ledger_verdicts(text)
+    text = after_ready_text(path)
     text = mark_checkboxes(
         text,
         [
@@ -365,12 +364,7 @@ def make_after_ready(path: Path) -> None:
 
 
 def make_after_ready_with_unrelated_agent_checks(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
-    text = text.replace("AFTER_REQUIRED:", "Recorded:")
-    text = normalize_agent_review_fields(text)
-    text = resolve_hypothesis_ledger_verdicts(text)
+    text = after_ready_text(path)
     text = mark_checkboxes(
         text,
         [
@@ -399,55 +393,19 @@ def make_after_ready_with_unrelated_agent_checks(path: Path) -> None:
 
 
 def make_after_ready_with_instruction_verdict(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
-    text = text.replace("AFTER_REQUIRED:", "Recorded:")
-    text = normalize_agent_review_fields(text)
-    text = resolve_hypothesis_ledger_verdicts(text)
+    text = after_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-            "AI validation evidence recorded",
-            "Agent reviewed paper structure",
-            "Agent confirmed evidence backs the recorded verdict",
-            "Impact score is based on evidence, not agent guesswork",
-        ],
+        AFTER_READY_CHECKBOXES,
     )
     path.write_text(text, encoding="utf-8")
 
 
 def make_after_ready_with_empty_validation_after(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
-    text = text.replace("AFTER_REQUIRED:", "Recorded:")
-    text = normalize_agent_review_fields(text)
-    text = resolve_hypothesis_ledger_verdicts(text)
+    text = after_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-            "AI validation evidence recorded",
-            "Agent reviewed paper structure",
-            "Agent confirmed evidence backs the recorded verdict",
-            "Impact score is based on evidence, not agent guesswork",
-        ],
+        AFTER_READY_CHECKBOXES,
     )
     text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = re.sub(
@@ -460,28 +418,10 @@ def make_after_ready_with_empty_validation_after(path: Path) -> None:
 
 
 def make_after_ready_with_missing_agent_reviewer(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
-    text = text.replace("AFTER_REQUIRED:", "Recorded:")
-    text = normalize_agent_review_fields(text)
-    text = resolve_hypothesis_ledger_verdicts(text)
+    text = after_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-            "AI validation evidence recorded",
-            "Agent reviewed paper structure",
-            "Agent confirmed evidence backs the recorded verdict",
-            "Impact score is based on evidence, not agent guesswork",
-        ],
+        AFTER_READY_CHECKBOXES,
     )
     text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = text.replace("Agent reviewer: edge-test", "Agent reviewer:", 1)
@@ -489,28 +429,10 @@ def make_after_ready_with_missing_agent_reviewer(path: Path) -> None:
 
 
 def make_after_ready_with_invalid_agent_decision(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
-    text = text.replace("AFTER_REQUIRED:", "Recorded:")
-    text = normalize_agent_review_fields(text)
-    text = resolve_hypothesis_ledger_verdicts(text)
+    text = after_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-            "AI validation evidence recorded",
-            "Agent reviewed paper structure",
-            "Agent confirmed evidence backs the recorded verdict",
-            "Impact score is based on evidence, not agent guesswork",
-        ],
+        AFTER_READY_CHECKBOXES,
     )
     text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = text.replace("Decision: AI Validated", "Decision: Agent Reviewed", 1)
@@ -518,28 +440,10 @@ def make_after_ready_with_invalid_agent_decision(path: Path) -> None:
 
 
 def make_after_ready_with_duplicate_agent_decision(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
-    text = text.replace("AFTER_REQUIRED:", "Recorded:")
-    text = normalize_agent_review_fields(text)
-    text = resolve_hypothesis_ledger_verdicts(text)
+    text = after_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-            "AI validation evidence recorded",
-            "Agent reviewed paper structure",
-            "Agent confirmed evidence backs the recorded verdict",
-            "Impact score is based on evidence, not agent guesswork",
-        ],
+        AFTER_READY_CHECKBOXES,
     )
     text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = text.replace("Decision: AI Validated", "Decision: AI Validated\nDecision: Accepted", 1)
@@ -547,28 +451,10 @@ def make_after_ready_with_duplicate_agent_decision(path: Path) -> None:
 
 
 def make_after_ready_with_empty_impact_basis(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
-    text = text.replace("AFTER_REQUIRED:", "Recorded:")
-    text = normalize_agent_review_fields(text)
-    text = resolve_hypothesis_ledger_verdicts(text)
+    text = after_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-            "AI validation evidence recorded",
-            "Agent reviewed paper structure",
-            "Agent confirmed evidence backs the recorded verdict",
-            "Impact score is based on evidence, not agent guesswork",
-        ],
+        AFTER_READY_CHECKBOXES,
     )
     text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = re.sub(
@@ -582,28 +468,10 @@ def make_after_ready_with_empty_impact_basis(path: Path) -> None:
 
 
 def make_after_ready_with_duplicate_impact_fields(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
-    text = text.replace("AFTER_REQUIRED:", "Recorded:")
-    text = normalize_agent_review_fields(text)
-    text = resolve_hypothesis_ledger_verdicts(text)
+    text = after_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-            "AI validation evidence recorded",
-            "Agent reviewed paper structure",
-            "Agent confirmed evidence backs the recorded verdict",
-            "Impact score is based on evidence, not agent guesswork",
-        ],
+        AFTER_READY_CHECKBOXES,
     )
     text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = text.replace("Impact score: TBD", "Impact score: TBD\nImpact score: 10", 1)
@@ -616,28 +484,10 @@ def make_after_ready_with_duplicate_impact_fields(path: Path) -> None:
 
 
 def make_after_ready_with_invalid_impact_score(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
-    text = text.replace("AFTER_REQUIRED:", "Recorded:")
-    text = normalize_agent_review_fields(text)
-    text = resolve_hypothesis_ledger_verdicts(text)
+    text = after_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-            "AI validation evidence recorded",
-            "Agent reviewed paper structure",
-            "Agent confirmed evidence backs the recorded verdict",
-            "Impact score is based on evidence, not agent guesswork",
-        ],
+        AFTER_READY_CHECKBOXES,
     )
     text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = text.replace("Impact score: TBD", "Impact score: significant", 1)
@@ -645,28 +495,10 @@ def make_after_ready_with_invalid_impact_score(path: Path) -> None:
 
 
 def make_after_ready_with_empty_run_records(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    text = text.replace("BEFORE_REQUIRED:", "Recorded:")
-    text = normalize_prior_research_options(text)
-    text = text.replace("AFTER_REQUIRED:", "Recorded:")
-    text = normalize_agent_review_fields(text)
-    text = resolve_hypothesis_ledger_verdicts(text)
+    text = after_ready_text(path)
     text = mark_checkboxes(
         text,
-        [
-            "Hypothesis is specific",
-            "Hypothesis can be validated or rejected",
-            "Baseline evidence is recorded before implementation",
-            "Prior work is cited, or missing prior work is explicitly acknowledged",
-            "Implementation plan is concrete",
-            "Dependencies are named",
-            "Risks are named",
-            "Recorded: test/verifier/check to run",
-            "AI validation evidence recorded",
-            "Agent reviewed paper structure",
-            "Agent confirmed evidence backs the recorded verdict",
-            "Impact score is based on evidence, not agent guesswork",
-        ],
+        AFTER_READY_CHECKBOXES,
     )
     text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: edge-case verdict recorded.")
     text = re.sub(
@@ -1016,7 +848,434 @@ def ensure_installer_force_copy_replaces_source_symlink() -> None:
         run_ok([sys.executable, str(destination / "scripts" / "validate_skill_repo.py")])
 
 
+def ensure_propose_paper_rejections() -> None:
+    with tempfile.TemporaryDirectory(prefix="loop-paper-propose-") as tmp:
+        root = Path(tmp) / ".paper-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(root),
+                "--project-name",
+                "Loop Paper Propose Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        base = [
+            sys.executable,
+            script("propose_paper.py"),
+            "--root",
+            str(root),
+            "--title",
+            "Propose Edge",
+            "--date",
+            "2026-06-10",
+        ]
+        abstracts = [
+            "--candidate-abstract",
+            "Framing A",
+            "--candidate-abstract",
+            "Framing B",
+        ]
+        sets = [
+            "--candidate-set",
+            "Claim one||Claim two",
+            "--candidate-set",
+            "Alt one||Alt two",
+        ]
+        run_fail(
+            base + ["--candidate-abstract", "Only framing"] + sets + ["--format", "json"],
+            "Need at least 2 --candidate-abstract values",
+        )
+        run_fail(
+            base
+            + ["--candidate-abstract", "Same", "--candidate-abstract", "Same"]
+            + sets
+            + ["--format", "json"],
+            "--candidate-abstract values must be unique",
+        )
+        run_fail(
+            base + abstracts + ["--candidate-set", "Claim one||Claim two", "--format", "json"],
+            "Need at least 2 --candidate-set values",
+        )
+        run_fail(
+            base
+            + abstracts
+            + ["--candidate-set", "Lone claim", "--candidate-set", "Claim one||Claim two"]
+            + ["--format", "json"],
+            "must have >= 2 hypotheses",
+        )
+        run_fail(
+            base
+            + abstracts
+            + ["--candidate-set", "a | b||c d", "--candidate-set", "a||b | c d"]
+            + ["--format", "json"],
+            "must render unique option labels",
+        )
+        run_fail(
+            base + abstracts + sets + ["--format", "json"],
+            "Need at least 1 --finding",
+        )
+        finding = ["--finding", "Edge research finding with captured baseline"]
+        answers = root / "inbox" / "answers.json"
+        answers.write_text(
+            json.dumps(
+                {
+                    "abstract": "Framing C",
+                    "hypothesis_set": "Claim one | Claim two",
+                    "gate": "Implement now",
+                }
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            base + abstracts + sets + finding + ["--answers", str(answers)],
+            "answer for abstract not in options",
+        )
+        if list((root / "proposals").glob("*.json")):
+            raise SystemExit("Rejected proposal answers still wrote a proposal record")
+        answers.write_text(
+            json.dumps(
+                {
+                    "abstract": "Framing A",
+                    "hypothesis_set": "Claim one | Claim two",
+                    "gate": "Implement now",
+                }
+            ),
+            encoding="utf-8",
+        )
+        proposed = Path(
+            run_ok(base + abstracts + sets + finding + ["--answers", str(answers)]).stdout.strip()
+        )
+        proposed.write_text(
+            proposed.read_text(encoding="utf-8").replace("Framing A", "Rewritten framing", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(root)],
+            "abstract drifted",
+        )
+
+
+def ensure_failure_proof_gates() -> None:
+    with tempfile.TemporaryDirectory(prefix="loop-paper-failure-") as tmp:
+        root = Path(tmp) / ".paper-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(root),
+                "--project-name",
+                "Loop Paper Failure Proof Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        failed = create_edge_paper(root, "Failed Hypothesis Target")
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(failed), "Rejected"],
+            "rejected phase incomplete",
+        )
+        text = failed.read_text(encoding="utf-8")
+        text = re.sub(r"(?m)^(\| H\d+ \|.*\| )Open( \|)$", r"\1Failed\2", text)
+        text = text.replace(
+            "- BEFORE_REQUIRED: exact baseline output or inspected evidence",
+            "- Baseline output captured before the attempt",
+        )
+        text = text.replace(
+            "- AFTER_REQUIRED: exact post-change output or inspected evidence",
+            "- Attempt output captured: change produced no measurable effect",
+        )
+        text = text.replace(
+            "- AFTER_REQUIRED: mark each hypothesis Supported, Failed, Inconclusive, or\n"
+            "  Superseded in both the Hypothesis Ledger Verdict column and this block,\n"
+            "  with the evidence reason.",
+            "- Failed: the attempt output shows no measurable effect.",
+        )
+        failed.write_text(text, encoding="utf-8")
+        run_ok([sys.executable, script("transition_paper.py"), str(failed), "Rejected"])
+        run_ok([sys.executable, script("pipeline.py"), str(root)])
+
+        superseding = create_edge_paper(root, "Superseding Source")
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(superseding), "Superseded"],
+            "Superseded requires another paper declaring Supersedes",
+        )
+        superseding.write_text(
+            superseding.read_text(encoding="utf-8").replace(
+                "Supersedes: None", "Supersedes: PAPER-0001", 1
+            ),
+            encoding="utf-8",
+        )
+        run_ok([sys.executable, script("transition_paper.py"), str(failed), "Superseded"])
+        run_ok([sys.executable, script("pipeline.py"), str(root)])
+        superseding.write_text(
+            superseding.read_text(encoding="utf-8").replace(
+                "Supersedes: PAPER-0001", "Supersedes: None", 1
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("pipeline.py"), str(root)],
+            "Superseded without any paper declaring Supersedes",
+        )
+
+
+def ensure_attestation_gates() -> None:
+    with tempfile.TemporaryDirectory(prefix="loop-paper-attest-") as tmp:
+        root = Path(tmp) / ".paper-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(root),
+                "--project-name",
+                "Loop Paper Attestation Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        paper = create_edge_paper(root, "Attestation Target")
+        text = after_ready_text(paper)
+        text = mark_checkboxes(
+            text,
+            AFTER_READY_CHECKBOXES,
+        )
+        text = text.replace(RECORDED_VERDICT_INSTRUCTION, "- Supported: attested evidence recorded.")
+        text = text.replace(
+            "Recorded: state the work unit, why it matters, and what completion would prove. If this is retrospective, say so explicitly.",
+            "Attestation gate target. Verdict: Supported. Next step: none.",
+            1,
+        )
+        paper.write_text(text, encoding="utf-8")
+        run_ok([sys.executable, script("check_closed_loop_paper.py"), str(paper), "--phase", "after"])
+
+        unchecked_todo = text.replace(
+            "- [x] Recorded: first implementation step tied to a hypothesis",
+            "- [ ] Recorded: first implementation step tied to a hypothesis",
+            1,
+        )
+        paper.write_text(unchecked_todo, encoding="utf-8")
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(paper), "--phase", "after"],
+            "implementation TODO items are not all checked",
+        )
+        paper.write_text(text, encoding="utf-8")
+
+        bare = text.replace(
+            "- 2026-06-10 Attested evidence: RUN-2026-06-10-PAPER-0001-edge",
+            "- All tests pass, trust me",
+            1,
+        )
+        paper.write_text(bare, encoding="utf-8")
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(paper), "--phase", "after"],
+            "must reference an attested RUN-* record",
+        )
+
+        forged = root / "runs" / "RUN-2026-06-10-PAPER-0001-forged.md"
+        forged.write_text(
+            "# RUN-2026-06-10-PAPER-0001-forged\n\n"
+            "attestation: loop_paper.run_attestation.v1\n"
+            "command: fabricated\n"
+            "exit_code: 0\n"
+            "output_sha256: " + "0" * 64 + "\n\n"
+            "- Date: 2026-06-10\n"
+            "- Related paper: PAPER-0001\n\n"
+            "## Output\n\n````text\nAll 9999 tests passed.\n````\n",
+            encoding="utf-8",
+        )
+        paper.write_text(
+            text.replace(
+                "- 2026-06-10 Attested evidence: RUN-2026-06-10-PAPER-0001-edge",
+                "- 2026-06-10 Fabricated evidence: RUN-2026-06-10-PAPER-0001-forged",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(paper), "--phase", "after"],
+            "attestation digest mismatch in run record RUN-2026-06-10-PAPER-0001-forged",
+        )
+
+        unattested = root / "runs" / "RUN-2026-06-10-PAPER-0001-handwritten.md"
+        unattested.write_text("# RUN handwritten\n\nAll tests passed.\n", encoding="utf-8")
+        paper.write_text(
+            text.replace(
+                "- 2026-06-10 Attested evidence: RUN-2026-06-10-PAPER-0001-edge",
+                "- 2026-06-10 Hand-written evidence: RUN-2026-06-10-PAPER-0001-handwritten",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(paper), "--phase", "after"],
+            "run record RUN-2026-06-10-PAPER-0001-handwritten is not attested",
+        )
+
+        run_fail(
+            [
+                sys.executable,
+                script("execute_run.py"),
+                "--root",
+                str(root),
+                "--paper",
+                "PAPER-0001",
+                "--label",
+                "Bad_Label",
+                "--date",
+                "2026-06-10",
+                "--",
+                sys.executable,
+                "-c",
+                "print('x')",
+            ],
+            "--label must contain only lowercase letters",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("execute_run.py"),
+                "--root",
+                str(root),
+                "--paper",
+                "PAPER-0009",
+                "--label",
+                "ghost",
+                "--date",
+                "2026-06-10",
+                "--",
+                sys.executable,
+                "-c",
+                "print('x')",
+            ],
+            "Unknown paper in stack: PAPER-0009",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("execute_run.py"),
+                "--root",
+                str(root),
+                "--paper",
+                "PAPER-0001",
+                "--label",
+                "edge",
+                "--date",
+                "2026-06-10",
+                "--",
+                sys.executable,
+                "-c",
+                "print('x')",
+            ],
+            "Refusing to overwrite existing run record",
+        )
+
+
+def ensure_interaction_review_gate() -> None:
+    with tempfile.TemporaryDirectory(prefix="loop-paper-interact-") as tmp:
+        root = Path(tmp) / ".paper-stack"
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(root),
+                "--project-name",
+                "Loop Paper Interaction Edge",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        paper = create_edge_paper(root, "Interactive Target")
+        text = paper.read_text(encoding="utf-8")
+        paper.write_text(
+            text.replace(
+                "## Prior Research",
+                "### Diagram\n\n```html\n<svg width=\"10\" height=\"10\"></svg>\n```\n\n## Prior Research",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Blocked Next Paper",
+                "--hypothesis",
+                "a",
+                "--hypothesis",
+                "b",
+                "--finding",
+                "f",
+                "--date",
+                "2026-06-10",
+            ],
+            "Interactive papers pending human review: PAPER-0001",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("ack_interaction.py"),
+                "--root",
+                str(root),
+                "--paper",
+                "PAPER-0002",
+                "--status",
+                "reviewed",
+                "--date",
+                "2026-06-10",
+            ],
+            "Unknown paper in stack: PAPER-0002",
+        )
+        run_ok(
+            [
+                sys.executable,
+                script("ack_interaction.py"),
+                "--root",
+                str(root),
+                "--paper",
+                "PAPER-0001",
+                "--status",
+                "reviewed",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+        if "interaction_review: reviewed 2026-06-10" not in paper.read_text(encoding="utf-8"):
+            raise SystemExit("Interaction review was not recorded in frontmatter")
+        run_ok(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(root),
+                "--title",
+                "Unblocked Next Paper",
+                "--hypothesis",
+                "a",
+                "--hypothesis",
+                "b",
+                "--finding",
+                "f",
+                "--date",
+                "2026-06-10",
+            ]
+        )
+
+
 def main() -> int:
+    ensure_propose_paper_rejections()
+    ensure_interaction_review_gate()
+    ensure_attestation_gates()
+    ensure_failure_proof_gates()
     ensure_validator_ignores_local_paper_stack()
     ensure_validator_rejects_malformed_skill_frontmatter()
     ensure_installed_payload_validates()
@@ -1120,7 +1379,7 @@ def main() -> int:
                 "2026-06-10",
             ]
         )
-        colon_seed_papers = sorted((colon_seed_root / "papers").glob("PAPER-*.md"))
+        colon_seed_papers = sorted((colon_seed_root / "papers").glob("PAPER-*.html"))
         if len(colon_seed_papers) != 1:
             raise SystemExit("Colon project seed initialization did not create exactly one paper")
         colon_seed_text = colon_seed_papers[0].read_text(encoding="utf-8")
@@ -1164,9 +1423,9 @@ def main() -> int:
             raise SystemExit("Repeated seed initialization created a duplicate paper")
         if second_seed_summary.get("seed_paper_skipped") is not True:
             raise SystemExit("Repeated seed initialization did not report skipped seed paper")
-        seed_idempotent_papers = sorted((seed_idempotent_root / "papers").glob("PAPER-*.md"))
+        seed_idempotent_papers = sorted((seed_idempotent_root / "papers").glob("PAPER-*.html"))
         if [path.name for path in seed_idempotent_papers] != [
-            "PAPER-0001-initialize-seed-idempotent-stack-loop-paper.md"
+            "PAPER-0001-initialize-seed-idempotent-stack-loop-paper.html"
         ]:
             raise SystemExit("Repeated seed initialization changed the paper set")
         run_ok(
@@ -1392,7 +1651,7 @@ def main() -> int:
         if "References: PAPER-0001" not in linked.read_text(encoding="utf-8"):
             raise SystemExit("Closed-loop paper did not mirror PAPER reference into relationship lines")
         run_ok([sys.executable, script("check_paper.py"), str(root)])
-        before_unknown_reference_count = len(list((root / "papers").glob("PAPER-*.md")))
+        before_unknown_reference_count = len(list((root / "papers").glob("PAPER-*.html")))
         run_fail(
             [
                 sys.executable,
@@ -1412,12 +1671,16 @@ def main() -> int:
             ],
             "Reference list contains unknown paper IDs: PAPER-9999",
         )
-        if len(list((root / "papers").glob("PAPER-*.md"))) != before_unknown_reference_count:
+        if len(list((root / "papers").glob("PAPER-*.html"))) != before_unknown_reference_count:
             raise SystemExit("Unknown paper reference created a partial paper")
         standalone = project / "PAPER-0001-standalone.md"
         standalone.write_text(created.read_text(encoding="utf-8"), encoding="utf-8")
         run_ok([sys.executable, script("check_paper.py"), str(standalone)])
-        run_ok([sys.executable, script("transition_paper.py"), str(standalone), "Rejected"])
+        run_fail(
+            [sys.executable, script("transition_paper.py"), str(standalone), "Rejected"],
+            "rejected phase incomplete",
+        )
+        run_ok([sys.executable, script("transition_paper.py"), str(standalone), "Rejected", "--force"])
         if "status: Rejected" not in standalone.read_text(encoding="utf-8"):
             raise SystemExit("Standalone transition did not update status frontmatter")
         escaped = Path(
@@ -1758,7 +2021,7 @@ def main() -> int:
             "impact scores missing current paper_id",
         )
         current_score_items = []
-        for path in sorted((root / "papers").glob("PAPER-*.md")):
+        for path in sorted((root / "papers").glob("PAPER-*.html")):
             paper_id = "-".join(path.name.split("-", 2)[:2])
             current_score_items.append(
                 {
@@ -1861,7 +2124,7 @@ def main() -> int:
                 "--min-hypotheses",
                 "0",
             ],
-            "--min-hypotheses must be greater than zero",
+            "--min-hypotheses must be >= 2 for paper_closed_loop.v3",
         )
         run_fail(
             [
@@ -2139,7 +2402,7 @@ def main() -> int:
 
         conflicting_answers = root / "inbox" / "conflicting-answers.json"
         write_answers(conflicting_answers)
-        before_conflict_count = len(list((root / "papers").glob("PAPER-*.md")))
+        before_conflict_count = len(list((root / "papers").glob("PAPER-*.html")))
         run_fail(
             [
                 sys.executable,
@@ -2178,7 +2441,7 @@ def main() -> int:
             ],
             "Prompt rendering options cannot be used with --answers: --format",
         )
-        if len(list((root / "papers").glob("PAPER-*.md"))) != before_conflict_count:
+        if len(list((root / "papers").glob("PAPER-*.html"))) != before_conflict_count:
             raise SystemExit("Conflicting review options created a review paper unexpectedly")
         if (root / "inbox" / "ignored-prompts.json").exists():
             raise SystemExit("Conflicting review options wrote prompt output unexpectedly")
@@ -2310,7 +2573,7 @@ def main() -> int:
             "answers contain unknown ids: unexpected.PAPER-0001",
         )
         write_answers(answers, evidence="Unsupported option")
-        before_count = len(list((root / "papers").glob("PAPER-*.md")))
+        before_count = len(list((root / "papers").glob("PAPER-*.html")))
         run_fail(
             [
                 sys.executable,
@@ -2328,7 +2591,7 @@ def main() -> int:
             ],
             "not in options",
         )
-        after_count = len(list((root / "papers").glob("PAPER-*.md")))
+        after_count = len(list((root / "papers").glob("PAPER-*.html")))
         if before_count != after_count:
             raise SystemExit("Failed review answer validation wrote a paper unexpectedly")
 
@@ -2538,7 +2801,7 @@ def main() -> int:
             raise SystemExit("Metadata sync did not restore review_targets when kind was missing")
         run_ok([sys.executable, script("check_paper.py"), str(review_paper)])
         review_paper.write_text(review_text, encoding="utf-8")
-        closed_loop_with_targets = review_meta_root / "papers" / "PAPER-0001-review-metadata-target.md"
+        closed_loop_with_targets = review_meta_root / "papers" / "PAPER-0001-review-metadata-target.html"
         closed_loop_text = closed_loop_with_targets.read_text(encoding="utf-8")
         closed_loop_with_targets.write_text(
             closed_loop_text.replace(
@@ -3718,10 +3981,11 @@ def main() -> int:
         )
         missing_schema = create_edge_paper(schema_root, "Missing Schema Edge")
         missing_schema.write_text(
-            missing_schema.read_text(encoding="utf-8").replace(
-                "closed_loop_schema: paper_closed_loop.v1\n",
+            re.sub(
+                r"closed_loop_schema: paper_closed_loop\.v[123]\n",
                 "",
-                1,
+                missing_schema.read_text(encoding="utf-8"),
+                count=1,
             ),
             encoding="utf-8",
         )
@@ -3766,10 +4030,11 @@ def main() -> int:
         )
         invalid_schema = create_edge_paper(invalid_schema_root, "Invalid Schema Edge")
         invalid_schema.write_text(
-            invalid_schema.read_text(encoding="utf-8").replace(
-                "closed_loop_schema: paper_closed_loop.v1",
+            re.sub(
+                r"closed_loop_schema: paper_closed_loop\.v[123]",
                 "closed_loop_schema: paper_closed_loop.v0",
-                1,
+                invalid_schema.read_text(encoding="utf-8"),
+                count=1,
             ),
             encoding="utf-8",
         )
@@ -4841,7 +5106,7 @@ def main() -> int:
             [sys.executable, script("watch_pipeline.py"), str(stray_markdown_root), "--once"],
             [sys.executable, script("combine_papers.py"), str(stray_markdown_root), "--last", "1"],
         ]:
-            run_fail(command, "Unexpected markdown file in papers directory: notes.md")
+            run_fail(command, "Unexpected paper file in papers directory: notes.md")
         missing_root = project / "missing-root"
         run_fail(
             [sys.executable, script("check_paper.py"), str(missing_root)],

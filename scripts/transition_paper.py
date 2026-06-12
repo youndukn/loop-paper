@@ -13,8 +13,12 @@ from paperstack_common import (
     ALLOWED_TRANSITIONS,
     REQUIRED_SECTIONS,
     STATUSES,
+    extract_relations,
     load_paper,
+    paper_id_from_path,
     paper_paths,
+    read_paper_text,
+    write_paper_text,
     paper_root_from_path,
     replace_frontmatter,
     section_has_checked,
@@ -63,10 +67,6 @@ def gate_errors(paper: dict, target: str) -> list[str]:
         errors.extend(prior_research_errors(sections))
         if "BEFORE_REQUIRED" in prior or "BEFORE_REQUIRED" in refs:
             errors.append("Research Ready requires Prior Research and References placeholders to be resolved")
-        if "Prior Research Status: Missing" in prior and "Risk: High" not in prior:
-            errors.append("Missing prior research must explicitly mark Risk: High")
-        if "- TBD" in refs and "Prior Research Status: Missing" not in prior:
-            errors.append("References are TBD without explicit missing prior research acknowledgement")
     if target in {"Plan Ready", "Implementing", "Implemented", "AI Validated", "Accepted"}:
         if not section_has_checked(sections.get("Implementation Plan", "")):
             errors.append("Implementation Plan has no checked gate")
@@ -81,12 +81,32 @@ def gate_errors(paper: dict, target: str) -> list[str]:
         errors.extend(validate_paper(Path(paper["path"]), "before"))
     if target in AFTER_PHASE_TARGETS:
         errors.extend(validate_paper(Path(paper["path"]), "after"))
+    if target == "Rejected":
+        errors.extend(validate_paper(Path(paper["path"]), "rejected"))
+    if target == "Superseded":
+        errors.extend(inbound_supersedes_errors(paper))
     return errors
+
+
+def inbound_supersedes_errors(paper: dict) -> list[str]:
+    path = Path(paper["path"])
+    if path.parent.name != "papers":
+        return []
+    paper_id = paper["paper_id"]
+    for other in paper_paths(paper_root_from_path(path)):
+        if other == path:
+            continue
+        relations = extract_relations(
+            read_paper_text(other), paper_id_from_path(other)
+        )
+        if paper_id in relations["supersedes"]:
+            return []
+    return [f"Superseded requires another paper declaring Supersedes: {paper_id}"]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Transition a Paper Stack paper status.")
-    parser.add_argument("paper", help="Path to PAPER-*.md")
+    parser.add_argument("paper", help="Path to PAPER-*.html")
     parser.add_argument("status", choices=STATUSES, help="Target status")
     parser.add_argument("--force", action="store_true", help="Bypass gate checks, but still require valid status")
     args = parser.parse_args()
@@ -117,7 +137,7 @@ def main() -> int:
     metadata["title"] = paper["title"]
     metadata["status"] = target
     metadata["updated"] = today()
-    path.write_text(replace_frontmatter(paper["text"], metadata), encoding="utf-8")
+    write_paper_text(path, replace_frontmatter(paper["text"], metadata))
     print(f"{paper['paper_id']} {current} -> {target}")
     return 0
 

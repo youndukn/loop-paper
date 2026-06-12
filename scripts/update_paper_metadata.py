@@ -10,6 +10,7 @@ from pathlib import Path
 from check_paper import check_file, check_paths, relationship_targets, result_details
 from paperstack_common import (
     load_paper,
+    write_paper_text,
     paper_paths,
     paper_root_from_path,
     replace_frontmatter,
@@ -133,7 +134,7 @@ def sync_file(path: Path, write: bool) -> dict:
 
     changed = metadata != original
     if write and changed:
-        path.write_text(replace_frontmatter(paper["text"], metadata), encoding="utf-8")
+        write_paper_text(path, replace_frontmatter(paper["text"], metadata))
     return {"path": str(path), "paper_id": metadata["paper_id"], "changed": changed}
 
 

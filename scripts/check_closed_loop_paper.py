@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -12,8 +14,12 @@ from paperstack_common import (
     REQUIRED_SECTIONS,
     STATUSES,
     checked_count,
+    unchecked_count,
+    markdown_table_cell,
     paper_paths,
     paper_root_from_path,
+    parse_frontmatter,
+    read_paper_text,
     require_paper_file,
     split_sections,
     validate_iso_date,
@@ -25,6 +31,22 @@ VERDICT_BULLET_RE = re.compile(
     r"^\s*-\s+(Supported|Failed|Inconclusive|Superseded)\s*:",
     flags=re.MULTILINE,
 )
+FAILURE_VERDICT_BULLET_RE = re.compile(
+    r"^\s*-\s+(Failed|Inconclusive|Superseded)\s*:",
+    flags=re.MULTILINE,
+)
+SCHEMA_RE = re.compile(r"^closed_loop_schema:\s*paper_closed_loop\.(v[123])\s*$", flags=re.MULTILINE)
+SUPPORTED_SCHEMAS = {"v1", "v2", "v3"}
+V2_PLUS_SCHEMAS = {"v2", "v3"}
+V2_MIN_HYPOTHESES = 2
+V2_AFTER_BULLET_RATIO = 5
+RUN_POINTER_RE = re.compile(r"\bRUN-\d{4}-\d{2}-\d{2}-PAPER-\d{4}-[a-z0-9-]+\b")
+AFTER_BULLET_RE = re.compile(r"^\s*-\s+\d{4}-\d{2}-\d{2}\b", flags=re.MULTILINE)
+ATTESTATION_MARKER = "attestation: loop_paper.run_attestation.v1"
+ATTESTED_DIGEST_RE = re.compile(r"^output_sha256: ([0-9a-f]{64})$", flags=re.MULTILINE)
+ATTESTED_EXIT_RE = re.compile(r"^exit_code: (-?\d+)$", flags=re.MULTILINE)
+OUTPUT_FENCE_OPEN = "````text\n"
+OUTPUT_FENCE_CLOSE = "\n````"
 PRIOR_STATUS_RE = re.compile(r"^Prior Research Status:\s*(.+?)\s*$", flags=re.MULTILINE)
 RISK_RE = re.compile(r"^Risk:\s*(.+?)\s*$", flags=re.MULTILINE)
 PRIOR_RESEARCH_STATUSES = {"Present", "Missing", "Retrospective"}
@@ -332,6 +354,134 @@ def structural_result(path: Path) -> dict:
     raise SystemExit(f"Paper is not under a recognized papers directory: {path}")
 
 
+def detect_schema(text: str) -> str | None:
+    match = SCHEMA_RE.search(text)
+    return match.group(1) if match else None
+
+
+def hypothesis_claims(rows: list[str]) -> list[str]:
+    claims = []
+    for row in rows:
+        cells = table_cells(row)
+        if len(cells) >= 2:
+            claims.append(cells[1])
+    return claims
+
+
+def proposal_errors(path: Path, text: str, rows: list[str]) -> list[str]:
+    metadata, _ = parse_frontmatter(text)
+    record_value = metadata.get("proposal_record")
+    if not record_value:
+        return []
+    errors: list[str] = []
+    if metadata.get("abstract_provenance") != "human_selected":
+        errors.append("proposal_record requires abstract_provenance: human_selected")
+    record_path = paper_root_from_path(path) / record_value
+    if not record_path.is_file():
+        errors.append(f"missing proposal record file: {record_value}")
+        return errors
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        return errors + [f"proposal record is invalid JSON: {error.msg}"]
+    chosen = record.get("chosen") if isinstance(record, dict) else None
+    if not isinstance(chosen, dict) or "abstract" not in chosen or "hypotheses" not in chosen:
+        return errors + ["proposal record must contain chosen.abstract and chosen.hypotheses"]
+    abstract = section(text, "Abstract")
+    if not abstract.startswith(chosen["abstract"].strip()):
+        errors.append(
+            "abstract drifted from the human-selected framing; "
+            "the chosen abstract must remain the unchanged prefix (append the verdict after it)"
+        )
+    expected = [markdown_table_cell(item) for item in chosen["hypotheses"]]
+    if hypothesis_claims(rows) != expected:
+        errors.append(
+            "hypothesis ledger claims drifted from the human-selected hypothesis set; "
+            "propose a new paper instead of editing the chosen claims"
+        )
+    return errors
+
+
+def after_section_bullet_count(text: str) -> int:
+    validation = section(text, "Validation")
+    after_block = labeled_block(validation, "After", VALIDATION_SECTION_LABELS[2:])
+    return len(AFTER_BULLET_RE.findall(after_block))
+
+
+def attested_record_errors(name: str, record_text: str) -> list[str]:
+    errors: list[str] = []
+    if ATTESTATION_MARKER not in record_text:
+        return [f"run record {name} is not attested (missing attestation marker)"]
+    digest_match = ATTESTED_DIGEST_RE.search(record_text)
+    if not digest_match:
+        errors.append(f"run record {name} is missing output_sha256")
+    if not ATTESTED_EXIT_RE.search(record_text):
+        errors.append(f"run record {name} is missing exit_code")
+    open_index = record_text.find(OUTPUT_FENCE_OPEN)
+    close_index = record_text.rfind(OUTPUT_FENCE_CLOSE)
+    if open_index == -1 or close_index <= open_index:
+        errors.append(f"run record {name} is missing the attested output block")
+    elif digest_match:
+        output = record_text[open_index + len(OUTPUT_FENCE_OPEN) : close_index]
+        if hashlib.sha256(output.encode("utf-8")).hexdigest() != digest_match.group(1):
+            errors.append(f"attestation digest mismatch in run record {name}")
+    return errors
+
+
+def v3_attestation_errors(path: Path, text: str) -> list[str]:
+    validation = section(text, "Validation")
+    after_block = labeled_block(validation, "After", VALIDATION_SECTION_LABELS[2:])
+    errors: list[str] = []
+    pointers: list[str] = []
+    for index, line in enumerate(non_checkbox_lines(after_block), start=1):
+        found = RUN_POINTER_RE.findall(line)
+        if not found:
+            errors.append(
+                f"v3 after evidence line {index} must reference an attested RUN-* record"
+            )
+        pointers.extend(found)
+    runs_dir = paper_root_from_path(path) / "runs"
+    for name in sorted(set(pointers)):
+        record_path = runs_dir / f"{name}.md"
+        if not record_path.is_file():
+            errors.append(f"v3 after evidence references missing run file: {name}")
+            continue
+        errors.extend(attested_record_errors(name, record_path.read_text(encoding="utf-8")))
+    return errors
+
+
+def v2_after_run_pointer_errors(path: Path, text: str) -> list[str]:
+    validation = section(text, "Validation")
+    after_block = labeled_block(validation, "After", VALIDATION_SECTION_LABELS[2:])
+    errors: list[str] = []
+    bullets = [
+        match.group(0)
+        for match in re.finditer(
+            r"^\s*-\s+\d{4}-\d{2}-\d{2}[^\n]*(?:\n(?:\s{2,}|\t)[^\n]*)*",
+            after_block,
+            flags=re.MULTILINE,
+        )
+    ]
+    if not bullets:
+        return errors
+    runs_dir = paper_root_from_path(path) / "runs"
+    available = {p.stem for p in runs_dir.glob("RUN-*.md")} if runs_dir.exists() else set()
+    for index, bullet in enumerate(bullets, start=1):
+        pointers = RUN_POINTER_RE.findall(bullet)
+        if not pointers:
+            errors.append(
+                f"v2 after bullet {index} must reference a RUN-* pointer"
+            )
+            continue
+        missing_files = [name for name in pointers if name not in available]
+        if missing_files:
+            errors.append(
+                f"v2 after bullet {index} references missing run files: "
+                + ", ".join(sorted(set(missing_files)))
+            )
+    return errors
+
+
 def validate_paper(path: Path, phase: str) -> list[str]:
     try:
         structural = structural_result(path)
@@ -339,21 +489,33 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         return [str(error)]
     structural_errors = result_details(structural)
     require_paper_file(path)
-    text = path.read_text(encoding="utf-8")
+    text = read_paper_text(path)
     errors: list[str] = [
         "Paper structure check failed: " + "; ".join(structural_errors)
     ] if structural_errors else []
-    if "closed_loop_schema: paper_closed_loop.v1" not in text:
-        errors.append("missing closed_loop_schema: paper_closed_loop.v1")
+    schema = detect_schema(text)
+    if schema is None:
+        errors.append(
+            "missing closed_loop_schema: expected paper_closed_loop.v1 or paper_closed_loop.v2"
+        )
+    elif schema not in SUPPORTED_SCHEMAS:
+        errors.append(f"unsupported closed_loop_schema: {schema}")
     for name in REQUIRED_SECTIONS:
         if not section(text, name):
             errors.append(f"missing or empty section: {name}")
     hypothesis = section(text, "Hypothesis")
     rows = table_data_rows(hypothesis)
-    if len(rows) < 1:
-        errors.append("hypothesis ledger has no data rows")
-    else:
+    min_rows = V2_MIN_HYPOTHESES if schema in V2_PLUS_SCHEMAS else 1
+    if len(rows) < min_rows:
+        if schema in V2_PLUS_SCHEMAS:
+            errors.append(
+                f"{schema} paper must have at least {V2_MIN_HYPOTHESES} hypothesis ledger rows"
+            )
+        else:
+            errors.append("hypothesis ledger has no data rows")
+    if rows:
         errors.extend(hypothesis_ledger_errors(rows))
+    errors.extend(proposal_errors(path, text, rows))
     if phase in {"before", "after"}:
         before_placeholders = re.findall(r"\bBEFORE_REQUIRED\b", text)
         if before_placeholders:
@@ -383,6 +545,13 @@ def validate_paper(path: Path, phase: str) -> list[str]:
             errors.append(
                 f"after phase incomplete: {len(after_placeholders)} AFTER_REQUIRED slots remain"
             )
+        if schema in V2_PLUS_SCHEMAS and not re.search(
+            r"\b(Supported|Failed|Inconclusive|Superseded)\b", section(text, "Abstract")
+        ):
+            errors.append(
+                "after phase incomplete: abstract must state the hypothesis verdict "
+                "(Supported/Failed/Inconclusive/Superseded) for abstract-only readers"
+            )
         validation = section(text, "Validation")
         errors.extend(validation_section_errors(validation))
         if not VERDICT_BULLET_RE.search(validation):
@@ -390,6 +559,13 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         errors.extend(hypothesis_ledger_verdict_errors(rows))
         if missing_checked_labels(validation, VALIDATION_CHECKBOXES):
             errors.append("after phase incomplete: validation evidence checkbox is not checked")
+        plan_todo = labeled_block(
+            section(text, "Implementation Plan"), "TODO", IMPLEMENTATION_PLAN_LABELS[1:]
+        )
+        if unchecked_count(plan_todo):
+            errors.append(
+                "after phase incomplete: implementation TODO items are not all checked"
+            )
         execution_records = section(text, "Execution Records")
         errors.extend(execution_record_errors(execution_records))
         agent = section(text, "Agent Review")
@@ -400,6 +576,31 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         errors.extend(impact_score_errors(impact))
         if missing_checked_labels(impact, IMPACT_SCORE_CHECKBOXES):
             errors.append("after phase incomplete: impact evidence checkbox is not checked")
+        if schema in V2_PLUS_SCHEMAS and rows:
+            after_count = after_section_bullet_count(text)
+            cap = V2_AFTER_BULLET_RATIO * len(rows)
+            if after_count > cap:
+                errors.append(
+                    f"v2 after bloat: {after_count} after-section bullets exceed "
+                    f"{cap} (hypothesis_rows={len(rows)} * {V2_AFTER_BULLET_RATIO}); "
+                    "split into a new paper or condense"
+                )
+            errors.extend(v2_after_run_pointer_errors(path, text))
+        if schema == "v3":
+            errors.extend(v3_attestation_errors(path, text))
+    if phase == "rejected":
+        validation = section(text, "Validation")
+        if PLACEHOLDER_RE.search(validation):
+            errors.append("rejected phase incomplete: Validation still contains required placeholders")
+        errors.extend(validation_section_errors(validation))
+        if not FAILURE_VERDICT_BULLET_RE.search(validation):
+            errors.append(
+                "rejected phase incomplete: no Failed/Inconclusive/Superseded verdict "
+                "with an evidence reason recorded"
+            )
+        errors.extend(hypothesis_ledger_verdict_errors(rows))
+        if schema in V2_PLUS_SCHEMAS and rows:
+            errors.extend(v2_after_run_pointer_errors(path, text))
     if phase == "draft" and not PLACEHOLDER_RE.search(text):
         errors.append("draft check expected fillable required slots, but none were found")
     return errors
@@ -410,11 +611,13 @@ def main() -> None:
     parser.add_argument("paper", type=Path)
     parser.add_argument(
         "--phase",
-        choices=("draft", "before", "after"),
+        choices=("structural", "draft", "before", "after", "rejected"),
         default="after",
         help=(
+            "structural: base structure and proposal drift only; "
             "draft: template has required slots; before: BEFORE_REQUIRED filled; "
-            "after: BEFORE_REQUIRED and AFTER_REQUIRED filled with verdicts"
+            "after: BEFORE_REQUIRED and AFTER_REQUIRED filled with verdicts; "
+            "rejected: failure evidence and resolved verdicts recorded"
         ),
     )
     args = parser.parse_args()

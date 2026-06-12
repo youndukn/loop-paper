@@ -1,13 +1,10 @@
 # Loop Paper
 
-Loop Paper is a Codex skill for running work as paper-backed loops: hypothesis,
-prior work, implementation plan, validation plan, evidence, verdict, review,
-and impact.
-
-The skill is intentionally deterministic where drift would hurt: it includes
-scripts for initializing a `.paper-stack`, checking paper gates, enforcing
-phase gates in the pipeline, generating dashboards, indexing references,
-scoring deterministic impact components, and combining paper intervals.
+Loop Paper runs work as paper-backed loops: hypothesis, evidence, verdict.
+The paper stack is the source of truth — no change without a paper, every
+claim carries evidence (including proof of failure), and papers read in
+numeric order reconstruct the path. Theme: concise, verifiable points,
+direct wording. Everything that would drift is a deterministic script.
 
 ## Install
 
@@ -38,6 +35,14 @@ OpenClaw, and generic Agent Skills directories. See
 [docs/install.md](docs/install.md) for user/project paths, dry-run usage,
 manual clone commands, and custom destinations.
 
+## Drive It With Goals
+
+The name stays loop-paper — "loop" is the word everyone uses — but drive it
+with a goal, not a timer. In Claude or Codex: `/goal make this into
+production level` (Claude Code without `/goal`: `/loop make this into
+production level`, no interval). The loop stops on `Accepted`, `Rejected`,
+or `Superseded` — not on a clock.
+
 ## Quick Start
 
 From any project repository, initialize the project-local paper structure:
@@ -53,7 +58,29 @@ python3 ~/.codex/skills/loop-paper/scripts/init_loop_paper.py \
 is safe to rerun the initializer; existing stacks report
 `"seed_paper_skipped": true` instead of creating duplicate seed papers.
 
-Create a new closed-loop paper before substantial work:
+Research first, capture the baseline, then propose. The human's selection is
+the loop's source of truth. At least one `--finding` is required:
+
+```bash
+# Phase 1 — render multiple-choice prompts (cli|json|claude|codex|pi):
+python3 ~/.codex/skills/loop-paper/scripts/propose_paper.py \
+  --root .paper-stack \
+  --title "Short Work Unit Title" \
+  --candidate-abstract "Framing A ..." \
+  --candidate-abstract "Framing B ..." \
+  --candidate-set "Claim one||Claim two" \
+  --candidate-set "Alt claim one||Alt claim two" \
+  --finding "Research result and baseline this proposal is grounded in" \
+  --format claude --prompt-out .paper-stack/inbox/proposal-prompts.json
+
+# Phase 2 — create the paper from the selection (same arguments plus):
+#   --answers .paper-stack/inbox/proposal-answers.json
+```
+
+The selection is persisted in `proposals/`; the checker rejects drift.
+`More abstraction` exits 2 and requests a new round.
+
+Direct creation, only when the human stated the hypothesis verbatim:
 
 ```bash
 python3 ~/.codex/skills/loop-paper/scripts/new_closed_loop_paper.py \
@@ -71,30 +98,43 @@ Check the before phase:
 
 ```bash
 python3 ~/.codex/skills/loop-paper/scripts/check_closed_loop_paper.py \
-  .paper-stack/papers/PAPER-0002-short-work-unit-title.md \
+  .paper-stack/papers/PAPER-0002-short-work-unit-title.html \
   --phase before
 ```
 
-After implementation and validation, check the after phase and run the
-pipeline gate:
+Evidence comes from the attested executor (command, exit code, output
+digest — not hand-authored):
+
+```bash
+python3 ~/.codex/skills/loop-paper/scripts/execute_run.py \
+  --root .paper-stack \
+  --paper PAPER-0002 \
+  --label suites \
+  -- python3 -m pytest
+```
+
+Then check the after phase, run the pipeline gate, and open the dashboard at
+the new paper — every paper write ends on its page:
 
 ```bash
 python3 ~/.codex/skills/loop-paper/scripts/check_closed_loop_paper.py \
-  .paper-stack/papers/PAPER-0002-short-work-unit-title.md \
+  .paper-stack/papers/PAPER-0002-short-work-unit-title.html \
   --phase after
 
-python3 ~/.codex/skills/loop-paper/scripts/pipeline.py .paper-stack
+python3 ~/.codex/skills/loop-paper/scripts/pipeline.py .paper-stack --open PAPER-0002
 ```
 
 The pipeline rejects advanced-status papers that do not satisfy their phase
 gates: `Plan Ready` through `Implemented` require the before gate, and
-`AI Validated`/`Accepted` require the after gate.
+`AI Validated`/`Accepted` require the after gate. `Draft`/`Research Ready`
+papers are checked structurally (including proposal drift), `Rejected` papers
+must record proof of the failure, and `Superseded` papers must be superseded
+by an actual paper that declares `Supersedes:` them.
 
 ## Review Papers
 
-Reviews are themselves papers. `new_review_paper.py` walks the user (or the
-host agent) through structured multiple-choice prompts for each target
-paper, then writes a review paper that cites the targets via `References:`.
+Reviews are papers. `new_review_paper.py` renders multiple-choice prompts
+per target, then writes a review paper citing the targets via `References:`.
 
 ```bash
 # Phase 1 — render prompts for the host agent (cli|json|claude|codex|pi):
@@ -112,17 +152,14 @@ python3 ~/.codex/skills/loop-paper/scripts/new_review_paper.py \
   --answers .paper-stack/inbox/answers.json
 ```
 
-Per-target dimensions: hypothesis verdict, evidence strength, production
-readiness, recommended action. Cross-paper dimensions: coherence and next
-direction. The generated paper conforms to the closed-loop schema and
-passes `check_closed_loop_paper.py --phase after` out of the box. Phase-1
-prompts include `answer_id` values; phase 2 expects `answers.json` to map
-those IDs to selected option labels.
+Dimensions per target: verdict, evidence strength, production readiness,
+action; cross-paper: coherence, direction. The generated paper passes
+`check_closed_loop_paper.py --phase after` out of the box. Phase-2
+`answers.json` maps `answer_id` values to option labels.
 
 ## Combine Papers
 
-Use `combine_papers.py` to close or summarize an interval and generate ranked
-reference candidates for the next paper:
+Close or summarize an interval and rank references for the next paper:
 
 ```bash
 python3 ~/.codex/skills/loop-paper/scripts/combine_papers.py .paper-stack \
@@ -171,6 +208,7 @@ The project-local structure created by `init_loop_paper.py` is:
 ```text
 .paper-stack/
   papers/       canonical paper loops
+  proposals/    human-selected abstract/hypothesis records
   runs/         validation evidence and command results
   fixes/        implementation change records
   references/   source notes and prior work
@@ -193,14 +231,10 @@ python3 scripts/smoke_test.py
 python3 scripts/edge_case_test.py
 ```
 
-It checks the required skill files, resource references, CI coverage, retired
-workflow references, `agents/openai.yaml`, nested `SKILL.md` files, and Python
-syntax. The smoke test exercises initialization, closed-loop paper transitions,
-review-paper generation, prompt formats, combining, and the gated
-dashboard/report pipeline. The edge-case test exercises rejection paths for
-invalid review inputs, ambiguous combine selections, ignored local paper-stack
-artifacts, installed-payload validation, transition gates, pipeline gates, and
-watcher failure propagation.
+The validator checks skill files, resource references, CI coverage, and
+Python syntax. The smoke test runs the happy path end to end; the edge-case
+test runs the rejection paths (proposal, review, attestation, transitions,
+pipeline gates, combine, installer).
 
 ## Public Repo Notes
 

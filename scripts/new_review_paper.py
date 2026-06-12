@@ -4,28 +4,29 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
-import unicodedata
 from collections import Counter
 from datetime import date
 from pathlib import Path
 
-from check_paper import check_paths
+from check_paper import check_paths, result_details
 from paperstack_common import (
     next_paper_id,
     paper_id_from_path,
     paper_paths,
     refuse_papers_directory_output,
+    slugify,
     validate_iso_date,
+    validate_slug,
+    validate_title,
+    wrap_paper_source,
     write_text_output,
 )
+from prompt_common import RENDERERS, collect_cli, load_answers, render_prompts
 
 
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{4})$")
-UNSAFE_TITLE_CHARS = re.compile(r"[:\n\r]|---")
-SLUG_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")
 
 PER_TARGET_QUESTIONS: list[tuple[str, str, list[str]]] = [
     ("verdict", "Hypothesis verdict", ["Supported", "Failed", "Inconclusive", "Superseded"]),
@@ -46,40 +47,11 @@ COHERENCE_HYPOTHESIS_VERDICTS = {
 }
 
 
-def slugify(value: str) -> str:
-    ascii_value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
-    slug = re.sub(r"[^a-zA-Z0-9]+", "-", ascii_value).strip("-").lower()
-    return slug or "review-paper"
-
-
-def validate_title(title: str) -> str:
-    cleaned = title.strip()
-    if not cleaned:
-        raise SystemExit("--title must not be empty")
-    if UNSAFE_TITLE_CHARS.search(cleaned):
-        raise SystemExit("--title must not contain ':', newlines, or '---' (would break YAML frontmatter)")
-    return cleaned
-
-
-def validate_slug(slug: str) -> str:
-    cleaned = slug.strip()
-    if not SLUG_RE.fullmatch(cleaned):
-        raise SystemExit("--slug must contain only ASCII letters, numbers, and single hyphens")
-    return cleaned.lower()
-
-
 def normalize_paper_id(value: str) -> str:
     match = PAPER_ID_RE.fullmatch(value.strip().upper())
     if not match or int(match.group(1)) <= 0:
         raise argparse.ArgumentTypeError(f"Expected PAPER-NNNN, got {value!r}")
     return f"PAPER-{int(match.group(1)):04d}"
-
-
-def check_details(result: dict) -> list[str]:
-    details: list[str] = []
-    for key in ("missing_sections", "empty_sections", "warnings"):
-        details.extend(result[key])
-    return details
 
 
 def validate_targets(root: Path, targets: list[str]) -> None:
@@ -108,7 +80,7 @@ def validate_targets(root: Path, targets: list[str]) -> None:
             continue
         for result in target_results:
             if not result["ok"]:
-                invalid.append(f"{target} {result['path']}: {'; '.join(check_details(result))}")
+                invalid.append(f"{target} {result['path']}: {'; '.join(result_details(result))}")
     if missing:
         raise SystemExit(f"Missing target paper files for: {', '.join(missing)}")
     if invalid:
@@ -141,88 +113,6 @@ def build_questions(targets: list[str]) -> list[dict]:
     return questions
 
 
-def render_cli(questions: list[dict]) -> str:
-    lines: list[str] = []
-    for index, question in enumerate(questions, start=1):
-        lines.append(f"[Q{index}] {question['prompt']}")
-        lines.append(f"  answer_id: {question['id']}")
-        for choice_index, option in enumerate(question["options"], start=1):
-            lines.append(f"  {choice_index}) {option}")
-        lines.append("")
-    return "\n".join(lines).rstrip() + "\n"
-
-
-def render_json(questions: list[dict]) -> str:
-    return json.dumps({"questions": questions}, indent=2) + "\n"
-
-
-def render_claude(questions: list[dict]) -> str:
-    payload = {
-        "questions": [
-            {
-                "question": question["prompt"] + "?",
-                "header": question["field"][:12],
-                "id": question["id"],
-                "target": question["target"],
-                "field": question["field"],
-                "multiSelect": False,
-                "options": [{"label": option, "description": option} for option in question["options"]],
-            }
-            for question in questions
-        ],
-    }
-    return json.dumps(payload, indent=2) + "\n"
-
-
-def render_codex(questions: list[dict]) -> str:
-    lines = [":::interactive review"]
-    for index, question in enumerate(questions, start=1):
-        lines.append(f"[Q{index}] {question['prompt']} [answer_id: {question['id']}]")
-        for choice_index, option in enumerate(question["options"], start=1):
-            lines.append(f"  ({choice_index}) {option}")
-    lines.append(":::end")
-    return "\n".join(lines) + "\n"
-
-
-def render_pi(questions: list[dict]) -> str:
-    lines = ["# review prompts"]
-    for question in questions:
-        lines.append(f"- id: {question['id']}")
-        lines.append(f"  field: {question['field']}")
-        if question["target"]:
-            lines.append(f"  target: {question['target']}")
-        lines.append(f"  prompt: {question['prompt']}")
-        lines.append("  options:")
-        for option in question["options"]:
-            lines.append(f"    - {option}")
-    return "\n".join(lines) + "\n"
-
-
-RENDERERS = {
-    "cli": render_cli,
-    "json": render_json,
-    "claude": render_claude,
-    "codex": render_codex,
-    "pi": render_pi,
-}
-
-
-def collect_cli(questions: list[dict]) -> dict:
-    answers: dict[str, str] = {}
-    for index, question in enumerate(questions, start=1):
-        print(f"[Q{index}] {question['prompt']}")
-        for choice_index, option in enumerate(question["options"], start=1):
-            print(f"  {choice_index}) {option}")
-        while True:
-            choice = input("Enter number: ").strip()
-            if choice.isdigit() and 1 <= int(choice) <= len(question["options"]):
-                answers[question["id"]] = question["options"][int(choice) - 1]
-                break
-            print(f"Pick 1..{len(question['options'])}.")
-        print()
-    return answers
-
-
 def unique_targets(targets: list[str]) -> list[str]:
     duplicates = sorted(target for target, count in Counter(targets).items() if count > 1)
     if duplicates:
@@ -243,40 +133,6 @@ def validate_mode_options(args: argparse.Namespace) -> None:
             "Prompt rendering options cannot be used with --answers: "
             + ", ".join(ignored)
         )
-
-
-def load_answers(path: Path, questions: list[dict]) -> dict:
-    if not path.exists():
-        raise SystemExit(f"Missing answers JSON file: {path}")
-    if not path.is_file():
-        raise SystemExit(f"Expected answers JSON file, got directory: {path}")
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as error:
-        raise SystemExit(f"answers JSON is invalid: {error.msg}") from error
-    if isinstance(raw, list):
-        normalized = {}
-        for item in raw:
-            if not isinstance(item, dict) or "id" not in item or "answer" not in item:
-                raise SystemExit("answers list items must be objects with id and answer")
-            if item["id"] in normalized:
-                raise SystemExit(f"duplicate answer id: {item['id']}")
-            normalized[item["id"]] = item["answer"]
-        raw = normalized
-    if not isinstance(raw, dict):
-        raise SystemExit("answers JSON must be an object or list of {id, answer}")
-    expected_ids = {question["id"] for question in questions}
-    unknown_ids = sorted(str(answer_id) for answer_id in raw if answer_id not in expected_ids)
-    if unknown_ids:
-        raise SystemExit(f"answers contain unknown ids: {', '.join(unknown_ids)}")
-    answers: dict[str, str] = {}
-    for question in questions:
-        if question["id"] not in raw:
-            raise SystemExit(f"answers missing for {question['id']}")
-        if raw[question["id"]] not in question["options"]:
-            raise SystemExit(f"answer for {question['id']} not in options: {raw[question['id']]}")
-        answers[question["id"]] = raw[question["id"]]
-    return answers
 
 
 def per_target_rows(target: str, answers: dict) -> str:
@@ -511,18 +367,18 @@ def main() -> int:
     validate_targets(args.root, targets)
 
     title = validate_title(args.title)
-    slug = validate_slug(args.slug) if args.slug else slugify(title)
+    slug = validate_slug(args.slug) if args.slug else slugify(title, fallback="review-paper")
     questions = build_questions(targets)
 
     if args.answers is None and args.prompt_out:
-        prompt_text = RENDERERS[args.format](questions)
+        prompt_text = render_prompts(questions, args.format, kind="review")
         refuse_papers_directory_output(args.root, args.prompt_out, label="prompt output")
         write_text_output(args.prompt_out, prompt_text, label="prompt output")
         print(args.prompt_out)
         return 0
 
     if args.answers is None and args.format != "cli":
-        prompt_text = RENDERERS[args.format](questions)
+        prompt_text = render_prompts(questions, args.format, kind="review")
         sys.stdout.write(prompt_text)
         return 0
 
@@ -532,18 +388,18 @@ def main() -> int:
         answers = collect_cli(questions)
 
     paper_id = next_paper_id(papers_dir)
-    output = papers_dir / f"{paper_id}-{slug}.md"
+    output = papers_dir / f"{paper_id}-{slug}.html"
     if output.exists():
         raise SystemExit(f"Refusing to overwrite existing paper: {output}")
     write_text_output(
         output,
-        render_review_paper(
+        wrap_paper_source(render_review_paper(
             paper_id=paper_id,
             title=title,
             today=args.date,
             targets=targets,
             answers=answers,
-        ),
+        )),
         label="paper",
     )
     print(output)

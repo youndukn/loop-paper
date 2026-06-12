@@ -16,6 +16,7 @@ from paperstack_common import (
     ensure_directory,
     paper_paths,
     validate_iso_date,
+    validate_title,
     write_text_output,
 )
 
@@ -27,6 +28,7 @@ NEW_CLOSED_LOOP = SCRIPT_DIR / "new_closed_loop_paper.py"
 
 DIRECTORIES = [
     "papers",
+    "proposals",
     "runs",
     "fixes",
     "references",
@@ -36,12 +38,6 @@ DIRECTORIES = [
     "archive",
 ]
 UNSAFE_PROJECT_NAME_CHARS = re.compile(r"[\n\r]|---")
-UNSAFE_SEED_TITLE_CHARS = re.compile(r"[:\n\r]|---")
-
-
-def slugify(value: str) -> str:
-    slug = re.sub(r"[^a-zA-Z0-9]+", "-", value).strip("-").lower()
-    return slug or "loop-paper-project"
 
 
 def project_name_from_root(root: Path) -> str:
@@ -64,14 +60,7 @@ def validate_project_name(project_name: str) -> str:
 
 
 def validate_seed_title(seed_title: str) -> str:
-    cleaned = seed_title.strip()
-    if not cleaned:
-        raise SystemExit("--seed-title must not be empty")
-    if UNSAFE_SEED_TITLE_CHARS.search(cleaned):
-        raise SystemExit(
-            "--seed-title must not contain ':', newlines, or '---' (would break YAML frontmatter)"
-        )
-    return cleaned
+    return validate_title(seed_title, label="--seed-title")
 
 
 def seed_title_from_project_name(project_name: str) -> str:
@@ -142,12 +131,14 @@ def create_seed_paper(args: argparse.Namespace, root: Path) -> str | None:
         args.seed_title or seed_title_from_project_name(args.project_name),
         "--hypothesis",
         args.seed_hypothesis or "A project-local paper structure will make work loops auditable and reusable.",
+        "--hypothesis",
+        "Initialization that fails on collisions, malformed roots, or non-canonical filenames prevents partial paper stacks from accumulating.",
         "--finding",
         "Loop Paper initialization created the project-local paper structure.",
         "--reference",
         str(root / "structure.md"),
         "--min-hypotheses",
-        "1",
+        "2",
         "--date",
         args.date,
     ]

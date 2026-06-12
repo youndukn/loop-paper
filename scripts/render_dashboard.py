@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render an interactive Paper Stack dashboard from markdown papers."""
+"""Render an interactive Paper Stack dashboard from the paper stack."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from paperstack_common import (
     paper_paths,
     paper_id_from_path,
     parse_frontmatter,
+    read_paper_text,
     relation_key,
     require_paper_file,
     split_sections,
@@ -29,7 +30,7 @@ from paperstack_common import (
 
 def summarize_paper(path: Path, root: Path) -> dict:
     require_paper_file(path)
-    text = path.read_text(encoding="utf-8")
+    text = read_paper_text(path)
     meta, _ = parse_frontmatter(text)
     sections = split_sections(text)
     paper_id = meta.get("paper_id") or paper_id_from_path(path)
@@ -46,6 +47,12 @@ def summarize_paper(path: Path, root: Path) -> dict:
         "status": meta.get("status", "Draft"),
         "impact_score": meta.get("impact_score", "TBD"),
         "paper_kind": meta.get("paper_kind", "closed_loop"),
+        "schema": meta.get("closed_loop_schema", ""),
+        "abstract": sections.get("Abstract", "").strip(),
+        "abstract_provenance": meta.get("abstract_provenance", ""),
+        "proposal_record": meta.get("proposal_record", ""),
+        "created": meta.get("created", ""),
+        "updated": meta.get("updated", ""),
         "path": str(path),
         "relative_path": str(path.relative_to(root.parent)) if path.is_relative_to(root.parent) else str(path),
         "missing_sections": missing,
@@ -112,6 +119,15 @@ dialog::backdrop {{ background: rgba(15, 23, 42, 0.35); }}
 .detail h2 {{ margin: 0 0 8px; font-size: 20px; }}
 .detail pre {{ white-space: pre-wrap; background: #f3f5f8; border: 1px solid var(--line); border-radius: 6px; padding: 10px; overflow: auto; }}
 .close {{ float: right; height: 32px; border: 1px solid var(--line); background: white; border-radius: 6px; }}
+.entry {{ background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }}
+.entry h3 {{ margin: 0 0 6px; font-size: 16px; }}
+.entry h3 a {{ color: var(--accent); text-decoration: none; }}
+.entry h3 a:hover {{ text-decoration: underline; }}
+.entry .abstract {{ margin: 8px 0; line-height: 1.5; }}
+.entry .meta {{ color: var(--muted); font-size: 13px; }}
+.rel a {{ color: var(--accent); text-decoration: none; margin-right: 6px; }}
+.rel a:hover {{ text-decoration: underline; }}
+.rel {{ font-size: 13px; color: var(--muted); margin-top: 6px; }}
 @media (max-width: 760px) {{
   .summary {{ grid-template-columns: repeat(2, 1fr); }}
   header {{ padding: 18px; }}
@@ -123,6 +139,10 @@ dialog::backdrop {{ background: rgba(15, 23, 42, 0.35); }}
 <header>
   <h1>Paper Stack Dashboard</h1>
   <div class="controls">
+    <select id="view">
+      <option value="narrative">Narrative</option>
+      <option value="board">Board</option>
+    </select>
     <input id="search" type="search" placeholder="Search papers">
     <select id="status"><option value="">All statuses</option></select>
     <select id="filter">
@@ -135,12 +155,15 @@ dialog::backdrop {{ background: rgba(15, 23, 42, 0.35); }}
 </header>
 <main>
   <section class="summary" id="summary"></section>
+  <section class="narrative" id="narrative"></section>
   <section class="board" id="board"></section>
 </main>
 <dialog id="dialog"><div class="detail"><button class="close" onclick="dialog.close()">Close</button><div id="detail"></div></div></dialog>
 <script>
 const DATA = {data};
 const board = document.getElementById('board');
+const narrative = document.getElementById('narrative');
+const viewSelect = document.getElementById('view');
 const summary = document.getElementById('summary');
 const search = document.getElementById('search');
 const statusSelect = document.getElementById('status');
@@ -160,7 +183,7 @@ function visiblePapers() {{
   const status = statusSelect.value;
   const filter = filterSelect.value;
   return DATA.papers.filter(p => {{
-    const text = `${{p.paper_id}} ${{p.title}}`.toLowerCase();
+    const text = `${{p.paper_id}} ${{p.title}} ${{p.abstract}}`.toLowerCase();
     if (q && !text.includes(q)) return false;
     if (status && p.status !== status) return false;
     if (filter === 'missing' && p.missing_sections.length === 0) return false;
@@ -183,13 +206,41 @@ function renderSummary(papers) {{
   ].map(([label, value]) => `<div class="metric"><b>${{value}}</b><span>${{label}}</span></div>`).join('');
 }}
 
+const RELATION_NAMES = {{references: 'References', depends_on: 'Depends on', supersedes: 'Supersedes', contradicts: 'Contradicts', extends: 'Extends'}};
+
+function paperLink(id) {{
+  return `<a href="#${{escapeHtml(id)}}" onclick="dialog.close()">${{escapeHtml(id)}}</a>`;
+}}
+
+function relationLinks(p) {{
+  const parts = [];
+  for (const [key, label] of Object.entries(RELATION_NAMES)) {{
+    const targets = p.relations[key] || [];
+    if (targets.length) parts.push(`${{label}}: ` + targets.map(paperLink).join(' '));
+  }}
+  return parts.length ? `<div class="rel">${{parts.join(' · ')}}</div>` : '';
+}}
+
+function fileLink(p) {{
+  const name = p.path.split('/').pop();
+  return `<a href="../papers/${{escapeHtml(name)}}">${{escapeHtml(p.paper_id)}} ${{escapeHtml(p.title)}}</a>`;
+}}
+
+function badges(p) {{
+  const out = [`<span class="badge">${{escapeHtml(p.status)}}</span>`];
+  if (p.abstract_provenance === 'human_selected') out.push('<span class="badge">human-selected</span>');
+  if (p.paper_kind === 'review') out.push('<span class="badge">review</span>');
+  return out.join(' ');
+}}
+
 function openDetail(p) {{
   detail.innerHTML = `
     <h2>${{escapeHtml(p.paper_id)}} ${{escapeHtml(p.title)}}</h2>
-    <p>Status: <b>${{escapeHtml(p.status)}}</b> | Impact: <b>${{escapeHtml(p.impact_score)}}</b></p>
-    <p>Path: <code>${{escapeHtml(p.path)}}</code></p>
+    <p>Status: <b>${{escapeHtml(p.status)}}</b> | Impact: <b>${{escapeHtml(p.impact_score)}}</b> | ${{escapeHtml(p.schema)}}</p>
+    <p class="abstract">${{escapeHtml(p.abstract)}}</p>
+    ${{relationLinks(p)}}
+    <p>Path: <code>${{escapeHtml(p.path)}}</code>${{p.proposal_record ? ` · proposal: <code>${{escapeHtml(p.proposal_record)}}</code>` : ''}}</p>
     <pre>Missing sections: ${{p.missing_sections.length ? p.missing_sections.join(', ') : 'none'}}
-References: ${{p.references.length ? p.references.join(', ') : 'none'}}
 Checked gates: ${{p.checked}}
 Unchecked gates: ${{p.unchecked}}</pre>
   `;
@@ -200,9 +251,26 @@ function escapeHtml(value) {{
   return String(value).replace(/[&<>"']/g, ch => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[ch]));
 }}
 
+function renderNarrative(papers) {{
+  const ordered = [...papers].sort((a, b) => a.paper_id.localeCompare(b.paper_id));
+  narrative.innerHTML = ordered.map(p => `
+    <article class="entry" id="${{escapeHtml(p.paper_id)}}">
+      <h3>${{fileLink(p)}}</h3>
+      <div class="badges">${{badges(p)}}</div>
+      <p class="abstract">${{escapeHtml(p.abstract)}}</p>
+      ${{relationLinks(p)}}
+      <div class="meta">${{escapeHtml(p.created)}} · impact ${{escapeHtml(p.impact_score)}} · <code>${{escapeHtml(p.relative_path)}}</code></div>
+    </article>`).join('');
+}}
+
 function render() {{
   const papers = visiblePapers();
   renderSummary(papers);
+  const narrativeMode = viewSelect.value === 'narrative';
+  narrative.style.display = narrativeMode ? '' : 'none';
+  board.style.display = narrativeMode ? 'none' : '';
+  if (narrativeMode) {{ renderNarrative(papers); board.innerHTML = ''; return; }}
+  narrative.innerHTML = '';
   board.innerHTML = '';
   for (const status of DATA.statuses) {{
     const column = document.createElement('section');
@@ -233,6 +301,7 @@ function render() {{
 search.addEventListener('input', render);
 statusSelect.addEventListener('change', render);
 filterSelect.addEventListener('change', render);
+viewSelect.addEventListener('change', render);
 render();
 </script>
 </body>

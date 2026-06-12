@@ -45,10 +45,32 @@ def replace_all(text: str, replacements: dict[str, str]) -> str:
 
 
 def complete_closed_loop_paper(path: Path, *, title: str) -> None:
+    paper_id = re.match(r"(PAPER-\d{4})", path.name).group(1)
+    root = path.parent.parent
+    record_name = f"RUN-2026-06-10-{paper_id}-smoke"
+    run(
+        [
+            sys.executable,
+            script("execute_run.py"),
+            "--root",
+            str(root),
+            "--paper",
+            paper_id,
+            "--label",
+            "smoke",
+            "--date",
+            "2026-06-10",
+            "--",
+            sys.executable,
+            "-c",
+            "print('smoke verifier ok')",
+        ]
+    )
     text = path.read_text(encoding="utf-8")
     replacements = {
-        "BEFORE_REQUIRED: state the work unit, why it matters, and what completion would\nprove. If this is retrospective, say so explicitly.": (
-            f"{title} validates the smoke-test closed-loop path and records the next step."
+        "BEFORE_REQUIRED: state the work unit, why it matters, and what completion would prove. If this is retrospective, say so explicitly.": (
+            f"{title} validates the smoke-test closed-loop path. "
+            "Verdict: Supported. Next step: continue the loop."
         ),
         "BEFORE_REQUIRED: baseline evidence": "Baseline evidence recorded",
         "BEFORE_REQUIRED: validation method": "Run deterministic smoke verifier",
@@ -56,8 +78,8 @@ def complete_closed_loop_paper(path: Path, *, title: str) -> None:
         "Risk: BEFORE_REQUIRED: Low/Medium/High": "Risk: Low",
         "BEFORE_REQUIRED: evidence path or command": "scripts/smoke_test.py",
         "BEFORE_REQUIRED: implementation boundary": "Temporary smoke project only",
-        "BEFORE_REQUIRED: first implementation step tied to a hypothesis": "Create a closed-loop paper",
-        "BEFORE_REQUIRED: second implementation step tied to a hypothesis": "Validate and transition the paper",
+        "[ ] BEFORE_REQUIRED: first implementation step tied to a hypothesis": "[x] Create a closed-loop paper",
+        "[ ] BEFORE_REQUIRED: second implementation step tied to a hypothesis": "[x] Validate and transition the paper",
         "BEFORE_REQUIRED: risk or failure mode": "Template drift could break transition gates",
         "BEFORE_REQUIRED: how to preserve or undo failed work": "Delete the temporary smoke project",
         "BEFORE_REQUIRED: command, artifact, metric, screenshot, or reason baseline is\n  unavailable": (
@@ -66,7 +88,9 @@ def complete_closed_loop_paper(path: Path, *, title: str) -> None:
         "AFTER_REQUIRED: command, artifact, metric, screenshot, or inspection": "Smoke verifier completed",
         "[ ] BEFORE_REQUIRED: test/verifier/check to run": "[x] Run deterministic smoke verifier",
         "BEFORE_REQUIRED: exact baseline output or inspected evidence": "Baseline output captured",
-        "AFTER_REQUIRED: exact post-change output or inspected evidence": "After output captured",
+        "AFTER_REQUIRED: exact post-change output or inspected evidence": (
+            f"2026-06-10 Smoke verifier executed: {record_name}"
+        ),
         "AFTER_REQUIRED: mark each hypothesis Supported, Failed, Inconclusive, or\n  Superseded in both the Hypothesis Ledger Verdict column and this block,\n  with the evidence reason.": (
             "Supported: deterministic smoke verifier completed."
         ),
@@ -144,6 +168,79 @@ def ensure_prompt_ids(root: Path, target: str) -> None:
             raise SystemExit(f"{fmt} prompt output is missing answer IDs")
 
 
+def propose_smoke_paper(root: Path) -> Path:
+    base = [
+        sys.executable,
+        script("propose_paper.py"),
+        "--root",
+        str(root),
+        "--title",
+        "Proposed Smoke Target",
+        "--candidate-abstract",
+        "Framing A: validate the proposal gate end to end.",
+        "--candidate-abstract",
+        "Framing B: validate only the prompt rendering.",
+        "--candidate-set",
+        "The proposal gate creates a paper||The selection survives the checker",
+        "--candidate-set",
+        "Prompts render in all formats||Answers map back deterministically",
+        "--finding",
+        "The smoke test needs a human-selected paper",
+        "--reference",
+        "scripts/smoke_test.py",
+        "--date",
+        "2026-06-10",
+    ]
+    prompts = root / "inbox" / "proposal-prompts.json"
+    run(base + ["--format", "claude", "--prompt-out", str(prompts)])
+    if '"id": "hypothesis_set"' not in prompts.read_text(encoding="utf-8"):
+        raise SystemExit("Proposal prompts are missing answer IDs")
+
+    answers_path = root / "inbox" / "proposal-answers.json"
+    answers_path.write_text(
+        json.dumps(
+            {
+                "abstract": "Framing A: validate the proposal gate end to end.",
+                "hypothesis_set": "The proposal gate creates a paper | The selection survives the checker",
+                "gate": "More abstraction",
+                "note": "go broader",
+            }
+        ),
+        encoding="utf-8",
+    )
+    reproposal = subprocess.run(
+        base + ["--answers", str(answers_path)], text=True, capture_output=True, check=False
+    )
+    if reproposal.returncode != 2 or "reproposal_requested" not in reproposal.stdout:
+        raise SystemExit("More abstraction did not request a reproposal with exit status 2")
+
+    answers_path.write_text(
+        answers_path.read_text(encoding="utf-8").replace("More abstraction", "Implement now"),
+        encoding="utf-8",
+    )
+    path = Path(run(base + ["--answers", str(answers_path)]).stdout.strip())
+    text = path.read_text(encoding="utf-8")
+    if "abstract_provenance: human_selected" not in text:
+        raise SystemExit("Proposed paper is missing human-selected provenance frontmatter")
+    record_match = re.search(r"^proposal_record: (.+)$", text, flags=re.MULTILINE)
+    if not record_match or not (root / record_match.group(1)).is_file():
+        raise SystemExit("Proposed paper does not point at an existing proposal record")
+    run([sys.executable, script("check_closed_loop_paper.py"), str(path), "--phase", "draft"])
+
+    drifted = text.replace("Framing A: validate", "Framing A (rewritten): validate", 1)
+    path.write_text(drifted, encoding="utf-8")
+    drift_check = subprocess.run(
+        [sys.executable, script("check_closed_loop_paper.py"), str(path), "--phase", "draft"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if drift_check.returncode == 0 or "abstract drifted" not in drift_check.stdout:
+        raise SystemExit("Checker did not reject abstract drift from the proposal record")
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="loop-paper-smoke-") as tmp:
         project = Path(tmp)
@@ -173,12 +270,14 @@ def main() -> int:
                     f"Smoke Target {index}",
                     "--hypothesis",
                     f"Smoke target {index} can complete the loop",
+                    "--hypothesis",
+                    f"Smoke target {index} keeps the deterministic pipeline green",
                     "--finding",
                     "The smoke test needs a closed-loop target",
                     "--reference",
                     "scripts/smoke_test.py",
                     "--min-hypotheses",
-                    "1",
+                    "2",
                     "--date",
                     "2026-06-10",
                 ]
@@ -227,6 +326,7 @@ def main() -> int:
         )
         run([sys.executable, script("check_closed_loop_paper.py"), str(review), "--phase", "after"])
         run([sys.executable, script("transition_paper.py"), str(review), "Accepted"])
+        propose_smoke_paper(root)
         run(
             [
                 sys.executable,

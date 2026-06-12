@@ -5,48 +5,40 @@ from __future__ import annotations
 
 import argparse
 import re
-import unicodedata
 from datetime import date
 from pathlib import Path
 
+from paper_html import INTERACTIVE_FENCE
 from paperstack_common import (
     find_ids,
+    parse_frontmatter,
+    read_paper_text,
     markdown_inline,
     markdown_table_cell,
     next_paper_id,
     paper_paths,
     paper_id_from_path,
+    slugify,
     validate_iso_date,
+    validate_slug,
+    validate_title,
+    wrap_paper_source,
     write_text_output,
 )
 
 
-UNSAFE_TITLE_CHARS = re.compile(r"[:\n\r]|---")
-SLUG_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")
+HEADING_LINE_RE = re.compile(r"^#", flags=re.MULTILINE)
 
 
-def slugify(value: str) -> str:
-    ascii_value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
-    slug = re.sub(r"[^a-zA-Z0-9]+", "-", ascii_value).strip("-").lower()
-    return slug or "closed-loop-paper"
-
-
-def validate_title(title: str) -> str:
-    cleaned = title.strip()
+def validate_abstract(abstract: str | None) -> str | None:
+    if abstract is None:
+        return None
+    cleaned = abstract.strip()
     if not cleaned:
-        raise SystemExit("--title must not be empty")
-    if UNSAFE_TITLE_CHARS.search(cleaned):
-        raise SystemExit(
-            "--title must not contain ':', newlines, or '---' (would break YAML frontmatter)"
-        )
+        return None
+    if HEADING_LINE_RE.search(cleaned):
+        raise SystemExit("--abstract must not contain markdown heading lines")
     return cleaned
-
-
-def validate_slug(slug: str) -> str:
-    cleaned = slug.strip()
-    if not SLUG_RE.fullmatch(cleaned):
-        raise SystemExit("--slug must contain only ASCII letters, numbers, and single hyphens")
-    return cleaned.lower()
 
 
 def table_rows(values: list[str], minimum: int, row_builder) -> str:
@@ -77,6 +69,8 @@ def render_paper(
     references: list[str],
     reference_ids: list[str],
     min_hypotheses: int,
+    abstract: str | None = None,
+    proposal_record: str | None = None,
 ) -> str:
     hypothesis_rows = table_rows(
         hypotheses,
@@ -100,6 +94,11 @@ def render_paper(
         f"- {markdown_inline(reference)}" for reference in references
     ) or "- BEFORE_REQUIRED: reference file, paper, artifact, or command output"
     relationship_references = ", ".join(reference_ids) if reference_ids else "None"
+    provenance_lines = (
+        f"abstract_provenance: human_selected\nproposal_record: {proposal_record}\n"
+        if proposal_record
+        else ""
+    )
     return f"""---
 paper_id: {paper_id}
 title: {title}
@@ -110,19 +109,18 @@ owners: []
 reviewers: []
 impact_score: TBD
 paper_kind: closed_loop
-closed_loop_schema: paper_closed_loop.v1
----
+closed_loop_schema: paper_closed_loop.v3
+{provenance_lines}---
 
 # {paper_id} {title}
 
 ## Abstract
 
-BEFORE_REQUIRED: state the work unit, why it matters, and what completion would
-prove. If this is retrospective, say so explicitly.
+{abstract or "BEFORE_REQUIRED: state the work unit, why it matters, and what completion would prove. If this is retrospective, say so explicitly."}
 
 ## Hypothesis
 
-Every substantial change must start here before implementation.
+Every change must start here before implementation.
 
 ### Hypothesis Ledger
 
@@ -255,6 +253,65 @@ Basis:
 """
 
 
+def create_paper(
+    *,
+    root: Path,
+    title: str,
+    hypotheses: list[str],
+    findings: list[str],
+    references: list[str],
+    paper_date: str,
+    min_hypotheses: int = 2,
+    slug: str | None = None,
+    abstract: str | None = None,
+    proposal_record: str | None = None,
+) -> Path:
+    paper_date = validate_iso_date(paper_date)
+    if min_hypotheses < 2:
+        raise SystemExit("--min-hypotheses must be >= 2 for paper_closed_loop.v3")
+    if proposal_record and not (root / proposal_record).is_file():
+        raise SystemExit(f"Missing proposal record file: {root / proposal_record}")
+
+    papers_dir = root / "papers"
+    existing_paths = paper_paths(root)
+    pending = []
+    for existing in existing_paths:
+        text = read_paper_text(existing)
+        if INTERACTIVE_FENCE in text and not parse_frontmatter(text)[0].get("interaction_review"):
+            pending.append(paper_id_from_path(existing))
+    if pending:
+        raise SystemExit(
+            "Interactive papers pending human review: " + ", ".join(pending) + ". "
+            "Ask the human to review the interaction (pipeline.py --open <id>), "
+            "then record the answer with ack_interaction.py --status reviewed|waived."
+        )
+    paper_id = next_paper_id(papers_dir)
+    title = validate_title(title)
+    slug = validate_slug(slug) if slug else slugify(title, fallback="closed-loop-paper")
+    known_ids = {paper_id_from_path(path) for path in existing_paths}
+    reference_ids = reference_paper_ids(references, paper_id=paper_id, known_ids=known_ids)
+    path = papers_dir / f"{paper_id}-{slug}.html"
+    if path.exists():
+        raise SystemExit(f"Refusing to overwrite existing paper: {path}")
+    write_text_output(
+        path,
+        wrap_paper_source(render_paper(
+            paper_id=paper_id,
+            title=title,
+            today=paper_date,
+            hypotheses=hypotheses,
+            findings=findings,
+            references=references,
+            reference_ids=reference_ids,
+            min_hypotheses=min_hypotheses,
+            abstract=validate_abstract(abstract),
+            proposal_record=proposal_record,
+        )),
+        label="paper",
+    )
+    return path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(".paper-stack"))
@@ -265,36 +322,31 @@ def main() -> None:
     parser.add_argument("--reference", action="append", default=[])
     parser.add_argument("--min-hypotheses", type=int, default=2)
     parser.add_argument("--date", default=date.today().isoformat())
+    parser.add_argument(
+        "--abstract",
+        default=None,
+        help="Abstract text. If omitted, the BEFORE_REQUIRED placeholder is used.",
+    )
+    parser.add_argument(
+        "--proposal-record",
+        default=None,
+        help="Root-relative proposal record path; marks the abstract and hypotheses as human-selected.",
+    )
     args = parser.parse_args()
-    args.date = validate_iso_date(args.date)
-    if args.min_hypotheses < 1:
-        raise SystemExit("--min-hypotheses must be greater than zero")
-
-    papers_dir = args.root / "papers"
-    existing_paths = paper_paths(args.root)
-    paper_id = next_paper_id(papers_dir)
-    title = validate_title(args.title)
-    slug = validate_slug(args.slug) if args.slug else slugify(title)
-    known_ids = {paper_id_from_path(path) for path in existing_paths}
-    reference_ids = reference_paper_ids(args.reference, paper_id=paper_id, known_ids=known_ids)
-    path = papers_dir / f"{paper_id}-{slug}.md"
-    if path.exists():
-        raise SystemExit(f"Refusing to overwrite existing paper: {path}")
-    write_text_output(
-        path,
-        render_paper(
-            paper_id=paper_id,
-            title=title,
-            today=args.date,
+    print(
+        create_paper(
+            root=args.root,
+            title=args.title,
             hypotheses=args.hypothesis,
             findings=args.finding,
             references=args.reference,
-            reference_ids=reference_ids,
+            paper_date=args.date,
             min_hypotheses=args.min_hypotheses,
-        ),
-        label="paper",
+            slug=args.slug,
+            abstract=args.abstract,
+            proposal_record=args.proposal_record,
+        )
     )
-    print(path)
 
 
 if __name__ == "__main__":

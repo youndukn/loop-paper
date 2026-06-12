@@ -19,6 +19,7 @@ from paperstack_common import (
     parse_frontmatter,
     paper_paths,
     paper_id_from_path,
+    read_paper_text,
     require_paper_file,
     paper_root_from_path,
     split_sections,
@@ -30,7 +31,7 @@ from paperstack_common import (
 PAPER_ID_RE = re.compile(r"^PAPER-(\d{4})$")
 PAPERISH_RE = re.compile(r"(?<![A-Za-z0-9_-])PAPER-[A-Za-z0-9_-]+(?![A-Za-z0-9_-])")
 RELATION_TARGET_LIST_RE = re.compile(r"^PAPER-\d{4}(?:[ \t]*,[ \t]*PAPER-\d{4})*$")
-EXPECTED_SCHEMA = "paper_closed_loop.v1"
+EXPECTED_SCHEMAS = {"paper_closed_loop.v1", "paper_closed_loop.v2", "paper_closed_loop.v3"}
 ALLOWED_PAPER_KINDS = {"closed_loop", "review"}
 
 
@@ -192,7 +193,7 @@ def relationship_targets(text: str, label: str) -> list[str]:
 
 def check_file(path: Path) -> dict:
     require_paper_file(path)
-    text = path.read_text(encoding="utf-8")
+    text = read_paper_text(path)
     sections = split_sections(text)
     metadata, _ = parse_frontmatter(text)
     missing = [section for section in REQUIRED_SECTIONS if section not in sections]
@@ -220,8 +221,8 @@ def check_file(path: Path) -> dict:
         warnings.append(f"Invalid impact_score: {impact_score}; expected TBD or a number from 0 to 10")
     schema = metadata.get("closed_loop_schema")
     if not schema:
-        warnings.append(f"Missing closed_loop_schema frontmatter")
-    elif schema != EXPECTED_SCHEMA:
+        warnings.append("Missing closed_loop_schema frontmatter")
+    elif schema not in EXPECTED_SCHEMAS:
         warnings.append(f"Invalid closed_loop_schema: {schema}")
     paper_kind = metadata.get("paper_kind", "")
     review_targets: list[str] = []
@@ -322,7 +323,7 @@ def check_paths(paths: list[Path], *, validate_relationships: bool = False) -> l
         result = by_path[str(path)]
         if counts[result["paper_id"]] > 1:
             result["warnings"].append(f"Duplicate paper_id in stack: {result['paper_id']}")
-        text = path.read_text(encoding="utf-8")
+        text = read_paper_text(path)
         for label in RELATION_LABELS:
             for match in re.finditer(rf"^{re.escape(label)}:[ \t]*(.*)$", text, flags=re.MULTILINE):
                 for target in find_ids(match.group(1)):

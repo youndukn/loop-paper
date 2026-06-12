@@ -5,9 +5,13 @@ This directory is the project-local state for paper-backed work loops.
 ## Directories
 
 - `papers/`: canonical paper files. One paper per work loop. File names use
-  `PAPER-NNNN-short-title.md`.
+  `PAPER-NNNN-short-title.html`. Each paper is a self-rendering HTML file whose canonical markdown source lives in its `paper-source` block; fenced ```html blocks render live for interactive explanations.
+- `proposals/`: human-selected abstract and hypothesis records written by
+  `propose_paper.py`. The checker enforces that papers never drift from them.
 - `runs/`: validation and experiment records. Use for command output, verifier
-  results, benchmark snapshots, screenshots, and inspected artifacts.
+  results, benchmark snapshots, screenshots, and inspected artifacts. Prefer
+  attested records written by `scripts/execute_run.py`; v3 papers require them
+  for after evidence.
 - `fixes/`: implementation records. Use for change summaries, touched files,
   rollback notes, and links to validating run records.
 - `references/`: stable prior work and source notes that are not themselves

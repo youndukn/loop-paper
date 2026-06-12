@@ -5,7 +5,15 @@ from __future__ import annotations
 
 import datetime as dt
 import re
+import unicodedata
 from pathlib import Path
+
+from paper_html import (  # noqa: F401 (re-exported)
+    extract_paper_source,
+    read_paper_text,
+    wrap_paper_source,
+    write_paper_text,
+)
 
 
 STATUSES = [
@@ -47,7 +55,9 @@ REQUIRED_SECTIONS = [
 ]
 
 RELATION_LABELS = ["References", "Depends on", "Supersedes", "Contradicts", "Extends"]
-PAPER_FILENAME_RE = re.compile(r"^(PAPER-\d{4})(?:-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)?\.md$")
+UNSAFE_TITLE_CHARS = re.compile(r"[:\n\r]|---")
+SLUG_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")
+PAPER_FILENAME_RE = re.compile(r"^(PAPER-\d{4})(?:-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)?\.(?:md|html)$")
 PAPER_ID_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9_-])PAPER-\d{4}(?![A-Za-z0-9_-])")
 MAX_PAPER_NUMBER = 9999
 
@@ -66,6 +76,30 @@ def validate_iso_date(value: str, *, label: str = "--date") -> str:
     return value
 
 
+def slugify(value: str, *, fallback: str) -> str:
+    ascii_value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", ascii_value).strip("-").lower()
+    return slug or fallback
+
+
+def validate_title(title: str, *, label: str = "--title") -> str:
+    cleaned = title.strip()
+    if not cleaned:
+        raise SystemExit(f"{label} must not be empty")
+    if UNSAFE_TITLE_CHARS.search(cleaned):
+        raise SystemExit(
+            f"{label} must not contain ':', newlines, or '---' (would break YAML frontmatter)"
+        )
+    return cleaned
+
+
+def validate_slug(slug: str) -> str:
+    cleaned = slug.strip()
+    if not SLUG_RE.fullmatch(cleaned):
+        raise SystemExit("--slug must contain only ASCII letters, numbers, and single hyphens")
+    return cleaned.lower()
+
+
 def paper_paths(root: Path) -> list[Path]:
     papers_dir = root / "papers"
     if not papers_dir.exists():
@@ -74,14 +108,15 @@ def paper_paths(root: Path) -> list[Path]:
         raise SystemExit(f"Expected papers directory, got file: {papers_dir}")
     unexpected = [
         path.name
-        for path in sorted(papers_dir.glob("*.md"))
+        for pattern in ("*.md", "*.html")
+        for path in sorted(papers_dir.glob(pattern))
         if not path.name.startswith("PAPER-")
     ]
     if unexpected:
         raise SystemExit(
-            "Unexpected markdown file in papers directory: " + ", ".join(unexpected)
+            "Unexpected paper file in papers directory: " + ", ".join(sorted(unexpected))
         )
-    return sorted(papers_dir.glob("PAPER-*.md"))
+    return sorted([*papers_dir.glob("PAPER-*.md"), *papers_dir.glob("PAPER-*.html")])
 
 
 def require_paper_file(path: Path) -> None:
@@ -247,7 +282,7 @@ def paper_id_from_path(path: Path) -> str:
 
 def next_paper_id(papers_dir: Path) -> str:
     max_id = 0
-    for path in sorted(papers_dir.glob("PAPER-*.md")):
+    for path in sorted([*papers_dir.glob("PAPER-*.md"), *papers_dir.glob("PAPER-*.html")]):
         match = PAPER_FILENAME_RE.fullmatch(path.name)
         if not match:
             raise SystemExit(f"Existing paper filename is not canonical: {path.name}")
@@ -259,7 +294,7 @@ def next_paper_id(papers_dir: Path) -> str:
 
 def load_paper(path: Path) -> dict:
     require_paper_file(path)
-    text = path.read_text(encoding="utf-8")
+    text = read_paper_text(path)
     metadata, body = parse_frontmatter(text)
     sections = split_sections(text)
     paper_id = metadata.get("paper_id") or paper_id_from_path(path)
