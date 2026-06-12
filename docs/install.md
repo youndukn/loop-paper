@@ -1,5 +1,9 @@
 # Installation
 
+Requires `python3` (3.10+) on PATH — every script and the guard hook use it,
+with no third-party packages. Without it the scripts fail fast and the guard
+hook fails open (Claude Code reports a non-blocking hook error).
+
 Loop Paper is a single-skill repository. Install the directory that contains
 `SKILL.md`; bundled `scripts/`, `assets/`, `references/`, and
 `agents/openai.yaml` should travel with it.
