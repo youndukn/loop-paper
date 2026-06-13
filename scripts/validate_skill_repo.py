@@ -234,6 +234,8 @@ def validate_docs_reference_smoke_test() -> None:
         fail("docs/install.md must document scripts/smoke_test.py validation")
     if "scripts/edge_case_test.py" not in text:
         fail("docs/install.md must document scripts/edge_case_test.py validation")
+    if "update_loop_paper.py" not in text:
+        fail("docs/install.md must document project-local stack updates")
 
 
 def validate_docs_describe_pipeline_gates() -> None:

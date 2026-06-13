@@ -40,6 +40,14 @@ DIRECTORIES = [
     "config",
     "archive",
 ]
+GENERATED_OUTPUTS = [
+    "dashboard/data.json",
+    "dashboard/index.html",
+    "dashboard/references.json",
+    "dashboard/impact-scores.json",
+    "dashboard/report.md",
+    "dashboard/pipeline-summary.json",
+]
 UNSAFE_PROJECT_NAME_CHARS = re.compile(r"[\n\r]|---")
 
 
@@ -92,14 +100,7 @@ def render_config(root: Path, project_name: str, today: str, *, seed_paper: bool
         "fix_id_format": "FIX-YYYY-MM-DD-PAPER-NNNN-short-name",
         "relationship_empty_value": "None",
         "proposal_gate": {"required_from": "PAPER-0002" if seed_paper else "PAPER-0001"},
-        "generated_outputs": [
-            "dashboard/data.json",
-            "dashboard/index.html",
-            "dashboard/references.json",
-            "dashboard/impact-scores.json",
-            "dashboard/report.md",
-            "dashboard/pipeline-summary.json",
-        ],
+        "generated_outputs": GENERATED_OUTPUTS,
     }
     return json.dumps(payload, indent=2) + "\n"
 

@@ -617,6 +617,7 @@ def ensure_workflow_docs_are_current() -> None:
         "Python 3.10+",
         "npx skills add youndukn/loop-paper",
         "--no-claude-hook",
+        "update_loop_paper.py",
         "workflow guardrail, not a security sandbox",
         "answers JSON",
         "not cryptographic proof of human origin",
@@ -630,6 +631,7 @@ def ensure_workflow_docs_are_current() -> None:
             raise SystemExit(f"README.md missing workflow documentation: {needle}")
     required_skill = [
         "not a security sandbox",
+        "update_loop_paper.py",
         "Answers JSON",
         "not cryptographically prove human origin",
         "transition_paper.py",
@@ -957,6 +959,102 @@ def ensure_installer_force_copy_replaces_source_symlink() -> None:
         if not (destination / "SKILL.md").exists():
             raise SystemExit("Installer copy replacement did not include SKILL.md")
         run_ok([sys.executable, str(destination / "scripts" / "validate_skill_repo.py")])
+
+
+def ensure_project_stack_updater_migrates_generated_state() -> None:
+    with tempfile.TemporaryDirectory(prefix="loop-paper-update-stack-") as tmp:
+        project = Path(tmp)
+        root = project / ".paper-stack"
+        (root / "papers").mkdir(parents=True)
+        (root / "config").mkdir()
+        (root / "hooks").mkdir()
+        (root / "papers" / "PAPER-0007-legacy.html").write_text(
+            "<!doctype html><title>Legacy</title>",
+            encoding="utf-8",
+        )
+        (root / "hooks" / "guard_paper_loop.py").write_text("# old hook\n", encoding="utf-8")
+        (root / "config" / "loop-paper.json").write_text(
+            json.dumps(
+                {
+                    "schema": "loop_paper.project.v1",
+                    "project_name": "Legacy Stack",
+                    "paper_root": str(root),
+                    "directories": ["papers", "runs"],
+                    "generated_outputs": ["dashboard/index.html"],
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        dry_run = run_ok(
+            [
+                sys.executable,
+                script("update_loop_paper.py"),
+                "--root",
+                str(root),
+                "--project-dir",
+                str(project),
+                "--dry-run",
+            ]
+        )
+        dry_payload = json.loads(dry_run.stdout)
+        if not dry_payload["config"]["would_update"]:
+            raise SystemExit("Stack updater dry run did not report pending config update")
+        if (root / "hooks" / "guard_paper_loop.py").read_text(encoding="utf-8") != "# old hook\n":
+            raise SystemExit("Stack updater dry run changed the copied hook")
+
+        run_ok(
+            [
+                sys.executable,
+                script("update_loop_paper.py"),
+                "--root",
+                str(root),
+                "--project-dir",
+                str(project),
+            ]
+        )
+        config = json.loads((root / "config" / "loop-paper.json").read_text(encoding="utf-8"))
+        for directory in ("papers", "proposals", "runs", "fixes", "references", "inbox"):
+            if directory not in config["directories"] or not (root / directory).is_dir():
+                raise SystemExit(f"Stack updater did not migrate directory: {directory}")
+        if config.get("proposal_gate") != {"required_from": "PAPER-0008"}:
+            raise SystemExit("Stack updater did not start a missing proposal gate at the next paper ID")
+        if "dashboard/references.json" not in config["generated_outputs"]:
+            raise SystemExit("Stack updater did not merge generated dashboard outputs")
+        if (root / "hooks" / "guard_paper_loop.py").read_text(encoding="utf-8") != (
+            ROOT / "assets" / "guard_paper_loop.py"
+        ).read_text(encoding="utf-8"):
+            raise SystemExit("Stack updater did not refresh the copied guard hook")
+        settings = json.loads((project / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        entries = settings.get("hooks", {}).get("PreToolUse", [])
+        commands = [
+            hook.get("command", "")
+            for entry in entries
+            for hook in entry.get("hooks", [])
+            if isinstance(hook, dict)
+        ]
+        if not any("guard_paper_loop.py" in command for command in commands):
+            raise SystemExit("Stack updater did not register the Claude guard hook")
+        if not any(entry.get("matcher") == "Write|Edit|MultiEdit|NotebookEdit|Bash" for entry in entries):
+            raise SystemExit("Stack updater did not install the current guard hook matcher")
+
+        run_ok(
+            [
+                sys.executable,
+                script("update_loop_paper.py"),
+                "--root",
+                str(root),
+                "--project-dir",
+                str(project),
+                "--proposal-gate-required-from",
+                "PAPER-0005",
+            ]
+        )
+        overridden = json.loads((root / "config" / "loop-paper.json").read_text(encoding="utf-8"))
+        if overridden.get("proposal_gate") != {"required_from": "PAPER-0005"}:
+            raise SystemExit("Stack updater did not apply an explicit proposal gate start")
 
 
 def ensure_proposal_gate_enforcement() -> None:
@@ -1968,6 +2066,7 @@ def main() -> int:
     ensure_installer_rejects_file_parent()
     ensure_installer_replaces_broken_symlink()
     ensure_installer_force_copy_replaces_source_symlink()
+    ensure_project_stack_updater_migrates_generated_state()
 
     with tempfile.TemporaryDirectory(prefix="loop-paper-edge-") as tmp:
         project = Path(tmp)

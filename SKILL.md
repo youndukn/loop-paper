@@ -349,6 +349,7 @@ Failed/Inconclusive/Superseded verdict with its evidence reason);
 - `scripts/watch_pipeline.py`: Rerun the pipeline on paper changes.
 - `scripts/paperstack_common.py`: Shared deterministic helpers.
 - `scripts/install_skill.py`: Install the skill into agent skill directories.
+- `scripts/update_loop_paper.py`: Refresh generated assets in an existing project-local stack.
 - `scripts/validate_skill_repo.py`: Validate the repository contract.
 - `scripts/smoke_test.py`: End-to-end happy-path test.
 - `scripts/edge_case_test.py`: Rejection-path tests for proposal, review, attestation, and combine.

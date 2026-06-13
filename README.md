@@ -38,6 +38,24 @@ Install everywhere the script knows about:
 python3 scripts/install_skill.py --agent all
 ```
 
+Update an existing copy-based install by rerunning the installer with
+`--force`, or use `--mode symlink` once and pull the checkout directly:
+
+```bash
+python3 scripts/install_skill.py --agent codex --force
+```
+
+After updating the installed skill, refresh each existing project-local stack:
+
+```bash
+python3 ~/.codex/skills/loop-paper/scripts/update_loop_paper.py --root .paper-stack
+```
+
+The updater preserves papers, proposal records, and run records. It creates
+missing stack directories, merges missing config fields, refreshes the copied
+Claude hook, and when a stack has no proposal gate, starts the gate at the next
+unused paper ID so existing papers keep validating.
+
 Supported targets include OpenAI Codex, Claude Code, Hermes Agent, pi-mono,
 OpenClaw, and generic Agent Skills directories. See
 [docs/install.md](docs/install.md) for user/project paths, dry-run usage,

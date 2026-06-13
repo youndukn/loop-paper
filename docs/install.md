@@ -43,6 +43,35 @@ python3 scripts/install_skill.py --agent all --dry-run
 python3 scripts/install_skill.py --agent codex --force
 ```
 
+## Update
+
+For copy-based installs, rerun the installer from an updated checkout with
+`--force`:
+
+```bash
+git pull
+python3 scripts/install_skill.py --agent codex --force
+```
+
+For symlink installs, pulling the checkout updates the skill payload. Either
+way, refresh each existing project-local stack after updating the skill:
+
+```bash
+python3 ~/.codex/skills/loop-paper/scripts/update_loop_paper.py --root .paper-stack
+```
+
+`update_loop_paper.py` does not rewrite papers, proposal records, run records,
+or fixes. It creates missing stack directories, merges missing config fields,
+refreshes the copied Claude Code guard hook, and adds `proposal_gate` only when
+missing. In that case the gate starts at the next unused paper ID, so existing
+papers remain valid while future papers use `propose_paper.py`.
+
+Preview project-local changes first:
+
+```bash
+python3 ~/.codex/skills/loop-paper/scripts/update_loop_paper.py --root .paper-stack --dry-run
+```
+
 ## Platform Paths
 
 | Platform | User install | Project install |
