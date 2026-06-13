@@ -27,6 +27,7 @@ STRUCTURE_TEMPLATE = SKILL_DIR / "assets" / "structure-template.md"
 GUARD_HOOK_TEMPLATE = SKILL_DIR / "assets" / "guard_paper_loop.py"
 NEW_CLOSED_LOOP = SCRIPT_DIR / "new_closed_loop_paper.py"
 GUARD_HOOK_MARKER = "guard_paper_loop.py"
+GUARD_HOOK_MATCHER = "Write|Edit|MultiEdit|NotebookEdit|Bash"
 
 DIRECTORIES = [
     "papers",
@@ -114,14 +115,54 @@ def render_gitignore() -> str:
     )
 
 
-def install_guard_hook(root: Path, overwrite: bool) -> dict:
+def git_toplevel(start: Path) -> Path | None:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(start), "rev-parse", "--show-toplevel"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return None
+    if completed.returncode != 0:
+        return None
+    return Path(completed.stdout.strip())
+
+
+def resolve_project_dir(root: Path, explicit_project_dir: Path | None) -> Path:
+    if explicit_project_dir is not None:
+        return explicit_project_dir
+    discovered = git_toplevel(root.parent)
+    if discovered is not None:
+        try:
+            root.resolve(strict=False).relative_to(discovered.resolve(strict=False))
+            return discovered
+        except ValueError:
+            pass
+    return root.parent
+
+
+def hook_command(project_dir: Path, hook_path: Path) -> str:
+    try:
+        relative = hook_path.resolve(strict=False).relative_to(project_dir.resolve(strict=False))
+    except ValueError as error:
+        raise SystemExit(
+            f"Cannot register Claude hook: {hook_path} is not inside project dir {project_dir}"
+        ) from error
+    if sys.platform == "win32":
+        return f'"{sys.executable}" "%CLAUDE_PROJECT_DIR%\\{str(relative)}"'
+    return f'"{sys.executable}" "$CLAUDE_PROJECT_DIR/{relative.as_posix()}"'
+
+
+def install_guard_hook(root: Path, overwrite: bool, project_dir: Path | None) -> dict:
     hook_path = root / "hooks" / "guard_paper_loop.py"
     ensure_directory(root / "hooks", label="hooks directory")
     wrote_script = write_once(hook_path, GUARD_HOOK_TEMPLATE.read_text(encoding="utf-8"), overwrite)
 
-    project_dir = root.parent
+    project_dir = resolve_project_dir(root, project_dir)
     settings_path = project_dir / ".claude" / "settings.json"
-    command = f'python3 "$CLAUDE_PROJECT_DIR/{root.name}/hooks/guard_paper_loop.py"'
+    command = hook_command(project_dir, hook_path)
 
     settings: dict = {}
     if settings_path.is_file():
@@ -132,20 +173,37 @@ def install_guard_hook(root: Path, overwrite: bool) -> dict:
         if not isinstance(settings, dict):
             raise SystemExit(f"Expected a JSON object in {settings_path}")
     hooks = settings.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        raise SystemExit(f"Expected hooks to be a JSON object in {settings_path}")
     pre_tool_use = hooks.setdefault("PreToolUse", [])
-    already = any(
-        GUARD_HOOK_MARKER in hook.get("command", "")
-        for entry in pre_tool_use
-        for hook in entry.get("hooks", [])
-        if isinstance(hook, dict)
-    )
+    if not isinstance(pre_tool_use, list):
+        raise SystemExit(f"Expected hooks.PreToolUse to be a JSON array in {settings_path}")
+    already = False
+    changed = False
+    for entry in pre_tool_use:
+        if not isinstance(entry, dict):
+            raise SystemExit(f"Expected hooks.PreToolUse entries to be JSON objects in {settings_path}")
+        entry_hooks = entry.get("hooks", [])
+        if not isinstance(entry_hooks, list):
+            raise SystemExit(f"Expected PreToolUse entry hooks to be a JSON array in {settings_path}")
+        for hook in entry_hooks:
+            if not isinstance(hook, dict):
+                raise SystemExit(f"Expected PreToolUse hook entries to be JSON objects in {settings_path}")
+            hook_command_value = hook.get("command", "")
+            if isinstance(hook_command_value, str) and GUARD_HOOK_MARKER in hook_command_value:
+                already = True
+                if entry.get("matcher") != GUARD_HOOK_MATCHER:
+                    entry["matcher"] = GUARD_HOOK_MATCHER
+                    changed = True
     if not already:
         pre_tool_use.append(
             {
-                "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+                "matcher": GUARD_HOOK_MATCHER,
                 "hooks": [{"type": "command", "command": command}],
             }
         )
+        changed = True
+    if changed:
         settings_path.parent.mkdir(parents=True, exist_ok=True)
         settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
     return {
@@ -153,6 +211,7 @@ def install_guard_hook(root: Path, overwrite: bool) -> dict:
         "script_written": wrote_script,
         "settings": str(settings_path),
         "registered": not already,
+        "project_dir": str(project_dir),
     }
 
 
@@ -206,6 +265,11 @@ def main() -> int:
         action="store_true",
         help="Skip installing the Claude Code PreToolUse guard hook",
     )
+    parser.add_argument(
+        "--project-dir",
+        type=Path,
+        help="Claude project directory for hook registration; defaults to git toplevel or root parent",
+    )
     parser.add_argument("--date", default=date.today().isoformat())
     args = parser.parse_args()
     args.date = validate_iso_date(args.date)
@@ -234,7 +298,7 @@ def main() -> int:
         "config": write_once(root / "config" / "loop-paper.json", render_config(root, args.project_name, args.date, seed_paper=args.seed_paper), args.overwrite),
         "gitignore": write_once(root / ".gitignore", render_gitignore(), args.overwrite),
     }
-    guard_hook = None if args.no_claude_hook else install_guard_hook(root, args.overwrite)
+    guard_hook = None if args.no_claude_hook else install_guard_hook(root, args.overwrite, args.project_dir)
     seed_path = create_seed_paper(args, root)
     seed_skipped = bool(args.seed_paper and seed_path is None)
 
@@ -247,7 +311,7 @@ def main() -> int:
         "seed_paper_skipped": seed_skipped,
         "claude_hook": guard_hook,
         "next_steps": [
-            f"python3 {NEW_CLOSED_LOOP} --root {root} --title 'Short Work Unit Title' --hypothesis 'Falsifiable claim'",
+            f"python3 {SCRIPT_DIR / 'propose_paper.py'} --root {root} --title 'Short Work Unit Title' --candidate-abstract 'Framing A ...' --candidate-abstract 'Framing B ...' --candidate-set 'Claim one||Claim two' --candidate-set 'Alt claim one||Alt claim two' --finding 'Research result and baseline' --format claude --prompt-out {root / 'inbox' / 'proposal-prompts.json'}",
             f"python3 {SCRIPT_DIR / 'pipeline.py'} {root}",
         ],
     }

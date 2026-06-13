@@ -50,13 +50,16 @@ def parse_frontmatter(path: Path) -> dict[str, str]:
 
 
 def is_git_root() -> bool:
-    completed = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return False
     if completed.returncode != 0:
         return False
     return Path(completed.stdout.strip()).resolve() == ROOT
@@ -128,13 +131,16 @@ def tracked_files() -> list[Path]:
     if not is_git_root():
         return filesystem_payload_files()
 
-    completed = subprocess.run(
-        ["git", "ls-files"],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", "ls-files"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return filesystem_payload_files()
     if completed.returncode == 0:
         return [ROOT / line for line in completed.stdout.splitlines() if line]
 

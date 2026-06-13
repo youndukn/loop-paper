@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -561,6 +562,94 @@ def create_edge_paper(root: Path, title: str) -> Path:
     )
 
 
+def ensure_artifact_integrity_roundtrips() -> None:
+    from paper_html import read_paper_text, write_paper_text
+
+    with tempfile.TemporaryDirectory(prefix="loop-paper-artifact-") as tmp:
+        root = Path(tmp) / ".paper-stack"
+        papers = root / "papers"
+        papers.mkdir(parents=True)
+        source = (
+            "# PAPER-0001 Marker Quote\n\n"
+            "```html\n"
+            '<script type="text/markdown" id="paper-source">\n'
+            "hello\n"
+            "</script>\n"
+            "```\n\n"
+            "IMPORTANT TAIL CONTENT THAT MUST SURVIVE\n"
+        )
+        markdown_path = papers / "PAPER-0001-marker-quote.md"
+        markdown_path.write_text(source, encoding="utf-8")
+        run_ok([sys.executable, script("convert_papers.py"), str(root)])
+        converted = markdown_path.with_suffix(".html")
+        if markdown_path.exists():
+            raise SystemExit("convert_papers.py left the markdown source after a successful conversion")
+        if read_paper_text(converted) != source:
+            raise SystemExit("convert_papers.py did not preserve markdown that quotes paper-source markers")
+        run_ok([sys.executable, script("convert_papers.py"), str(root), "--refresh"])
+        if read_paper_text(converted) != source:
+            raise SystemExit("convert_papers.py --refresh changed canonical source")
+
+        sentinel_source = (
+            "# PAPER-0002 <Sentinel> & Title\n\n"
+            "```js\n"
+            "const s = \"<\\/script>\";\n"
+            "```\n"
+        )
+        sentinel_path = papers / "PAPER-0002-sentinel.html"
+        write_paper_text(sentinel_path, sentinel_source)
+        if read_paper_text(sentinel_path) != sentinel_source:
+            raise SystemExit("paper_html.py did not preserve literal escaped script sentinels")
+        write_paper_text(sentinel_path, read_paper_text(sentinel_path))
+        if read_paper_text(sentinel_path) != sentinel_source:
+            raise SystemExit("paper_html.py metadata-style rewrite changed canonical source")
+        html_text = sentinel_path.read_text(encoding="utf-8")
+        if "<title>PAPER-0002 &lt;Sentinel&gt; &amp; Title</title>" not in html_text:
+            raise SystemExit("paper_html.py did not escape HTML-sensitive paper titles")
+
+
+def ensure_workflow_docs_are_current() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    structure = (ROOT / "assets" / "structure-template.md").read_text(encoding="utf-8")
+    init_script = (SCRIPT_DIR / "init_loop_paper.py").read_text(encoding="utf-8")
+    required_readme = [
+        "Python 3.10+",
+        "npx skills add youndukn/loop-paper",
+        "--no-claude-hook",
+        "workflow guardrail, not a security sandbox",
+        "answers JSON",
+        "not cryptographic proof of human origin",
+        "transition_paper.py",
+        "`- Supported: ...`",
+        "## Execution Records",
+        "self-consistency",
+    ]
+    for needle in required_readme:
+        if needle not in readme:
+            raise SystemExit(f"README.md missing workflow documentation: {needle}")
+    required_skill = [
+        "not a security sandbox",
+        "Answers JSON",
+        "not cryptographically prove human origin",
+        "transition_paper.py",
+        "- Supported: evidence reason",
+        "## Execution Records",
+        "self-consistency",
+    ]
+    for needle in required_skill:
+        if needle not in skill:
+            raise SystemExit(f"SKILL.md missing workflow documentation: {needle}")
+    forbidden = ["produced by execution rather than hand-authored", "not hand-authored"]
+    for needle in forbidden:
+        if needle in readme or needle in skill or needle in (SCRIPT_DIR / "execute_run.py").read_text(encoding="utf-8"):
+            raise SystemExit(f"Documentation still overclaims run attestation: {needle}")
+    if "PAPER-NNNN-title.html" not in structure or "PAPER-NNNN-title.md" in structure:
+        raise SystemExit("structure-template.md closeout path does not use HTML paper paths")
+    if "propose_paper.py" not in init_script or "--candidate-abstract" not in init_script:
+        raise SystemExit("init_loop_paper.py next_steps do not point to propose_paper.py")
+
+
 def ensure_validator_ignores_local_paper_stack() -> None:
     local_skill = ROOT / ".paper-stack" / "validator-ignore" / "SKILL.md"
     local_skill.parent.mkdir(parents=True, exist_ok=True)
@@ -600,6 +689,18 @@ def ensure_validator_rejects_malformed_skill_frontmatter() -> None:
         )
     finally:
         skill.write_text(original, encoding="utf-8")
+
+
+def ensure_validator_handles_missing_git() -> None:
+    completed = subprocess.run(
+        [sys.executable, script("validate_skill_repo.py")],
+        text=True,
+        capture_output=True,
+        check=False,
+        env={**os.environ, "PATH": ""},
+    )
+    if completed.returncode != 0 or "OK loop-paper skill repository" not in completed.stdout:
+        raise SystemExit("validate_skill_repo.py did not fall back cleanly when git is unavailable")
 
 
 def ensure_installed_payload_validates() -> None:
@@ -934,6 +1035,266 @@ def ensure_proposal_gate_enforcement() -> None:
             raise SystemExit("seeded init did not gate from PAPER-0002")
 
 
+def ensure_deterministic_gate_hardening() -> None:
+    def init(root: Path, name: str) -> None:
+        run_ok(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(root),
+                "--project-name",
+                name,
+                "--date",
+                "2026-06-10",
+            ]
+        )
+
+    def proposal_answers(path: Path, abstract: str, hypotheses: list[str]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(
+                {
+                    "abstract": abstract,
+                    "hypothesis_set": " | ".join(hypotheses),
+                    "gate": "Implement now",
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    def propose_command(root: Path, title: str, abstract: str, hypotheses: list[str], answers: Path) -> list[str]:
+        return [
+            sys.executable,
+            script("propose_paper.py"),
+            "--root",
+            str(root),
+            "--title",
+            title,
+            "--candidate-abstract",
+            abstract,
+            "--candidate-abstract",
+            f"Alternate framing for {title}",
+            "--candidate-set",
+            "||".join(hypotheses),
+            "--candidate-set",
+            "Alternate first claim||Alternate second claim",
+            "--finding",
+            "Deterministic gate hardening regression coverage",
+            "--reference",
+            "scripts/edge_case_test.py",
+            "--date",
+            "2026-06-10",
+            "--answers",
+            str(answers),
+        ]
+
+    with tempfile.TemporaryDirectory(prefix="loop-paper-deterministic-gate-") as tmp:
+        project = Path(tmp)
+
+        invalid_config_root = project / "invalid-config" / ".paper-stack"
+        init(invalid_config_root, "Invalid Config Gate")
+        (invalid_config_root / "config" / "loop-paper.json").write_text("{\n", encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(invalid_config_root),
+                "--title",
+                "Invalid Config Paper",
+                "--hypothesis",
+                "a",
+                "--hypothesis",
+                "b",
+                "--finding",
+                "f",
+                "--date",
+                "2026-06-10",
+            ],
+            "Invalid project config JSON",
+        )
+
+        bad_required_root = project / "bad-required" / ".paper-stack"
+        init(bad_required_root, "Bad Required Gate")
+        payload = json.loads((bad_required_root / "config" / "loop-paper.json").read_text(encoding="utf-8"))
+        payload["proposal_gate"] = {"required_from": "PAPER-1"}
+        (bad_required_root / "config" / "loop-paper.json").write_text(
+            json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(bad_required_root),
+                "--title",
+                "Bad Required Paper",
+                "--hypothesis",
+                "a",
+                "--hypothesis",
+                "b",
+                "--finding",
+                "f",
+                "--date",
+                "2026-06-10",
+            ],
+            "proposal_gate.required_from must be PAPER-NNNN",
+        )
+
+        reuse_root = project / "reuse-record" / ".paper-stack"
+        init(reuse_root, "Reuse Record Gate")
+        reuse_answers = reuse_root / "inbox" / "answers.json"
+        reuse_abstract = "Approved framing for one paper only."
+        reuse_hypotheses = ["Approved first claim", "Approved second claim"]
+        proposal_answers(reuse_answers, reuse_abstract, reuse_hypotheses)
+        approved = Path(
+            run_ok(
+                propose_command(
+                    reuse_root,
+                    "Approved Paper",
+                    reuse_abstract,
+                    reuse_hypotheses,
+                    reuse_answers,
+                )
+            ).stdout.strip()
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("new_closed_loop_paper.py"),
+                "--root",
+                str(reuse_root),
+                "--title",
+                "Unapproved Reuse Paper",
+                "--hypothesis",
+                reuse_hypotheses[0],
+                "--hypothesis",
+                reuse_hypotheses[1],
+                "--finding",
+                "Attempt to reuse a proposal record",
+                "--abstract",
+                reuse_abstract,
+                "--proposal-record",
+                "proposals/PROPOSAL-PAPER-0001.json",
+                "--date",
+                "2026-06-10",
+            ],
+            "Proposal record paper_id mismatch",
+        )
+        record = reuse_root / "proposals" / "PROPOSAL-PAPER-0001.json"
+        record_payload = json.loads(record.read_text(encoding="utf-8"))
+        record_payload["title"] = "Tampered Title"
+        record.write_text(json.dumps(record_payload, indent=2) + "\n", encoding="utf-8")
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(approved),
+                "--phase",
+                "structural",
+            ],
+            "proposal record title mismatch",
+        )
+
+        table_root = project / "table-record" / ".paper-stack"
+        init(table_root, "Table Gate")
+        table_answers = table_root / "inbox" / "answers.json"
+        table_abstract = "Valid escaped table claims should survive the proposal checker."
+        table_hypotheses = ["claim one --- with dashes", "claim with a | pipe char"]
+        proposal_answers(table_answers, table_abstract, table_hypotheses)
+        table_paper = Path(
+            run_ok(
+                propose_command(
+                    table_root,
+                    "Escaped Table Paper",
+                    table_abstract,
+                    table_hypotheses,
+                    table_answers,
+                )
+            ).stdout.strip()
+        )
+        run_ok([sys.executable, script("check_closed_loop_paper.py"), str(table_paper), "--phase", "draft"])
+        run_ok([sys.executable, script("pipeline.py"), str(table_root), "--strict"])
+        run_ok([sys.executable, script("combine_papers.py"), str(table_root), "--last", "1"])
+
+        schema_root = project / "schema-gate" / ".paper-stack"
+        init(schema_root, "Schema Gate")
+        schema_paper = create_edge_paper(schema_root, "Schema Gate Bypass")
+        schema_config = schema_root / "config" / "loop-paper.json"
+        schema_payload = json.loads(schema_config.read_text(encoding="utf-8"))
+        schema_payload["proposal_gate"] = {"required_from": "PAPER-0001"}
+        schema_config.write_text(json.dumps(schema_payload, indent=2) + "\n", encoding="utf-8")
+        schema_paper.write_text(
+            schema_paper.read_text(encoding="utf-8")
+            .replace("paper_kind: closed_loop", "paper_kind: review\nreview_targets: PAPER-0001", 1),
+            encoding="utf-8",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("check_closed_loop_paper.py"),
+                str(schema_paper),
+                "--phase",
+                "structural",
+            ],
+            "missing proposal_record",
+        )
+
+        force_root = project / "force-gate" / ".paper-stack"
+        init(force_root, "Force Gate")
+        force_paper = create_edge_paper(force_root, "Force Accepted Bypass")
+        run_fail(
+            [
+                sys.executable,
+                script("transition_paper.py"),
+                str(force_paper),
+                "Accepted",
+                "--force",
+            ],
+            "--force cannot bypass gates into Accepted",
+        )
+
+        race_root = project / "race-gate" / ".paper-stack"
+        init(race_root, "Race Gate")
+        first_answers = race_root / "inbox" / "race-one.json"
+        second_answers = race_root / "inbox" / "race-two.json"
+        proposal_answers(first_answers, "Race one framing.", ["Race one first", "Race one second"])
+        proposal_answers(second_answers, "Race two framing.", ["Race two first", "Race two second"])
+        commands = [
+            propose_command(
+                race_root,
+                "Race One",
+                "Race one framing.",
+                ["Race one first", "Race one second"],
+                first_answers,
+            ),
+            propose_command(
+                race_root,
+                "Race Two",
+                "Race two framing.",
+                ["Race two first", "Race two second"],
+                second_answers,
+            ),
+        ]
+        processes = [
+            subprocess.Popen(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            for command in commands
+        ]
+        outputs = [process.communicate(timeout=20) + (process.returncode,) for process in processes]
+        for stdout, stderr, returncode in outputs:
+            if returncode != 0:
+                raise SystemExit(f"Concurrent proposal failed:\n{stdout}{stderr}")
+        paper_ids = sorted(path.name.split("-", 2)[1] for path in race_root.glob("papers/PAPER-*.html"))
+        if paper_ids != ["0001", "0002"]:
+            raise SystemExit(f"Concurrent proposal allocation did not produce unique IDs: {paper_ids}")
+        proposal_ids = sorted(path.name.removeprefix("PROPOSAL-PAPER-").removesuffix(".json") for path in race_root.glob("proposals/PROPOSAL-PAPER-*.json"))
+        if proposal_ids != ["0001", "0002"]:
+            raise SystemExit(f"Concurrent proposal records did not preserve unique IDs: {proposal_ids}")
+
+
 def ensure_guard_hook() -> None:
     with tempfile.TemporaryDirectory(prefix="loop-paper-hook-") as tmp:
         project = Path(tmp)
@@ -961,25 +1322,47 @@ def ensure_guard_hook() -> None:
         ]
         if not any("guard_paper_loop.py" in command for command in commands):
             raise SystemExit("init did not register the guard hook in .claude/settings.json")
+        if sys.executable not in " ".join(commands):
+            raise SystemExit("guard hook registration did not use the current Python executable")
+        if not any("Bash" in entry.get("matcher", "") for entry in settings.get("hooks", {}).get("PreToolUse", [])):
+            raise SystemExit("guard hook registration did not include Bash in the matcher")
 
-        def guard(file_path: Path) -> subprocess.CompletedProcess[str]:
+        def guard_payload(tool_input: dict, tool_name: str = "Write") -> subprocess.CompletedProcess[str]:
             return subprocess.run(
                 [sys.executable, str(hook)],
-                input=json.dumps({"tool_input": {"file_path": str(file_path)}}),
+                input=json.dumps({"tool_name": tool_name, "tool_input": tool_input}),
                 text=True,
                 capture_output=True,
                 check=False,
+                env={**os.environ, "CLAUDE_PROJECT_DIR": str(project)},
             )
+
+        def guard(file_path: Path) -> subprocess.CompletedProcess[str]:
+            return guard_payload({"file_path": str(file_path)})
 
         blocked = guard(project / "src" / "app.py")
         if blocked.returncode != 2 or "Blocked by loop-paper" not in blocked.stderr:
             raise SystemExit("guard hook did not block edits without an open paper")
-        if guard(root / "papers" / "PAPER-0001-x.html").returncode != 0:
-            raise SystemExit("guard hook blocked an edit inside the paper stack")
+        protected = guard(root / "papers" / "PAPER-0001-x.html")
+        if protected.returncode != 2 or "protected paper-stack artifact" not in protected.stderr:
+            raise SystemExit("guard hook did not block protected stack artifact edits without an open paper")
+        if guard(root / "inbox" / "note.txt").returncode != 0:
+            raise SystemExit("guard hook blocked a non-protected edit inside the paper stack")
+        notebook = guard_payload({"notebook_path": str(project / "notebooks" / "analysis.ipynb")}, "NotebookEdit")
+        if notebook.returncode != 2:
+            raise SystemExit("guard hook did not block NotebookEdit without an open paper")
+        bash = guard_payload({"command": "echo hacked > src/app.py"}, "Bash")
+        if bash.returncode != 2:
+            raise SystemExit("guard hook did not block an obvious Bash write without an open paper")
+        bash_read = guard_payload({"command": "python3 -m pytest --version"}, "Bash")
+        if bash_read.returncode != 0:
+            raise SystemExit("guard hook blocked a Bash command with no obvious write target")
         disable_proposal_gate(root)
         create_edge_paper(root, "Open Paper")
         if guard(project / "src" / "app.py").returncode != 0:
             raise SystemExit("guard hook blocked edits while a paper is open")
+        if guard_payload({"command": "echo ok > src/app.py"}, "Bash").returncode != 0:
+            raise SystemExit("guard hook blocked Bash writes while a paper is open")
         # Re-running init must not duplicate the hook registration.
         run_ok(
             [
@@ -1001,6 +1384,55 @@ def ensure_guard_hook() -> None:
         ]
         if sum("guard_paper_loop.py" in command for command in commands) != 1:
             raise SystemExit("re-running init duplicated the guard hook registration")
+        nested_project = project / "nested-project"
+        nested_root = nested_project / "sub" / "workspace" / ".paper-stack"
+        nested_project.mkdir()
+        run_ok_cwd(["git", "init"], nested_project)
+        run_ok_cwd(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(nested_root),
+                "--project-name",
+                "Nested Guard Hook Edge",
+                "--date",
+                "2026-06-10",
+            ],
+            nested_project,
+        )
+        nested_settings = nested_project / ".claude" / "settings.json"
+        misplaced_settings = nested_root.parent / ".claude" / "settings.json"
+        if not nested_settings.is_file() or misplaced_settings.exists():
+            raise SystemExit("nested root hook registration did not target the git project root")
+        nested_payload = json.loads(nested_settings.read_text(encoding="utf-8"))
+        nested_commands = [
+            entry["command"]
+            for matcher in nested_payload.get("hooks", {}).get("PreToolUse", [])
+            for entry in matcher.get("hooks", [])
+        ]
+        if not any("sub/workspace/.paper-stack/hooks/guard_paper_loop.py" in command for command in nested_commands):
+            raise SystemExit("nested root hook command is not project-relative")
+        invalid_settings_project = project / "invalid-settings"
+        invalid_root = invalid_settings_project / ".paper-stack"
+        (invalid_settings_project / ".claude").mkdir(parents=True)
+        (invalid_settings_project / ".claude" / "settings.json").write_text(
+            json.dumps({"hooks": {"PreToolUse": {"not": "a list"}}}) + "\n",
+            encoding="utf-8",
+        )
+        run_fail(
+            [
+                sys.executable,
+                script("init_loop_paper.py"),
+                "--root",
+                str(invalid_root),
+                "--project-name",
+                "Invalid Settings Hook Edge",
+                "--date",
+                "2026-06-10",
+            ],
+            "Expected hooks.PreToolUse to be a JSON array",
+        )
 
 
 def ensure_propose_paper_rejections() -> None:
@@ -1208,6 +1640,98 @@ def ensure_attestation_gates() -> None:
         )
         paper.write_text(text, encoding="utf-8")
         run_ok([sys.executable, script("check_closed_loop_paper.py"), str(paper), "--phase", "after"])
+
+        edge_record = root / "runs" / "RUN-2026-06-10-PAPER-0001-edge.md"
+        edge_record_text = edge_record.read_text(encoding="utf-8")
+        if "attestation: loop_paper.run_attestation.v2" not in edge_record_text:
+            raise SystemExit("execute_run.py did not write a v2 run attestation")
+        edge_record.write_text(
+            re.sub(r"^command: .*$", "command: fabricated", edge_record_text, count=1, flags=re.MULTILINE),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(paper), "--phase", "after"],
+            "attestation digest mismatch in run record RUN-2026-06-10-PAPER-0001-edge",
+        )
+        edge_record.write_text(edge_record_text, encoding="utf-8")
+
+        run_ok(
+            [
+                sys.executable,
+                script("execute_run.py"),
+                "--root",
+                str(root),
+                "--paper",
+                "PAPER-0001",
+                "--label",
+                "failing",
+                "--date",
+                "2026-06-10",
+                "--",
+                sys.executable,
+                "-c",
+                "print('failing run'); raise SystemExit(3)",
+            ]
+        )
+        paper.write_text(
+            text.replace(
+                "- 2026-06-10 Attested evidence: RUN-2026-06-10-PAPER-0001-edge",
+                "- 2026-06-10 Failing evidence: RUN-2026-06-10-PAPER-0001-failing",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        run_fail(
+            [sys.executable, script("check_closed_loop_paper.py"), str(paper), "--phase", "after"],
+            "run record RUN-2026-06-10-PAPER-0001-failing has nonzero exit_code: 3",
+        )
+        paper.write_text(text, encoding="utf-8")
+
+        run_ok(
+            [
+                sys.executable,
+                script("execute_run.py"),
+                "--root",
+                str(root),
+                "--paper",
+                "PAPER-0001",
+                "--label",
+                "separator",
+                "--date",
+                "2026-06-10",
+                "--",
+                sys.executable,
+                "-c",
+                "import sys; print(sys.argv[1:])",
+                "--",
+                "kept",
+            ]
+        )
+        separator_text = (root / "runs" / "RUN-2026-06-10-PAPER-0001-separator.md").read_text(encoding="utf-8")
+        if " -- kept" not in separator_text or "['--', 'kept']" not in separator_text:
+            raise SystemExit("execute_run.py did not preserve command separator arguments")
+
+        run_ok(
+            [
+                sys.executable,
+                script("execute_run.py"),
+                "--root",
+                str(root),
+                "--paper",
+                "PAPER-0001",
+                "--label",
+                "binary",
+                "--date",
+                "2026-06-10",
+                "--",
+                sys.executable,
+                "-c",
+                "import sys; sys.stdout.buffer.write(b'\\xff')",
+            ]
+        )
+        binary_text = (root / "runs" / "RUN-2026-06-10-PAPER-0001-binary.md").read_text(encoding="utf-8")
+        if "\ufffd" not in binary_text:
+            raise SystemExit("execute_run.py did not replacement-decode non-UTF-8 output")
 
         unchecked_todo = text.replace(
             "- [x] Recorded: first implementation step tied to a hypothesis",
@@ -1427,7 +1951,10 @@ def ensure_interaction_review_gate() -> None:
 
 
 def main() -> int:
+    ensure_artifact_integrity_roundtrips()
+    ensure_workflow_docs_are_current()
     ensure_proposal_gate_enforcement()
+    ensure_deterministic_gate_hardening()
     ensure_guard_hook()
     ensure_propose_paper_rejections()
     ensure_interaction_review_gate()
@@ -1435,6 +1962,7 @@ def main() -> int:
     ensure_failure_proof_gates()
     ensure_validator_ignores_local_paper_stack()
     ensure_validator_rejects_malformed_skill_frontmatter()
+    ensure_validator_handles_missing_git()
     ensure_installed_payload_validates()
     ensure_installer_rejects_recursive_destinations()
     ensure_installer_rejects_file_parent()
@@ -1861,7 +2389,9 @@ def main() -> int:
                 ]
             ).stdout.strip()
         )
-        escaped_text = escaped.read_text(encoding="utf-8")
+        from paper_html import read_paper_text
+
+        escaped_text = read_paper_text(escaped)
         if "| H1 | Pipe \\| claim with newline |" not in escaped_text:
             raise SystemExit("Generated hypothesis table did not escape pipe/newline input")
         if "| 2026-06-10 | Finding \\| data second line |" not in escaped_text:

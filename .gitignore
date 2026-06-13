@@ -25,3 +25,4 @@ Thumbs.db
 *.p12
 credentials.json
 secrets.json
+.gstack/

@@ -6,16 +6,23 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from paper_html import extract_paper_source, wrap_paper_source
+from paper_html import read_paper_text, write_paper_text
 from paperstack_common import paper_paths
+
+
+def read_raw_text(path: Path) -> str:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return handle.read()
 
 
 def refresh(root: Path) -> int:
     for path in paper_paths(root):
         if path.suffix != ".html":
             continue
-        source = extract_paper_source(path.read_text(encoding="utf-8"))
-        path.write_text(wrap_paper_source(source), encoding="utf-8")
+        source = read_paper_text(path)
+        write_paper_text(path, source)
+        if read_paper_text(path) != source:
+            raise SystemExit(f"Lossless refresh failed for {path.name}; aborting")
         print(f"refreshed {path.name}")
     return 0
 
@@ -28,13 +35,13 @@ def convert(root: Path, *, dry_run: bool) -> int:
         target = path.with_suffix(".html")
         if target.exists():
             raise SystemExit(f"Refusing to overwrite existing paper: {target}")
-        source = extract_paper_source(path.read_text(encoding="utf-8"))
+        source = read_raw_text(path)
         if dry_run:
             print(f"would-convert {path.name} -> {target.name}")
             converted += 1
             continue
-        target.write_text(wrap_paper_source(source), encoding="utf-8")
-        if extract_paper_source(target.read_text(encoding="utf-8")) != source:
+        write_paper_text(target, source)
+        if read_paper_text(target) != source:
             target.unlink()
             raise SystemExit(f"Lossless roundtrip failed for {path.name}; aborting")
         path.unlink()

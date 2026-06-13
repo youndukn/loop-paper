@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from datetime import date
 from pathlib import Path
@@ -16,6 +17,7 @@ from paperstack_common import (
     markdown_inline,
     markdown_table_cell,
     next_paper_id,
+    paper_id_lock,
     paper_paths,
     paper_id_from_path,
     proposal_gate_applies,
@@ -58,6 +60,28 @@ def reference_paper_ids(references: list[str], *, paper_id: str, known_ids: set[
     if missing:
         raise SystemExit("Reference list contains unknown paper IDs: " + ", ".join(missing))
     return ids
+
+
+def validate_proposal_record_for_paper(
+    *, root: Path, proposal_record: str, paper_id: str, title: str
+) -> None:
+    path = root / proposal_record
+    if not path.is_file():
+        raise SystemExit(f"Missing proposal record file: {path}")
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise SystemExit(f"Proposal record is invalid JSON: {error.msg}") from error
+    if not isinstance(record, dict):
+        raise SystemExit("Proposal record must be a JSON object")
+    if record.get("paper_id") != paper_id:
+        raise SystemExit(
+            f"Proposal record paper_id mismatch: expected {paper_id}, got {record.get('paper_id')!r}"
+        )
+    if record.get("title") != title:
+        raise SystemExit(
+            f"Proposal record title mismatch: expected {title!r}, got {record.get('title')!r}"
+        )
 
 
 def render_paper(
@@ -266,14 +290,30 @@ def create_paper(
     slug: str | None = None,
     abstract: str | None = None,
     proposal_record: str | None = None,
+    paper_id: str | None = None,
+    lock: bool = True,
 ) -> Path:
     paper_date = validate_iso_date(paper_date)
     if min_hypotheses < 2:
         raise SystemExit("--min-hypotheses must be >= 2 for paper_closed_loop.v3")
-    if proposal_record and not (root / proposal_record).is_file():
-        raise SystemExit(f"Missing proposal record file: {root / proposal_record}")
-
     papers_dir = root / "papers"
+    if lock:
+        paper_paths(root)
+        with paper_id_lock(papers_dir):
+            return create_paper(
+                root=root,
+                title=title,
+                hypotheses=hypotheses,
+                findings=findings,
+                references=references,
+                paper_date=paper_date,
+                min_hypotheses=min_hypotheses,
+                slug=slug,
+                abstract=abstract,
+                proposal_record=proposal_record,
+                paper_id=paper_id,
+                lock=False,
+            )
     existing_paths = paper_paths(root)
     pending = []
     for existing in existing_paths:
@@ -286,15 +326,21 @@ def create_paper(
             "Ask the human to review the interaction (pipeline.py --open <id>), "
             "then record the answer with ack_interaction.py --status reviewed|waived."
         )
-    paper_id = next_paper_id(papers_dir)
+    title = validate_title(title)
+    paper_id = paper_id or next_paper_id(papers_dir)
+    known_ids = {paper_id_from_path(path) for path in existing_paths}
+    if paper_id in known_ids:
+        raise SystemExit(f"Paper ID already exists in stack: {paper_id}")
+    if proposal_record:
+        validate_proposal_record_for_paper(
+            root=root, proposal_record=proposal_record, paper_id=paper_id, title=title
+        )
     if not proposal_record and proposal_gate_applies(root, paper_id):
         raise SystemExit(
             f"{paper_id} requires a human-gated proposal in this stack; "
             "create it via propose_paper.py instead of new_closed_loop_paper.py"
         )
-    title = validate_title(title)
     slug = validate_slug(slug) if slug else slugify(title, fallback="closed-loop-paper")
-    known_ids = {paper_id_from_path(path) for path in existing_paths}
     reference_ids = reference_paper_ids(references, paper_id=paper_id, known_ids=known_ids)
     path = papers_dir / f"{paper_id}-{slug}.html"
     if path.exists():

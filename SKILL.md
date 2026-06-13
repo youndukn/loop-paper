@@ -40,11 +40,17 @@ The gate is enforced by scripts, not by convention. Stack config declares
 with `--seed-paper`): from that id on, `new_closed_loop_paper.py` refuses
 direct creation and the checker fails any closed-loop paper without a valid
 proposal record — so always create papers through `propose_paper.py`. Init
-also installs a Claude Code PreToolUse hook
+also installs a cooperative Claude Code PreToolUse hook
 (`<stack>/hooks/guard_paper_loop.py`, registered in the project's
 `.claude/settings.json`, opt out with `--no-claude-hook`) that blocks file
-edits while no paper is in an open status. If the hook blocks you, do not
-work around it: research findings, then run `propose_paper.py`.
+edits while no paper is in an open status. It covers Write/Edit/MultiEdit,
+NotebookEdit, and obvious Bash writes, but it is not a security sandbox. If
+the hook blocks you, do not work around it: research findings, then run
+`propose_paper.py`.
+
+Proposal records are local workflow artifacts. The checker validates that a
+paper matches its selected abstract, hypotheses, title, and paper ID; it does
+not cryptographically prove human origin in an agent-writable repository.
 
 After selection the loop is autonomous:
 `Draft -> Research Ready -> Plan Ready -> Implementing -> Implemented ->
@@ -57,7 +63,9 @@ paper citing the targets. It never blocks or modifies them.
 
 Proposal and review prompts share `--format cli|json|claude|codex|pi`
 (`claude` is AskUserQuestion-shaped JSON) and the `--prompt-out` /
-`--answers` two-phase flow.
+`--answers` two-phase flow. Answers JSON can be an object keyed by question
+id, or a list of `{ "id": "...", "answer": "..." }` objects; values must
+match option labels exactly.
 
 ## Abstract Contract
 
@@ -141,6 +149,16 @@ python3 scripts/init_loop_paper.py \
    #   --answers .paper-stack/inbox/proposal-answers.json
    ```
 
+   Example answers file:
+
+   ```json
+   {
+     "abstract": "Framing A ...",
+     "hypothesis_set": "Claim one | Claim two",
+     "gate": "Implement now"
+   }
+   ```
+
    `More abstraction` prints `reproposal_requested` and exits 2: draft a new
    round. `Implement now` writes the proposal record and the paper.
    `PAPER-NNNN` IDs in `--reference` become the `References:` line; unknown
@@ -154,11 +172,23 @@ python3 scripts/init_loop_paper.py \
      --phase before
    ```
 
-3. Implement only the active hypothesis.
+3. Move through the before-gated states, then implement only the active
+   hypothesis:
 
-4. Evidence comes from the attested executor — it runs the command and
-   writes the record (command, exit code, output digest). v3 papers reject
-   after-evidence without an attested record:
+   ```bash
+   python3 scripts/transition_paper.py \
+     .paper-stack/papers/PAPER-XXXX-title.html "Research Ready"
+   python3 scripts/transition_paper.py \
+     .paper-stack/papers/PAPER-XXXX-title.html "Plan Ready"
+   python3 scripts/transition_paper.py \
+     .paper-stack/papers/PAPER-XXXX-title.html Implementing
+   ```
+
+4. Evidence comes from `execute_run.py`, which runs the command and writes a
+   record containing command, exit code, output, and a local self-consistency
+   digest. This detects accidental tampering, but it is not a signature and
+   does not prove independent execution. v3 papers reject after-evidence
+   without a cited run record:
 
    ```bash
    python3 scripts/execute_run.py \
@@ -168,7 +198,16 @@ python3 scripts/init_loop_paper.py \
      -- python3 -m pytest
    ```
 
-   Record verdicts, run/fix records, and reference edges:
+   In `## Validation`, verdict bullets must use this exact shape:
+
+   ```markdown
+   - Supported: evidence reason with a RUN-* citation
+   - Failed: evidence reason with a RUN-* citation
+   - Inconclusive: evidence reason with a RUN-* citation
+   - Superseded: evidence reason with a RUN-* citation
+   ```
+
+   Record run/fix records in `## Execution Records`, plus reference edges:
 
    ```text
    References: PAPER-0001
@@ -188,6 +227,17 @@ python3 scripts/init_loop_paper.py \
      --phase after
 
    python3 scripts/pipeline.py .paper-stack --open PAPER-XXXX
+   ```
+
+   If the after gate passes, close through the positive states:
+
+   ```bash
+   python3 scripts/transition_paper.py \
+     .paper-stack/papers/PAPER-XXXX-title.html Implemented
+   python3 scripts/transition_paper.py \
+     .paper-stack/papers/PAPER-XXXX-title.html "AI Validated"
+   python3 scripts/transition_paper.py \
+     .paper-stack/papers/PAPER-XXXX-title.html Accepted
    ```
 
    The pipeline enforces the phase gates on every run: papers in `Draft` or
@@ -265,6 +315,7 @@ Failed/Inconclusive/Superseded verdict with its evidence reason);
 ## References
 ## Implementation Plan
 ## Validation Plan
+## Execution Records
 ## Validation
 ## Agent Review
 ## Impact Score
@@ -280,7 +331,7 @@ Failed/Inconclusive/Superseded verdict with its evidence reason);
 - `scripts/new_closed_loop_paper.py`: Create a hypothesis-first paper.
 - `scripts/convert_papers.py`: Convert markdown papers to HTML containers (lossless, verified roundtrip).
 - `scripts/ack_interaction.py`: Record the human's interaction-review decision on an interactive paper.
-- `scripts/execute_run.py`: Execute a validation command and write an attested run record (command, exit code, output digest).
+- `scripts/execute_run.py`: Execute a validation command and write a run record (command, exit code, output, self-consistency digest).
 - `scripts/new_review_paper.py`: Create a review paper from structured multiple-choice answers.
 - `scripts/prompt_common.py`: Shared prompt rendering and answer loading.
 - `scripts/paper_html.py`: HTML paper container — canonical markdown source embedded in a self-rendering interactive HTML file.

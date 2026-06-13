@@ -29,6 +29,7 @@ from paperstack_common import (
 
 BEFORE_PHASE_TARGETS = {"Plan Ready", "Implementing", "Implemented"}
 AFTER_PHASE_TARGETS = {"AI Validated", "Accepted"}
+FORCE_FORBIDDEN_TARGETS = {"AI Validated", "Accepted"}
 RESEARCH_READY_TARGETS = {"Research Ready", "Plan Ready", "Implementing", "Implemented", "AI Validated", "Accepted"}
 
 
@@ -115,6 +116,9 @@ def main() -> int:
     paper = load_paper(path)
     current = paper["status"]
     target = args.status
+    if args.force and target != current and target in FORCE_FORBIDDEN_TARGETS:
+        print(f"FAIL --force cannot bypass gates into {target}", file=sys.stderr)
+        return 1
     allowed = ALLOWED_TRANSITIONS.get(current, set())
     if target != current and target not in allowed and not args.force:
         print(f"FAIL invalid transition: {current} -> {target}", file=sys.stderr)

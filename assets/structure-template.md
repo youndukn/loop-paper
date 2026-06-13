@@ -66,8 +66,8 @@ Before closing a work loop, run:
 
 ```bash
 python3 /path/to/loop-paper/scripts/check_closed_loop_paper.py \
-  .paper-stack/papers/PAPER-NNNN-title.md \
+  .paper-stack/papers/PAPER-NNNN-title.html \
   --phase after
 
-python3 /path/to/loop-paper/scripts/pipeline.py .paper-stack
+python3 /path/to/loop-paper/scripts/pipeline.py .paper-stack --open PAPER-NNNN
 ```

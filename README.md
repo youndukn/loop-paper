@@ -8,6 +8,14 @@ direct wording. Everything that would drift is a deterministic script.
 
 ## Install
 
+Requires Python 3.10+.
+
+One-command install:
+
+```bash
+npx skills add youndukn/loop-paper
+```
+
 Clone the repository:
 
 ```bash
@@ -57,6 +65,10 @@ python3 ~/.codex/skills/loop-paper/scripts/init_loop_paper.py \
 `--seed-paper` creates `PAPER-0001` only when the stack has no papers yet. It
 is safe to rerun the initializer; existing stacks report
 `"seed_paper_skipped": true` instead of creating duplicate seed papers.
+By default, init also installs a cooperative Claude Code PreToolUse hook in
+`.claude/settings.json`; use `--no-claude-hook` to skip it. The hook blocks
+Write/Edit/MultiEdit, NotebookEdit, and obvious Bash writes while no paper is
+open. It is a workflow guardrail, not a security sandbox.
 
 Research first, capture the baseline, then propose. The human's selection is
 the loop's source of truth. At least one `--finding` is required:
@@ -79,8 +91,22 @@ python3 ~/.codex/skills/loop-paper/scripts/propose_paper.py \
 
 The selection is persisted in `proposals/`; the checker rejects drift.
 `More abstraction` exits 2 and requests a new round.
+Proposal records are local workflow artifacts: the checker validates that the
+paper matches the selected abstract, hypotheses, title, and paper ID, but this
+is not cryptographic proof of human origin in an agent-writable repository.
+An answers JSON file can be keyed by question id:
 
-Direct creation, only when the human stated the hypothesis verbatim:
+```json
+{
+  "abstract": "Framing A ...",
+  "hypothesis_set": "Claim one | Claim two",
+  "gate": "Implement now"
+}
+```
+
+Direct creation is only for stacks whose proposal gate allows it, or when the
+human stated the hypothesis verbatim before a gate applies. Fresh initialized
+stacks gate from `PAPER-0001`, so use `propose_paper.py` there.
 
 ```bash
 python3 ~/.codex/skills/loop-paper/scripts/new_closed_loop_paper.py \
@@ -102,8 +128,20 @@ python3 ~/.codex/skills/loop-paper/scripts/check_closed_loop_paper.py \
   --phase before
 ```
 
-Evidence comes from the attested executor (command, exit code, output
-digest — not hand-authored):
+Move through the before-gated states before implementation:
+
+```bash
+python3 ~/.codex/skills/loop-paper/scripts/transition_paper.py \
+  .paper-stack/papers/PAPER-0002-short-work-unit-title.html "Research Ready"
+python3 ~/.codex/skills/loop-paper/scripts/transition_paper.py \
+  .paper-stack/papers/PAPER-0002-short-work-unit-title.html "Plan Ready"
+python3 ~/.codex/skills/loop-paper/scripts/transition_paper.py \
+  .paper-stack/papers/PAPER-0002-short-work-unit-title.html Implementing
+```
+
+Evidence comes from `execute_run.py`. The run record stores command, exit
+code, output, and a self-consistency digest over those fields. This detects accidental
+tampering; it is not a signature or proof of independent execution:
 
 ```bash
 python3 ~/.codex/skills/loop-paper/scripts/execute_run.py \
@@ -112,6 +150,10 @@ python3 ~/.codex/skills/loop-paper/scripts/execute_run.py \
   --label suites \
   -- python3 -m pytest
 ```
+
+After validation, add `## Validation` verdict bullets with the exact prefix
+format `- Supported: ...`, `- Failed: ...`, `- Inconclusive: ...`, or
+`- Superseded: ...`, and list cited files in `## Execution Records`.
 
 Then check the after phase, run the pipeline gate, and open the dashboard at
 the new paper — every paper write ends on its page:
@@ -122,6 +164,17 @@ python3 ~/.codex/skills/loop-paper/scripts/check_closed_loop_paper.py \
   --phase after
 
 python3 ~/.codex/skills/loop-paper/scripts/pipeline.py .paper-stack --open PAPER-0002
+```
+
+If the after gate passes, close through the positive states:
+
+```bash
+python3 ~/.codex/skills/loop-paper/scripts/transition_paper.py \
+  .paper-stack/papers/PAPER-0002-short-work-unit-title.html Implemented
+python3 ~/.codex/skills/loop-paper/scripts/transition_paper.py \
+  .paper-stack/papers/PAPER-0002-short-work-unit-title.html "AI Validated"
+python3 ~/.codex/skills/loop-paper/scripts/transition_paper.py \
+  .paper-stack/papers/PAPER-0002-short-work-unit-title.html Accepted
 ```
 
 The pipeline rejects advanced-status papers that do not satisfy their phase

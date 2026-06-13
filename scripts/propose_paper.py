@@ -17,7 +17,7 @@ from datetime import date
 from pathlib import Path
 
 from new_closed_loop_paper import create_paper
-from paperstack_common import next_paper_id, paper_paths, validate_iso_date, validate_title
+from paperstack_common import next_paper_id, paper_id_lock, paper_paths, validate_iso_date, validate_title
 from prompt_common import RENDERERS, collect_cli, load_answers, render_prompts
 
 
@@ -95,6 +95,7 @@ def collect_cli_with_note(questions: list[dict]) -> dict:
 def write_proposal_record(
     *,
     root: Path,
+    paper_id: str,
     title: str,
     paper_date: str,
     abstracts: list[str],
@@ -102,11 +103,8 @@ def write_proposal_record(
     answers: dict,
     chosen_set: list[str],
 ) -> str:
-    paper_id = next_paper_id(root / "papers")
     relative = f"proposals/PROPOSAL-{paper_id}.json"
     path = root / relative
-    if path.exists():
-        raise SystemExit(f"Refusing to overwrite existing proposal record: {path}")
     payload = {
         "schema": PROPOSAL_SCHEMA,
         "paper_id": paper_id,
@@ -116,7 +114,11 @@ def write_proposal_record(
         "chosen": {"abstract": answers["abstract"], "hypotheses": chosen_set},
     }
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    try:
+        with path.open("x", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps(payload, indent=2) + "\n")
+    except FileExistsError as error:
+        raise SystemExit(f"Refusing to overwrite existing proposal record: {path}") from error
     return relative
 
 
@@ -196,30 +198,35 @@ def main() -> int:
 
     set_labels = [set_label(items) for items in sets]
     chosen_set = sets[set_labels.index(answers["hypothesis_set"])]
-    record = write_proposal_record(
-        root=args.root,
-        title=title,
-        paper_date=args.date,
-        abstracts=abstracts,
-        sets=sets,
-        answers=answers,
-        chosen_set=chosen_set,
-    )
-    try:
-        path = create_paper(
+    with paper_id_lock(args.root / "papers"):
+        paper_id = next_paper_id(args.root / "papers")
+        record = write_proposal_record(
             root=args.root,
+            paper_id=paper_id,
             title=title,
-            hypotheses=chosen_set,
-            findings=findings,
-            references=clean_strings(args.reference),
             paper_date=args.date,
-            min_hypotheses=len(chosen_set),
-            abstract=answers["abstract"],
-            proposal_record=record,
+            abstracts=abstracts,
+            sets=sets,
+            answers=answers,
+            chosen_set=chosen_set,
         )
-    except BaseException:
-        (args.root / record).unlink(missing_ok=True)
-        raise
+        try:
+            path = create_paper(
+                root=args.root,
+                title=title,
+                hypotheses=chosen_set,
+                findings=findings,
+                references=clean_strings(args.reference),
+                paper_date=args.date,
+                min_hypotheses=len(chosen_set),
+                abstract=answers["abstract"],
+                proposal_record=record,
+                paper_id=paper_id,
+                lock=False,
+            )
+        except BaseException:
+            (args.root / record).unlink(missing_ok=True)
+            raise
     print(path)
     return 0
 

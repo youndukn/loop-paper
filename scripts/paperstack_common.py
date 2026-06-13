@@ -5,8 +5,11 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import re
+import time
 import unicodedata
+from contextlib import contextmanager
 from pathlib import Path
 
 from paper_html import (  # noqa: F401 (re-exported)
@@ -120,6 +123,27 @@ def paper_paths(root: Path) -> list[Path]:
     return sorted([*papers_dir.glob("PAPER-*.md"), *papers_dir.glob("PAPER-*.html")])
 
 
+@contextmanager
+def paper_id_lock(papers_dir: Path, *, timeout_seconds: float = 10.0):
+    lock_path = papers_dir.parent / ".paper-id.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    started = time.monotonic()
+    fd: int | None = None
+    while fd is None:
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode("ascii"))
+        except FileExistsError:
+            if time.monotonic() - started >= timeout_seconds:
+                raise SystemExit(f"Timed out waiting for paper ID allocation lock: {lock_path}")
+            time.sleep(0.05)
+    try:
+        yield
+    finally:
+        os.close(fd)
+        lock_path.unlink(missing_ok=True)
+
+
 def require_paper_file(path: Path) -> None:
     if not path.exists():
         raise SystemExit(f"Missing paper file: {path}")
@@ -153,7 +177,8 @@ def write_text_output(path: Path, text: str, *, label: str = "output") -> None:
     if blocked:
         raise SystemExit(f"Expected parent directory for {label}, got file: {blocked}")
     parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
 
 
 def refuse_papers_directory_output(root: Path, path: Path, *, label: str = "output") -> None:
@@ -354,9 +379,11 @@ def project_config(root: Path) -> dict:
         return {}
     try:
         config = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {}
-    return config if isinstance(config, dict) else {}
+    except json.JSONDecodeError as error:
+        raise SystemExit(f"Invalid project config JSON at {path}: {error.msg}") from error
+    if not isinstance(config, dict):
+        raise SystemExit(f"Project config must be a JSON object: {path}")
+    return config
 
 
 def paper_number(paper_id: str) -> int | None:
@@ -366,8 +393,19 @@ def paper_number(paper_id: str) -> int | None:
 
 def proposal_gate_start(root: Path) -> int | None:
     gate = project_config(root).get("proposal_gate")
-    required_from = gate.get("required_from") if isinstance(gate, dict) else None
-    return paper_number(str(required_from)) if required_from else None
+    if gate is None:
+        return None
+    if not isinstance(gate, dict):
+        raise SystemExit("proposal_gate must be a JSON object")
+    required_from = gate.get("required_from")
+    if not required_from:
+        return None
+    number = paper_number(str(required_from))
+    if number is None:
+        raise SystemExit(
+            f"proposal_gate.required_from must be PAPER-NNNN, got {required_from!r}"
+        )
+    return number
 
 
 def proposal_gate_applies(root: Path, paper_id: str) -> bool:

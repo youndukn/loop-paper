@@ -10,6 +10,7 @@ injected live, so papers can carry interactive explanations.
 from __future__ import annotations
 
 import re
+from html import escape as html_escape
 from pathlib import Path
 
 
@@ -53,8 +54,9 @@ function render(src){
   }
   return out.join('\n');
 }
+function sourceText(s){return s.replace(/<\\\/script/g,'</'+'script').replace(/\\\\/g,'\\');}
 const srcEl=document.getElementById('paper-source');
-document.getElementById('paper-body').innerHTML=render(srcEl.textContent.replace(/<\\\/script/g,'</'+'script').replace(/^\n/,''));
+document.getElementById('paper-body').innerHTML=render(sourceText(srcEl.textContent.replace(/^\n/,'')));
 const KEY='loop-paper:'+location.pathname;
 let saved={};try{saved=JSON.parse(localStorage.getItem(KEY)||'{}');}catch(e){}
 document.querySelectorAll('#paper-body input[type=checkbox]').forEach((el,i)=>{
@@ -83,11 +85,11 @@ code{background:#f3f5f8;border-radius:4px;padding:1px 4px;font-size:0.92em;}
 
 
 def escape_source(source: str) -> str:
-    return source.replace("</script", "<\\/script")
+    return source.replace("\\", "\\\\").replace("</script", "<\\/script")
 
 
 def unescape_source(source: str) -> str:
-    return source.replace("<\\/script", "</script")
+    return source.replace("<\\/script", "</script").replace("\\\\", "\\")
 
 
 def paper_title(source: str) -> str:
@@ -99,7 +101,7 @@ def wrap_paper_source(source: str) -> str:
     return (
         "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        f"<title>{paper_title(source)}</title>\n"
+        f"<title>{html_escape(paper_title(source), quote=False)}</title>\n"
         f"<style>{STYLE}</style>\n</head>\n<body>\n"
         f"{PAPER_SOURCE_OPEN}\n{escape_source(source)}\n{PAPER_SOURCE_CLOSE}\n"
         "<div id=\"paper-body\"></div>\n"
@@ -108,20 +110,44 @@ def wrap_paper_source(source: str) -> str:
 
 
 def is_wrapped(text: str) -> bool:
-    return PAPER_SOURCE_OPEN in text
+    return paper_source_bounds(text) is not None
+
+
+def paper_source_bounds(text: str) -> tuple[int, int] | None:
+    if not text.lstrip().lower().startswith("<!doctype html"):
+        return None
+    try:
+        start = text.index(PAPER_SOURCE_OPEN) + len(PAPER_SOURCE_OPEN)
+    except ValueError:
+        return None
+    prefix = text[:start].lower()
+    if "<head" not in prefix or "</head>" not in prefix or "<body" not in prefix:
+        return None
+    try:
+        end = text.index(PAPER_SOURCE_CLOSE, start)
+    except ValueError:
+        return None
+    return start, end
 
 
 def extract_paper_source(text: str) -> str:
-    if not is_wrapped(text):
+    bounds = paper_source_bounds(text)
+    if bounds is None:
         return text
-    start = text.index(PAPER_SOURCE_OPEN) + len(PAPER_SOURCE_OPEN)
-    end = text.index(PAPER_SOURCE_CLOSE, start)
-    return unescape_source(text[start:end].strip("\n") + "\n")
+    start, end = bounds
+    source = text[start:end]
+    if source.startswith("\n"):
+        source = source[1:]
+    if source.endswith("\n"):
+        source = source[:-1]
+    return unescape_source(source)
 
 
 def read_paper_text(path: Path) -> str:
-    return extract_paper_source(path.read_text(encoding="utf-8"))
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return extract_paper_source(handle.read())
 
 
 def write_paper_text(path: Path, source: str) -> None:
-    path.write_text(wrap_paper_source(source), encoding="utf-8")
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(wrap_paper_source(source))

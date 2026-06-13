@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import re
+import shlex
 from pathlib import Path
 
 from check_paper import check_file, check_paths, result_details
@@ -44,7 +45,9 @@ V2_MIN_HYPOTHESES = 2
 V2_AFTER_BULLET_RATIO = 5
 RUN_POINTER_RE = re.compile(r"\bRUN-\d{4}-\d{2}-\d{2}-PAPER-\d{4}-[a-z0-9-]+\b")
 AFTER_BULLET_RE = re.compile(r"^\s*-\s+\d{4}-\d{2}-\d{2}\b", flags=re.MULTILINE)
-ATTESTATION_MARKER = "attestation: loop_paper.run_attestation.v1"
+ATTESTATION_SCHEMAS = {"loop_paper.run_attestation.v1", "loop_paper.run_attestation.v2"}
+ATTESTED_SCHEMA_RE = re.compile(r"^attestation: (loop_paper\.run_attestation\.v[12])$", flags=re.MULTILINE)
+ATTESTED_COMMAND_RE = re.compile(r"^command: (.*)$", flags=re.MULTILINE)
 ATTESTED_DIGEST_RE = re.compile(r"^output_sha256: ([0-9a-f]{64})$", flags=re.MULTILINE)
 ATTESTED_EXIT_RE = re.compile(r"^exit_code: (-?\d+)$", flags=re.MULTILINE)
 OUTPUT_FENCE_OPEN = "````text\n"
@@ -105,7 +108,8 @@ def table_data_rows(section_text: str) -> list[str]:
         stripped = line.strip()
         if not stripped.startswith("|"):
             continue
-        if "---" in stripped:
+        cells = table_cells(stripped)
+        if cells and all(re.fullmatch(r":?-{3,}:?", cell.replace(" ", "")) for cell in cells):
             continue
         if stripped.lower().startswith("| id ") or stripped.lower().startswith("| date "):
             continue
@@ -114,7 +118,29 @@ def table_data_rows(section_text: str) -> list[str]:
 
 
 def table_cells(row: str) -> list[str]:
-    return [cell.strip() for cell in row.strip().strip("|").split("|")]
+    body = row.strip()
+    if body.startswith("|"):
+        body = body[1:]
+    if body.endswith("|"):
+        body = body[:-1]
+    cells: list[str] = []
+    current: list[str] = []
+    index = 0
+    while index < len(body):
+        char = body[index]
+        if char == "\\" and index + 1 < len(body) and body[index + 1] == "|":
+            current.append("\\|")
+            index += 2
+            continue
+        if char == "|":
+            cells.append("".join(current).strip())
+            current = []
+            index += 1
+            continue
+        current.append(char)
+        index += 1
+    cells.append("".join(current).strip())
+    return cells
 
 
 def non_checkbox_lines(text: str) -> list[str]:
@@ -374,8 +400,9 @@ def proposal_errors(path: Path, text: str, rows: list[str]) -> list[str]:
     metadata, _ = parse_frontmatter(text)
     record_value = metadata.get("proposal_record")
     if not record_value:
-        if metadata.get("paper_kind", "closed_loop") == "closed_loop" and proposal_gate_applies(
-            paper_root_from_path(path), paper_id_from_path(path)
+        if (
+            (metadata.get("paper_kind", "closed_loop") == "closed_loop" or detect_schema(text))
+            and proposal_gate_applies(paper_root_from_path(path), paper_id_from_path(path))
         ):
             return [
                 "missing proposal_record: this stack requires human-gated proposals; "
@@ -393,6 +420,18 @@ def proposal_errors(path: Path, text: str, rows: list[str]) -> list[str]:
         record = json.loads(record_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
         return errors + [f"proposal record is invalid JSON: {error.msg}"]
+    if not isinstance(record, dict):
+        return errors + ["proposal record must be a JSON object"]
+    paper_id = paper_id_from_path(path)
+    if record.get("paper_id") != paper_id:
+        errors.append(
+            f"proposal record paper_id mismatch: expected {paper_id}, got {record.get('paper_id')!r}"
+        )
+    title = metadata.get("title")
+    if record.get("title") != title:
+        errors.append(
+            f"proposal record title mismatch: expected {title!r}, got {record.get('title')!r}"
+        )
     chosen = record.get("chosen") if isinstance(record, dict) else None
     if not isinstance(chosen, dict) or "abstract" not in chosen or "hypotheses" not in chosen:
         return errors + ["proposal record must contain chosen.abstract and chosen.hypotheses"]
@@ -419,20 +458,49 @@ def after_section_bullet_count(text: str) -> int:
 
 def attested_record_errors(name: str, record_text: str) -> list[str]:
     errors: list[str] = []
-    if ATTESTATION_MARKER not in record_text:
+    schema_match = ATTESTED_SCHEMA_RE.search(record_text)
+    if not schema_match or schema_match.group(1) not in ATTESTATION_SCHEMAS:
         return [f"run record {name} is not attested (missing attestation marker)"]
+    schema = schema_match.group(1)
+    command_match = ATTESTED_COMMAND_RE.search(record_text)
+    if not command_match:
+        errors.append(f"run record {name} is missing command")
     digest_match = ATTESTED_DIGEST_RE.search(record_text)
     if not digest_match:
         errors.append(f"run record {name} is missing output_sha256")
-    if not ATTESTED_EXIT_RE.search(record_text):
+    exit_match = ATTESTED_EXIT_RE.search(record_text)
+    if not exit_match:
         errors.append(f"run record {name} is missing exit_code")
+    elif int(exit_match.group(1)) != 0:
+        errors.append(f"run record {name} has nonzero exit_code: {exit_match.group(1)}")
     open_index = record_text.find(OUTPUT_FENCE_OPEN)
     close_index = record_text.rfind(OUTPUT_FENCE_CLOSE)
     if open_index == -1 or close_index <= open_index:
         errors.append(f"run record {name} is missing the attested output block")
     elif digest_match:
         output = record_text[open_index + len(OUTPUT_FENCE_OPEN) : close_index]
-        if hashlib.sha256(output.encode("utf-8")).hexdigest() != digest_match.group(1):
+        if schema == "loop_paper.run_attestation.v1":
+            expected = hashlib.sha256(output.encode("utf-8")).hexdigest()
+        elif command_match and exit_match:
+            try:
+                command = shlex.split(command_match.group(1))
+            except ValueError as error:
+                errors.append(f"run record {name} command is not shell-parseable: {error}")
+                command = []
+            payload = json.dumps(
+                {
+                    "command": command,
+                    "exit_code": int(exit_match.group(1)),
+                    "output": output,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            expected = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        else:
+            expected = ""
+        if expected and expected != digest_match.group(1):
             errors.append(f"attestation digest mismatch in run record {name}")
     return errors
 
@@ -564,7 +632,11 @@ def validate_paper(path: Path, phase: str) -> list[str]:
         validation = section(text, "Validation")
         errors.extend(validation_section_errors(validation))
         if not VERDICT_BULLET_RE.search(validation):
-            errors.append("after phase incomplete: no hypothesis verdict recorded")
+            errors.append(
+                "after phase incomplete: no hypothesis verdict recorded; "
+                "add a '- Supported: ...', '- Failed: ...', '- Inconclusive: ...', "
+                "or '- Superseded: ...' bullet"
+            )
         errors.extend(hypothesis_ledger_verdict_errors(rows))
         if missing_checked_labels(validation, VALIDATION_CHECKBOXES):
             errors.append("after phase incomplete: validation evidence checkbox is not checked")
